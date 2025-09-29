@@ -15,8 +15,7 @@ namespace ViewTracker.Commands
         public override void Execute()
         {
             var document = UiDocument.Document;
-            
-            // Check if ViewTracker parameter is enabled
+
             if (!IsViewTrackingEnabled(document))
             {
                 TaskDialog.Show("ViewTracker", "ViewTracker parameter must be set to Yes to initialize views.");
@@ -25,14 +24,13 @@ namespace ViewTracker.Commands
 
             try
             {
-                var views = GetAllNonTemplateViews(document);
+                var views = GetAllTrackedViews(document);
                 var fileName = System.IO.Path.GetFileNameWithoutExtension(document.PathName);
                 if (string.IsNullOrEmpty(fileName))
                     fileName = document.Title;
 
-                Task.Run(async () => await InitializeViewsInDatabase(views, fileName));
-                
-                TaskDialog.Show("ViewTracker", $"Initializing {views.Count} views in database...");
+                Task.Run(async () => await InitializeAndCleanViewsInDatabase(views, fileName));
+                TaskDialog.Show("ViewTracker", $"Updating {views.Count} tracked views and cleaning orphaned Supabase records...");
             }
             catch (Exception ex)
             {
@@ -40,22 +38,37 @@ namespace ViewTracker.Commands
             }
         }
 
-        private List<View> GetAllNonTemplateViews(Document document)
+        private List<View> GetAllTrackedViews(Document document)
         {
+            // Only include your specified view types (plus !IsTemplate)
+            var trackedTypes = new HashSet<ViewType>
+            {
+                ViewType.FloorPlan,
+                ViewType.CeilingPlan,
+                ViewType.Elevation,
+                ViewType.Section,
+                ViewType.ThreeD,
+                ViewType.Legend,
+                ViewType.Detail,
+                ViewType.Schedule,
+                ViewType.DrawingSheet
+            };
+
             return new FilteredElementCollector(document)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(v => !v.IsTemplate)
+                .Where(v => !v.IsTemplate && trackedTypes.Contains(v.ViewType))
                 .ToList();
         }
 
-        private async Task InitializeViewsInDatabase(List<View> views, string fileName)
+        private async Task InitializeAndCleanViewsInDatabase(List<View> views, string fileName)
         {
             try
             {
                 var supabaseService = new SupabaseService();
                 await supabaseService.InitializeAsync();
 
+                var currentUniqueIds = new HashSet<string>();
                 foreach (var view in views)
                 {
                     string viewName;
@@ -72,8 +85,7 @@ namespace ViewTracker.Commands
                         viewType = GetViewType(view);
                     }
 
-                    // CHANGED: Use InitializeViewAsync instead of UpsertViewActivationAsync
-                    await supabaseService.InitializeViewAsync(
+                    await supabaseService.InitializeOrUpdateViewAsync(
                         fileName,
                         view.UniqueId,
                         view.Id.ToString(),
@@ -81,11 +93,21 @@ namespace ViewTracker.Commands
                         viewType,
                         Environment.UserName
                     );
+
+                    currentUniqueIds.Add(view.UniqueId);
+                }
+
+                var allRecords = await supabaseService.GetViewActivationsByFileNameAsync(fileName);
+                var orphanRecords = allRecords.Where(r => !currentUniqueIds.Contains(r.ViewUniqueId)).ToList();
+
+                foreach (var orphan in orphanRecords)
+                {
+                    await supabaseService.DeleteViewActivationByUniqueIdAsync(orphan.ViewUniqueId);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error initializing views: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error initializing/cleaning views: {ex.Message}");
             }
         }
 
@@ -98,14 +120,10 @@ namespace ViewTracker.Commands
                 case ViewType.Elevation: return "Elevation";
                 case ViewType.Section: return "Section";
                 case ViewType.ThreeD: return "3D";
-                case ViewType.DrawingSheet: return "Sheet";
-                case ViewType.Schedule: return "Schedule";
-                case ViewType.DraftingView: return "Drafting";
                 case ViewType.Legend: return "Legend";
-                case ViewType.AreaPlan: return "Area Plan";
                 case ViewType.Detail: return "Detail";
-                case ViewType.Rendering: return "Rendering";
-                case ViewType.Walkthrough: return "Walkthrough";
+                case ViewType.Schedule: return "Schedule";
+                case ViewType.DrawingSheet: return "Sheet";
                 default: return view.ViewType.ToString();
             }
         }
@@ -116,7 +134,7 @@ namespace ViewTracker.Commands
             {
                 var projectInfo = document.ProjectInformation;
                 var parameter = projectInfo.LookupParameter("ViewTracker");
-                
+
                 if (parameter == null)
                     return false;
 

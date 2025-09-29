@@ -32,6 +32,6 @@ namespace ViewTracker
         public string CreatedAt { get; set; }
 
         [Column("activation_count")]
-        public int ActivationCount { get; set; } // NEW FIELD
+        public int ActivationCount { get; set; }
     }
 }

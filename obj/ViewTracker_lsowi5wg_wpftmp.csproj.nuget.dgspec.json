@@ -1,0 +1,99 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\yichao\\Documents\\VsCode\\Viewtracker\\ViewTracker.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\yichao\\Documents\\VsCode\\Viewtracker\\ViewTracker.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\Viewtracker\\ViewTracker.csproj",
+        "projectName": "ViewTracker",
+        "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\Viewtracker\\ViewTracker.csproj",
+        "packagesPath": "C:\\Users\\yichao\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\Viewtracker\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\yichao\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0-windows"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
+          "dependencies": {
+            "CommunityToolkit.Mvvm": {
+              "target": "Package",
+              "version": "[8.4.0, )"
+            },
+            "Nice3point.Revit.Api.RevitAPI": {
+              "target": "Package",
+              "version": "[2026.0.0, )"
+            },
+            "Nice3point.Revit.Api.RevitAPIUI": {
+              "target": "Package",
+              "version": "[2026.0.0, )"
+            },
+            "Nice3point.Revit.Build.Tasks": {
+              "target": "Package",
+              "version": "[3.0.1, )"
+            },
+            "Nice3point.Revit.Extensions": {
+              "target": "Package",
+              "version": "[2026.0.0, )"
+            },
+            "Nice3point.Revit.Toolkit": {
+              "target": "Package",
+              "version": "[2026.0.0, )"
+            },
+            "Supabase": {
+              "target": "Package",
+              "version": "[1.0.5, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            },
+            "Microsoft.WindowsDesktop.App.WPF": {
+              "privateAssets": "none"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
