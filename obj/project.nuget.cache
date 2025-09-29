@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "kXfNy7SXqjs=",
+  "dgSpecHash": "YX15m/BhD1c=",
   "success": true,
   "projectFilePath": "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj",
   "expectedPackageFiles": [
@@ -15,10 +15,10 @@
     "C:\\Users\\yichao\\.nuget\\packages\\microsoft.io.recyclablememorystream\\3.0.0\\microsoft.io.recyclablememorystream.3.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\mimemapping\\3.0.1\\mimemapping.3.0.1.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapi\\2026.3.0\\nice3point.revit.api.revitapi.2026.3.0.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapiui\\2026.3.0\\nice3point.revit.api.revitapiui.2026.3.0.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapi\\2026.0.4\\nice3point.revit.api.revitapi.2026.0.4.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapiui\\2026.0.4\\nice3point.revit.api.revitapiui.2026.0.4.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.build.tasks\\3.0.1\\nice3point.revit.build.tasks.3.0.1.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.extensions\\2026.0.1\\nice3point.revit.extensions.2026.0.1.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.extensions\\2026.0.0\\nice3point.revit.extensions.2026.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.toolkit\\2026.0.0\\nice3point.revit.toolkit.2026.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\supabase\\1.0.5\\supabase.1.0.5.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\supabase.core\\1.0.0\\supabase.core.1.0.0.nupkg.sha512",
@@ -32,5 +32,26 @@
     "C:\\Users\\yichao\\.nuget\\packages\\system.threading.channels\\8.0.0\\system.threading.channels.8.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\websocket.client\\5.1.1\\websocket.client.5.1.1.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "ViewTracker depends on Nice3point.Revit.Api.RevitAPI (>= 2026.0.0) but Nice3point.Revit.Api.RevitAPI 2026.0.0 was not found. An approximate best match of Nice3point.Revit.Api.RevitAPI 2026.0.4 was resolved.",
+      "libraryId": "Nice3point.Revit.Api.RevitAPI",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "ViewTracker depends on Nice3point.Revit.Api.RevitAPIUI (>= 2026.0.0) but Nice3point.Revit.Api.RevitAPIUI 2026.0.0 was not found. An approximate best match of Nice3point.Revit.Api.RevitAPIUI 2026.0.4 was resolved.",
+      "libraryId": "Nice3point.Revit.Api.RevitAPIUI",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    }
+  ]
 }

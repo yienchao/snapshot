@@ -45,19 +45,18 @@
     </PropertyGroup>
 
     <!-- Build configuration -->
-    <!-- https://github.com/Nice3point/Revit.Build.Tasks -->
     <PropertyGroup>
         <IsRepackable>false</IsRepackable>
         <DeployRevitAddin>true</DeployRevitAddin>
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- Revit References -->
+        <!-- Revit References - FIXED VERSION NUMBERS -->
         <PackageReference Include="Nice3point.Revit.Build.Tasks" Version="3.0.1" />
-        <PackageReference Include="Nice3point.Revit.Toolkit" Version="$(RevitVersion).*" />
-        <PackageReference Include="Nice3point.Revit.Extensions" Version="$(RevitVersion).*" />
-        <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
-        <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+        <PackageReference Include="Nice3point.Revit.Toolkit" Version="2026.0.0" />
+        <PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.0" />
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2026.0.0" />
+        <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2026.0.0" />
 
         <!-- MVVM -->
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />

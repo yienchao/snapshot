@@ -49,11 +49,11 @@
             },
             "Nice3point.Revit.Api.RevitAPI": {
               "target": "Package",
-              "version": "[2026.*, )"
+              "version": "[2026.0.0, )"
             },
             "Nice3point.Revit.Api.RevitAPIUI": {
               "target": "Package",
-              "version": "[2026.*, )"
+              "version": "[2026.0.0, )"
             },
             "Nice3point.Revit.Build.Tasks": {
               "target": "Package",
@@ -61,11 +61,11 @@
             },
             "Nice3point.Revit.Extensions": {
               "target": "Package",
-              "version": "[2026.*, )"
+              "version": "[2026.0.0, )"
             },
             "Nice3point.Revit.Toolkit": {
               "target": "Package",
-              "version": "[2026.*, )"
+              "version": "[2026.0.0, )"
             },
             "Supabase": {
               "target": "Package",
