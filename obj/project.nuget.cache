@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "8Zj5UkWxhmM=",
+  "dgSpecHash": "kXfNy7SXqjs=",
   "success": true,
-  "projectFilePath": "C:\\Users\\yichao\\Documents\\VsCode\\Viewtracker\\ViewTracker.csproj",
+  "projectFilePath": "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\yichao\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.0\\communitytoolkit.mvvm.8.4.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\jetbrains.annotations\\2024.3.0\\jetbrains.annotations.2024.3.0.nupkg.sha512",

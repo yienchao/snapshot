@@ -18,10 +18,48 @@ namespace ViewTracker
                 _supabaseService = new SupabaseService();
                 Task.Run(async () => await _supabaseService.InitializeAsync());
                 UiApplication.ViewActivated += OnViewActivated;
+                
+                // Create ribbon button using the UIApplication
+                CreateRibbonButton();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error in OnStartup: {ex.Message}");
+            }
+        }
+
+        private void CreateRibbonButton()
+        {
+            try
+            {
+                // Access UIApplication from Nice3Point's context
+                var uiApp = UiApplication;
+                
+                // Create ribbon tab and panel
+                try
+                {
+                    uiApp.CreateRibbonTab("ViewTracker");
+                }
+                catch
+                {
+                    // Tab might already exist, ignore
+                }
+                
+                var ribbonPanel = uiApp.CreateRibbonPanel("ViewTracker", "ViewTracker");
+                
+                var buttonData = new PushButtonData(
+                    "InitializeViews",
+                    "Initialize\nViews",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.InitializeViewsCommand");
+                
+                buttonData.ToolTip = "Initialize all views in the project database";
+                
+                ribbonPanel.AddItem(buttonData);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating ribbon button: {ex.Message}");
             }
         }
 

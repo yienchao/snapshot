@@ -41,3 +41,4 @@ C:\Users\yichao\Documents\VsCode\Viewtracker\bin\Debug R26\Supabase.Storage.dll
 C:\Users\yichao\Documents\VsCode\Viewtracker\bin\Debug R26\System.IdentityModel.Tokens.Jwt.dll
 C:\Users\yichao\Documents\VsCode\Viewtracker\bin\Debug R26\System.Reactive.dll
 C:\Users\yichao\Documents\VsCode\Viewtracker\bin\Debug R26\Websocket.Client.dll
+C:\Users\yichao\Documents\VsCode\viewtracker\obj\Debug R26\ViewTracker.sourcelink.json

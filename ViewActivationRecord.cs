@@ -20,7 +20,7 @@ namespace ViewTracker
         public string ViewName { get; set; }
 
         [Column("view_type")]
-        public string ViewType { get; set; } // NEW FIELD
+        public string ViewType { get; set; }
 
         [Column("user_name")]
         public string UserName { get; set; }
@@ -30,5 +30,8 @@ namespace ViewTracker
 
         [Column("created_at")]
         public string CreatedAt { get; set; }
+
+        [Column("activation_count")]
+        public int ActivationCount { get; set; } // NEW FIELD
     }
 }

@@ -27,7 +27,7 @@ namespace ViewTracker
             await _supabase.InitializeAsync();
         }
 
-        // Updated method signature to include viewType
+        // Updated method to handle activation counting
         public async Task UpsertViewActivationAsync(string fileName, string viewUniqueId, string viewElementId, string viewName, string viewType, string userName)
         {
             try
@@ -45,10 +45,11 @@ namespace ViewTracker
                     FileName = fileName,
                     ViewId = viewElementId,
                     ViewName = viewName,
-                    ViewType = viewType, // NEW FIELD
+                    ViewType = viewType,
                     UserName = userName,
                     LastActivationDate = currentDateTime,
-                    CreatedAt = existingRecord?.CreatedAt ?? currentDateTime
+                    CreatedAt = existingRecord?.CreatedAt ?? currentDateTime,
+                    ActivationCount = (existingRecord?.ActivationCount ?? 0) + 1 // INCREMENT COUNTER
                 };
 
                 await _supabase.From<ViewActivationRecord>().Upsert(record);
@@ -56,6 +57,43 @@ namespace ViewTracker
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error upserting to Supabase: {ex.Message}");
+            }
+        }
+
+        // NEW METHOD: Initialize views without incrementing counter
+        public async Task InitializeViewAsync(string fileName, string viewUniqueId, string viewElementId, string viewName, string viewType, string userName)
+        {
+            try
+            {
+                var currentDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                
+                var existingRecord = await _supabase
+                    .From<ViewActivationRecord>()
+                    .Where(x => x.ViewUniqueId == viewUniqueId)
+                    .Single();
+
+                // Only create record if it doesn't exist (don't increment counter for initialization)
+                if (existingRecord == null)
+                {
+                    var record = new ViewActivationRecord
+                    {
+                        ViewUniqueId = viewUniqueId,
+                        FileName = fileName,
+                        ViewId = viewElementId,
+                        ViewName = viewName,
+                        ViewType = viewType,
+                        UserName = userName,
+                        LastActivationDate = currentDateTime,
+                        CreatedAt = currentDateTime,
+                        ActivationCount = 0 // START AT 0 FOR INITIALIZATION
+                    };
+
+                    await _supabase.From<ViewActivationRecord>().Upsert(record);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error initializing view in Supabase: {ex.Message}");
             }
         }
     }
