@@ -1,0 +1,15 @@
+﻿<RevitAddIns>
+    <AddIn Type="Application">
+        <Name>ViewTracker</Name>
+        <Assembly>ViewTracker\ViewTracker.dll</Assembly>
+        <AddInId>80D6BC89-9286-4325-89D3-A0A8A40B9C66</AddInId>
+        <FullClassName>ViewTracker.Application</FullClassName>
+        <VendorId>Development</VendorId>
+        <VendorDescription></VendorDescription>
+        <VendorEmail></VendorEmail>
+    </AddIn>
+    <ManifestSettings>
+        <UseRevitContext>False</UseRevitContext>
+        <ContextName>ViewTracker</ContextName>
+    </ManifestSettings>
+</RevitAddIns>
