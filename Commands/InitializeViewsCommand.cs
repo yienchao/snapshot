@@ -29,8 +29,8 @@ namespace ViewTracker.Commands
                 if (string.IsNullOrEmpty(fileName))
                     fileName = document.Title;
 
-                Task.Run(async () => await InitializeAndCleanViewsInDatabase(views, fileName));
-                TaskDialog.Show("ViewTracker", $"Updating {views.Count} tracked views and cleaning orphaned Supabase records...");
+                Task.Run(async () => await OptimizedInitializeAndCleanViewsInDatabase(document, views, fileName));
+                TaskDialog.Show("ViewTracker", $"Started batch processing of {views.Count} views. Check Supabase for progress.");
             }
             catch (Exception ex)
             {
@@ -60,53 +60,91 @@ namespace ViewTracker.Commands
                 .ToList();
         }
 
-        private async Task InitializeAndCleanViewsInDatabase(List<View> views, string fileName)
+        private async Task OptimizedInitializeAndCleanViewsInDatabase(Document document, List<View> views, string fileName)
         {
             try
             {
                 var supabaseService = new SupabaseService();
                 await supabaseService.InitializeAsync();
 
+                var allViewports = new FilteredElementCollector(document)
+                    .OfClass(typeof(Viewport))
+                    .Cast<Viewport>()
+                    .ToList();
+
+                var allRecords = new List<ViewActivationRecord>();
                 var currentUniqueIds = new HashSet<string>();
+
                 foreach (var view in views)
                 {
-                    string viewName;
-                    string viewType;
+                    string viewName, viewType, sheetNumber = null, viewNumber = null;
 
                     if (view is ViewSheet sheet)
                     {
                         viewName = $"{sheet.SheetNumber}_{sheet.Name}";
                         viewType = "Sheet";
+                        sheetNumber = sheet.SheetNumber;
                     }
                     else
                     {
                         viewName = view.Name;
                         viewType = GetViewType(view);
+
+                        var viewport = allViewports.FirstOrDefault(vp => vp.ViewId == view.Id);
+                        if (viewport != null)
+                        {
+                            var parentSheet = document.GetElement(viewport.SheetId) as ViewSheet;
+                            if (parentSheet != null)
+                            {
+                                sheetNumber = parentSheet.SheetNumber;
+                                viewNumber = viewport.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)?.AsString();
+                            }
+                        }
                     }
 
-                    await supabaseService.InitializeOrUpdateViewAsync(
-                        fileName,
-                        view.UniqueId,
-                        view.Id.IntegerValue,
-                        viewName,
-                        viewType,
-                        Environment.UserName // This gets passed as lastViewer now
-                    );
+                    WorksharingTooltipInfo info = null;
+                    try { info = WorksharingUtils.GetWorksharingTooltipInfo(view.Document, view.Id); } catch { }
+                    string creatorName = info?.Creator ?? "";
+                    string lastChangedBy = info?.LastChangedBy ?? "";
 
+                    var currentDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                    // These three fields must be preserved from existing DB data in service:
+                    var record = new ViewActivationRecord
+                    {
+                        ViewUniqueId = view.UniqueId,
+                        FileName = fileName,
+                        ViewId = view.Id.Value.ToString(),
+                        ViewName = viewName,
+                        ViewType = viewType,
+                        LastViewer = null,              // will be filled from DB if present
+                        LastActivationDate = null,      // will be filled from DB if present
+                        ActivationCount = 0,            // will be filled from DB if present
+                        LastInitialization = currentDateTime,
+                        CreatorName = creatorName,
+                        LastChangedBy = lastChangedBy,
+                        SheetNumber = sheetNumber,
+                        ViewNumber = viewNumber
+                    };
+
+                    allRecords.Add(record);
                     currentUniqueIds.Add(view.UniqueId);
                 }
 
-                var allRecords = await supabaseService.GetViewActivationsByFileNameAsync(fileName);
-                var orphanRecords = allRecords.Where(r => !currentUniqueIds.Contains(r.ViewUniqueId)).ToList();
+                // Use the upsert that preserves user fields
+                await supabaseService.BulkUpsertInitViewsPreserveAsync(allRecords, fileName);
 
-                foreach (var orphan in orphanRecords)
+                // Clean up orphaned records
+                var existingUniqueIds = await supabaseService.GetExistingViewUniqueIdsAsync(fileName);
+                var orphanIds = existingUniqueIds.Except(currentUniqueIds).ToList();
+
+                if (orphanIds.Any())
                 {
-                    await supabaseService.DeleteViewActivationByUniqueIdAsync(orphan.ViewUniqueId);
+                    await supabaseService.BulkDeleteOrphanedRecordsAsync(orphanIds);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error initializing/cleaning views: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in optimized initialization: {ex.Message}");
             }
         }
 
@@ -133,15 +171,12 @@ namespace ViewTracker.Commands
             {
                 var projectInfo = document.ProjectInformation;
                 var parameter = projectInfo.LookupParameter("ViewTracker");
-
                 if (parameter == null)
                     return false;
-
                 return parameter.AsInteger() == 1;
             }
-            catch (Exception ex)
+            catch
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking ViewTracker parameter: {ex.Message}");
                 return false;
             }
         }

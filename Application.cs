@@ -31,9 +31,7 @@ namespace ViewTracker
             try
             {
                 var uiApp = UiApplication;
-
-                try { uiApp.CreateRibbonTab("ViewTracker"); }
-                catch { }
+                try { uiApp.CreateRibbonTab("ViewTracker"); } catch { }
 
                 var ribbonPanel = uiApp.CreateRibbonPanel("ViewTracker", "ViewTracker");
                 var buttonData = new PushButtonData(
@@ -83,19 +81,48 @@ namespace ViewTracker
                 if (string.IsNullOrEmpty(fileName))
                     fileName = document.Title;
 
-                string viewName;
-                string viewType;
+                string viewName = currentView.Name;
+                string viewType = GetViewType(currentView);
+
+                string sheetNumber = null, viewNumber = null;
 
                 if (currentView is ViewSheet sheet)
                 {
                     viewName = $"{sheet.SheetNumber}_{sheet.Name}";
                     viewType = "Sheet";
+                    sheetNumber = sheet.SheetNumber;
                 }
                 else
                 {
-                    viewName = currentView.Name;
-                    viewType = GetViewType(currentView);
+                    // Find viewport placement (if any)
+                    var viewports = new FilteredElementCollector(document)
+                        .OfClass(typeof(Viewport))
+                        .Cast<Viewport>()
+                        .Where(vp => vp.ViewId == currentView.Id)
+                        .ToList();
+
+                    if (viewports.Any())
+                    {
+                        var viewport = viewports.First();
+                        var parentSheet = document.GetElement(viewport.SheetId) as ViewSheet;
+                        if (parentSheet != null)
+                        {
+                            sheetNumber = parentSheet.SheetNumber;
+                            viewNumber = viewport.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)?.AsString();
+                        }
+                    }
                 }
+
+                WorksharingTooltipInfo info = null;
+                try
+                {
+                    info = WorksharingUtils.GetWorksharingTooltipInfo(document, currentView.Id);
+                }
+                catch
+                {
+                }
+                string creatorName = info?.Creator ?? "";
+                string lastChangedBy = info?.LastChangedBy ?? "";
 
                 Task.Run(async () =>
                 {
@@ -104,10 +131,14 @@ namespace ViewTracker
                         await _supabaseService.UpsertViewActivationAsync(
                             fileName,
                             currentView.UniqueId,
-                            currentView.Id.IntegerValue,
+                            currentView.Id.Value.ToString(),
                             viewName,
                             viewType,
-                            Environment.UserName // This gets passed as lastViewer now
+                            Environment.UserName,
+                            creatorName,
+                            lastChangedBy,
+                            sheetNumber,
+                            viewNumber
                         );
                     }
                     catch (Exception ex)

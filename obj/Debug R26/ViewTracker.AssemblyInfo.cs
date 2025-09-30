@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ViewTracker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug R26")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+96fd8497afbe1a5c7379d2425862011107878cf2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+51153d1245f9ae71fe742800360414c097c33642")]
 [assembly: System.Reflection.AssemblyProductAttribute("ViewTracker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ViewTracker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

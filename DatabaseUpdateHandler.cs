@@ -18,7 +18,17 @@ namespace ViewTracker
             _supabaseService = supabaseService;
         }
 
-        public async Task HandleViewActivationAsync(string fileName, string viewUniqueId, int viewElementId, string viewName, string viewType, string lastViewer)
+        public async Task HandleViewActivationAsync(
+            string fileName,
+            string viewUniqueId,
+            string viewElementId,
+            string viewName,
+            string viewType,
+            string lastViewer,
+            string creatorName,
+            string lastChangedBy,
+            string sheetNumber,
+            string viewNumber)
         {
             try
             {
@@ -28,7 +38,11 @@ namespace ViewTracker
                     viewElementId,
                     viewName,
                     viewType,
-                    lastViewer);
+                    lastViewer,
+                    creatorName,
+                    lastChangedBy,
+                    sheetNumber,
+                    viewNumber);
             }
             catch (Exception ex)
             {
@@ -40,27 +54,60 @@ namespace ViewTracker
         {
             try
             {
-                string viewName;
-                string viewType;
+                string viewName = view.Name;
+                string viewType = GetViewType(view);
+
+                string sheetNumber = null;
+                string viewNumber = null;
 
                 if (view is ViewSheet sheet)
                 {
                     viewName = $"{sheet.SheetNumber}_{sheet.Name}";
                     viewType = "Sheet";
+                    sheetNumber = sheet.SheetNumber;
                 }
                 else
                 {
-                    viewName = view.Name;
-                    viewType = GetViewType(view);
+                    var viewports = new FilteredElementCollector(document)
+                        .OfClass(typeof(Viewport))
+                        .Cast<Viewport>()
+                        .Where(vp => vp.ViewId == view.Id)
+                        .ToList();
+
+                    if (viewports.Any())
+                    {
+                        var viewport = viewports.First();
+                        var parentSheet = document.GetElement(viewport.SheetId) as ViewSheet;
+                        if (parentSheet != null)
+                        {
+                            sheetNumber = parentSheet.SheetNumber;
+                            viewNumber = viewport.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)?.AsString();
+                        }
+                    }
                 }
+
+                WorksharingTooltipInfo info = null;
+                try
+                {
+                    info = WorksharingUtils.GetWorksharingTooltipInfo(document, view.Id);
+                }
+                catch
+                {
+                }
+                string creatorName = info?.Creator ?? "";
+                string lastChangedBy = info?.LastChangedBy ?? "";
 
                 await _supabaseService.UpsertViewActivationAsync(
                     fileName,
                     view.UniqueId,
-                    view.Id.IntegerValue,
+                    view.Id.Value.ToString(),
                     viewName,
                     viewType,
-                    lastViewer
+                    lastViewer,
+                    creatorName,
+                    lastChangedBy,
+                    sheetNumber,
+                    viewNumber
                 );
             }
             catch (Exception ex)
