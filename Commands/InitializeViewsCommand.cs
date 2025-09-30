@@ -40,7 +40,6 @@ namespace ViewTracker.Commands
 
         private List<View> GetAllTrackedViews(Document document)
         {
-            // Only include your specified view types (plus !IsTemplate)
             var trackedTypes = new HashSet<ViewType>
             {
                 ViewType.FloorPlan,
@@ -88,10 +87,10 @@ namespace ViewTracker.Commands
                     await supabaseService.InitializeOrUpdateViewAsync(
                         fileName,
                         view.UniqueId,
-                        view.Id.ToString(),
+                        view.Id.IntegerValue,
                         viewName,
                         viewType,
-                        Environment.UserName
+                        Environment.UserName // This gets passed as lastViewer now
                     );
 
                     currentUniqueIds.Add(view.UniqueId);

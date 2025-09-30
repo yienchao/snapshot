@@ -18,11 +18,17 @@ namespace ViewTracker
             _supabaseService = supabaseService;
         }
 
-        public async Task HandleViewActivationAsync(string fileName, string viewUniqueId, string viewElementId, string viewName, string viewType, string userName)
+        public async Task HandleViewActivationAsync(string fileName, string viewUniqueId, int viewElementId, string viewName, string viewType, string lastViewer)
         {
             try
             {
-                await _supabaseService.UpsertViewActivationAsync(fileName, viewUniqueId, viewElementId, viewName, viewType, userName);
+                await _supabaseService.UpsertViewActivationAsync(
+                    fileName,
+                    viewUniqueId,
+                    viewElementId,
+                    viewName,
+                    viewType,
+                    lastViewer);
             }
             catch (Exception ex)
             {
@@ -30,7 +36,7 @@ namespace ViewTracker
             }
         }
 
-        public async Task HandleViewActivationAsync(View view, Document document, string fileName, string userName)
+        public async Task HandleViewActivationAsync(View view, Document document, string fileName, string lastViewer)
         {
             try
             {
@@ -51,10 +57,10 @@ namespace ViewTracker
                 await _supabaseService.UpsertViewActivationAsync(
                     fileName,
                     view.UniqueId,
-                    view.Id.ToString(),
+                    view.Id.IntegerValue,
                     viewName,
                     viewType,
-                    userName
+                    lastViewer
                 );
             }
             catch (Exception ex)
@@ -67,37 +73,22 @@ namespace ViewTracker
         {
             try
             {
-                // Use ViewType enum instead of class types
                 switch (view.ViewType)
                 {
-                    case ViewType.FloorPlan:
-                        return "Floor Plan";
-                    case ViewType.CeilingPlan:
-                        return "Ceiling Plan";
-                    case ViewType.Elevation:
-                        return "Elevation";
-                    case ViewType.Section:
-                        return "Section";
-                    case ViewType.ThreeD:
-                        return "3D";
-                    case ViewType.DrawingSheet:
-                        return "Sheet";
-                    case ViewType.Schedule:
-                        return "Schedule";
-                    case ViewType.DraftingView:
-                        return "Drafting";
-                    case ViewType.Legend:
-                        return "Legend";
-                    case ViewType.AreaPlan:
-                        return "Area Plan";
-                    case ViewType.Detail:
-                        return "Detail";
-                    case ViewType.Rendering:
-                        return "Rendering";
-                    case ViewType.Walkthrough:
-                        return "Walkthrough";
-                    default:
-                        return view.ViewType.ToString();
+                    case ViewType.FloorPlan: return "Floor Plan";
+                    case ViewType.CeilingPlan: return "Ceiling Plan";
+                    case ViewType.Elevation: return "Elevation";
+                    case ViewType.Section: return "Section";
+                    case ViewType.ThreeD: return "3D";
+                    case ViewType.DrawingSheet: return "Sheet";
+                    case ViewType.Schedule: return "Schedule";
+                    case ViewType.DraftingView: return "Drafting";
+                    case ViewType.Legend: return "Legend";
+                    case ViewType.AreaPlan: return "Area Plan";
+                    case ViewType.Detail: return "Detail";
+                    case ViewType.Rendering: return "Rendering";
+                    case ViewType.Walkthrough: return "Walkthrough";
+                    default: return view.ViewType.ToString();
                 }
             }
             catch (Exception ex)

@@ -18,8 +18,6 @@ namespace ViewTracker
                 _supabaseService = new SupabaseService();
                 Task.Run(async () => await _supabaseService.InitializeAsync());
                 UiApplication.ViewActivated += OnViewActivated;
-                
-                // Create ribbon button using the UIApplication
                 CreateRibbonButton();
             }
             catch (Exception ex)
@@ -32,29 +30,20 @@ namespace ViewTracker
         {
             try
             {
-                // Access UIApplication from Nice3Point's context
                 var uiApp = UiApplication;
-                
-                // Create ribbon tab and panel
-                try
-                {
-                    uiApp.CreateRibbonTab("ViewTracker");
-                }
-                catch
-                {
-                    // Tab might already exist, ignore
-                }
-                
+
+                try { uiApp.CreateRibbonTab("ViewTracker"); }
+                catch { }
+
                 var ribbonPanel = uiApp.CreateRibbonPanel("ViewTracker", "ViewTracker");
-                
                 var buttonData = new PushButtonData(
                     "InitializeViews",
                     "Initialize\nViews",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.InitializeViewsCommand");
-                
+                    "ViewTracker.Commands.InitializeViewsCommand"
+                );
+
                 buttonData.ToolTip = "Initialize all views in the project database";
-                
                 ribbonPanel.AddItem(buttonData);
             }
             catch (Exception ex)
@@ -81,7 +70,7 @@ namespace ViewTracker
             {
                 var currentView = e.CurrentActiveView;
                 var document = e.Document;
-                
+
                 if (currentView == null || document == null)
                     return;
 
@@ -94,7 +83,6 @@ namespace ViewTracker
                 if (string.IsNullOrEmpty(fileName))
                     fileName = document.Title;
 
-                // Get view name and type
                 string viewName;
                 string viewType;
 
@@ -109,17 +97,17 @@ namespace ViewTracker
                     viewType = GetViewType(currentView);
                 }
 
-                Task.Run(async () => 
+                Task.Run(async () =>
                 {
                     try
                     {
                         await _supabaseService.UpsertViewActivationAsync(
                             fileName,
                             currentView.UniqueId,
-                            currentView.Id.ToString(),
+                            currentView.Id.IntegerValue,
                             viewName,
                             viewType,
-                            Environment.UserName
+                            Environment.UserName // This gets passed as lastViewer now
                         );
                     }
                     catch (Exception ex)
@@ -138,37 +126,22 @@ namespace ViewTracker
         {
             try
             {
-                // Use ViewType enum instead of class types
                 switch (view.ViewType)
                 {
-                    case ViewType.FloorPlan:
-                        return "Floor Plan";
-                    case ViewType.CeilingPlan:
-                        return "Ceiling Plan";
-                    case ViewType.Elevation:
-                        return "Elevation";
-                    case ViewType.Section:
-                        return "Section";
-                    case ViewType.ThreeD:
-                        return "3D";
-                    case ViewType.DrawingSheet:
-                        return "Sheet";
-                    case ViewType.Schedule:
-                        return "Schedule";
-                    case ViewType.DraftingView:
-                        return "Drafting";
-                    case ViewType.Legend:
-                        return "Legend";
-                    case ViewType.AreaPlan:
-                        return "Area Plan";
-                    case ViewType.Detail:
-                        return "Detail";
-                    case ViewType.Rendering:
-                        return "Rendering";
-                    case ViewType.Walkthrough:
-                        return "Walkthrough";
-                    default:
-                        return view.ViewType.ToString();
+                    case ViewType.FloorPlan: return "Floor Plan";
+                    case ViewType.CeilingPlan: return "Ceiling Plan";
+                    case ViewType.Elevation: return "Elevation";
+                    case ViewType.Section: return "Section";
+                    case ViewType.ThreeD: return "3D";
+                    case ViewType.DrawingSheet: return "Sheet";
+                    case ViewType.Schedule: return "Schedule";
+                    case ViewType.DraftingView: return "Drafting";
+                    case ViewType.Legend: return "Legend";
+                    case ViewType.AreaPlan: return "Area Plan";
+                    case ViewType.Detail: return "Detail";
+                    case ViewType.Rendering: return "Rendering";
+                    case ViewType.Walkthrough: return "Walkthrough";
+                    default: return view.ViewType.ToString();
                 }
             }
             catch (Exception ex)
@@ -184,7 +157,7 @@ namespace ViewTracker
             {
                 var projectInfo = document.ProjectInformation;
                 var parameter = projectInfo.LookupParameter("ViewTracker");
-                
+
                 if (parameter == null)
                     return false;
 

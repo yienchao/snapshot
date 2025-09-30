@@ -24,7 +24,7 @@ namespace ViewTracker
             await _supabase.InitializeAsync();
         }
 
-        public async Task UpsertViewActivationAsync(string fileName, string viewUniqueId, string viewElementId, string viewName, string viewType, string userName)
+        public async Task UpsertViewActivationAsync(string fileName, string viewUniqueId, int viewElementId, string viewName, string viewType, string lastViewer)
         {
             try
             {
@@ -41,9 +41,9 @@ namespace ViewTracker
                     ViewId = viewElementId,
                     ViewName = viewName,
                     ViewType = viewType,
-                    UserName = userName,
+                    LastViewer = lastViewer,
                     LastActivationDate = currentDateTime,
-                    CreatedAt = existingRecord?.CreatedAt ?? currentDateTime,
+                    LastInitialization = existingRecord?.LastInitialization ?? currentDateTime,
                     ActivationCount = (existingRecord?.ActivationCount ?? 0) + 1
                 };
 
@@ -55,8 +55,7 @@ namespace ViewTracker
             }
         }
 
-        // NEW: always update FileName and ViewName even if exists, no counter bump!
-        public async Task InitializeOrUpdateViewAsync(string fileName, string viewUniqueId, string viewElementId, string viewName, string viewType, string userName)
+        public async Task InitializeOrUpdateViewAsync(string fileName, string viewUniqueId, int viewElementId, string viewName, string viewType, string lastViewer)
         {
             try
             {
@@ -67,7 +66,7 @@ namespace ViewTracker
                     .Single();
 
                 var activationCount = existingRecord?.ActivationCount ?? 0;
-                var createdAt = existingRecord?.CreatedAt ?? currentDateTime;
+                var lastInitialization = existingRecord?.LastInitialization ?? currentDateTime;
 
                 var record = new ViewActivationRecord
                 {
@@ -76,9 +75,9 @@ namespace ViewTracker
                     ViewId = viewElementId,
                     ViewName = viewName,
                     ViewType = viewType,
-                    UserName = userName,
+                    LastViewer = lastViewer,
                     LastActivationDate = existingRecord?.LastActivationDate ?? currentDateTime,
-                    CreatedAt = createdAt,
+                    LastInitialization = lastInitialization,
                     ActivationCount = activationCount
                 };
 
