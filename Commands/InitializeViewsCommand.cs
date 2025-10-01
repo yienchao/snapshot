@@ -16,9 +16,16 @@ namespace ViewTracker.Commands
         {
             var document = UiDocument.Document;
 
-            if (!IsViewTrackingEnabled(document))
+            var projectIdStr = document.ProjectInformation.LookupParameter("projectID")?.AsString();
+            Guid projectId = Guid.Empty;
+            if (!Guid.TryParse(projectIdStr, out projectId))
             {
-                TaskDialog.Show("ViewTracker", "ViewTracker parameter must be set to Yes to initialize views.");
+                TaskDialog.Show(
+                    "ViewTracker",
+                    "Missing or invalid 'projectID' parameter!\n\n" +
+                    "Please assign a valid UUID to the 'projectID' Project Information parameter " +
+                    "before using ViewTracker batch initialize."
+                );
                 return;
             }
 
@@ -29,7 +36,7 @@ namespace ViewTracker.Commands
                 if (string.IsNullOrEmpty(fileName))
                     fileName = document.Title;
 
-                Task.Run(async () => await OptimizedInitializeAndCleanViewsInDatabase(document, views, fileName));
+                Task.Run(async () => await OptimizedInitializeAndCleanViewsInDatabase(document, views, fileName, projectId));
                 TaskDialog.Show("ViewTracker", $"Started batch processing of {views.Count} views. Check Supabase for progress.");
             }
             catch (Exception ex)
@@ -60,7 +67,7 @@ namespace ViewTracker.Commands
                 .ToList();
         }
 
-        private async Task OptimizedInitializeAndCleanViewsInDatabase(Document document, List<View> views, string fileName)
+        private async Task OptimizedInitializeAndCleanViewsInDatabase(Document document, List<View> views, string fileName, Guid projectId)
         {
             try
             {
@@ -70,6 +77,16 @@ namespace ViewTracker.Commands
                 var allViewports = new FilteredElementCollector(document)
                     .OfClass(typeof(Viewport))
                     .Cast<Viewport>()
+                    .ToList();
+
+                var allScheduleInstances = new FilteredElementCollector(document)
+                    .OfClass(typeof(ScheduleSheetInstance))
+                    .Cast<ScheduleSheetInstance>()
+                    .ToList();
+
+                var allSheets = new FilteredElementCollector(document)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
                     .ToList();
 
                 var allRecords = new List<ViewActivationRecord>();
@@ -90,14 +107,51 @@ namespace ViewTracker.Commands
                         viewName = view.Name;
                         viewType = GetViewType(view);
 
-                        var viewport = allViewports.FirstOrDefault(vp => vp.ViewId == view.Id);
-                        if (viewport != null)
+                        if (view.ViewType == ViewType.Schedule)
                         {
-                            var parentSheet = document.GetElement(viewport.SheetId) as ViewSheet;
-                            if (parentSheet != null)
+                            var sheetNumbers = new List<string>();
+                            foreach (var sInst in allScheduleInstances)
                             {
-                                sheetNumber = parentSheet.SheetNumber;
-                                viewNumber = viewport.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)?.AsString();
+                                // Get actual schedule element associated with the instance
+                                Element scheduleElem = document.GetElement(sInst.ScheduleId);
+                                bool isRevisionSchedule = scheduleElem is ViewSchedule vs &&
+                                    vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
+
+                                // Only match this view and skip revision schedules!
+                                if (sInst.ScheduleId.IntegerValue == view.Id.IntegerValue && !isRevisionSchedule)
+                                {
+                                    var parentSheet = document.GetElement(sInst.OwnerViewId) as ViewSheet;
+                                    if (parentSheet != null && !string.IsNullOrEmpty(parentSheet.SheetNumber))
+                                        sheetNumbers.Add(parentSheet.SheetNumber);
+                                }
+                            }
+                            sheetNumber = sheetNumbers.Count > 0 ? string.Join(",", sheetNumbers) : null;
+                        }
+                        else if (view.ViewType == ViewType.Legend)
+                        {
+                            var sheetNumbers = new List<string>();
+                            foreach (var legendSheet in allSheets)
+                            {
+                                var placedViews = legendSheet.GetAllPlacedViews();
+                                if (placedViews.Contains(view.Id))
+                                {
+                                    if (!string.IsNullOrEmpty(legendSheet.SheetNumber))
+                                        sheetNumbers.Add(legendSheet.SheetNumber);
+                                }
+                            }
+                            sheetNumber = sheetNumbers.Count > 0 ? string.Join(",", sheetNumbers) : null;
+                        }
+                        else
+                        {
+                            var viewport = allViewports.FirstOrDefault(vp => vp.ViewId == view.Id);
+                            if (viewport != null)
+                            {
+                                var parentSheet = document.GetElement(viewport.SheetId) as ViewSheet;
+                                if (parentSheet != null)
+                                {
+                                    sheetNumber = parentSheet.SheetNumber;
+                                    viewNumber = viewport.get_Parameter(BuiltInParameter.VIEWPORT_DETAIL_NUMBER)?.AsString();
+                                }
                             }
                         }
                     }
@@ -108,7 +162,7 @@ namespace ViewTracker.Commands
                     string lastChangedBy = info?.LastChangedBy ?? "";
 
                     var currentDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-                    // These three fields must be preserved from existing DB data in service:
+
                     var record = new ViewActivationRecord
                     {
                         ViewUniqueId = view.UniqueId,
@@ -116,24 +170,23 @@ namespace ViewTracker.Commands
                         ViewId = view.Id.Value.ToString(),
                         ViewName = viewName,
                         ViewType = viewType,
-                        LastViewer = null,              // will be filled from DB if present
-                        LastActivationDate = null,      // will be filled from DB if present
-                        ActivationCount = 0,            // will be filled from DB if present
+                        LastViewer = null,
+                        LastActivationDate = null,
+                        ActivationCount = 0,
                         LastInitialization = currentDateTime,
                         CreatorName = creatorName,
                         LastChangedBy = lastChangedBy,
                         SheetNumber = sheetNumber,
-                        ViewNumber = viewNumber
+                        ViewNumber = viewNumber,
+                        ProjectId = projectId
                     };
 
                     allRecords.Add(record);
                     currentUniqueIds.Add(view.UniqueId);
                 }
 
-                // Use the upsert that preserves user fields
                 await supabaseService.BulkUpsertInitViewsPreserveAsync(allRecords, fileName);
 
-                // Clean up orphaned records
                 var existingUniqueIds = await supabaseService.GetExistingViewUniqueIdsAsync(fileName);
                 var orphanIds = existingUniqueIds.Except(currentUniqueIds).ToList();
 
@@ -162,22 +215,6 @@ namespace ViewTracker.Commands
                 case ViewType.Schedule: return "Schedule";
                 case ViewType.DrawingSheet: return "Sheet";
                 default: return view.ViewType.ToString();
-            }
-        }
-
-        private bool IsViewTrackingEnabled(Document document)
-        {
-            try
-            {
-                var projectInfo = document.ProjectInformation;
-                var parameter = projectInfo.LookupParameter("ViewTracker");
-                if (parameter == null)
-                    return false;
-                return parameter.AsInteger() == 1;
-            }
-            catch
-            {
-                return false;
             }
         }
     }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
 
@@ -18,31 +20,12 @@ namespace ViewTracker
             _supabaseService = supabaseService;
         }
 
-        public async Task HandleViewActivationAsync(
-            string fileName,
-            string viewUniqueId,
-            string viewElementId,
-            string viewName,
-            string viewType,
-            string lastViewer,
-            string creatorName,
-            string lastChangedBy,
-            string sheetNumber,
-            string viewNumber)
+        // Updated to accept a ViewActivationRecord object directly
+        public async Task HandleViewActivationAsync(ViewActivationRecord record)
         {
             try
             {
-                await _supabaseService.UpsertViewActivationAsync(
-                    fileName,
-                    viewUniqueId,
-                    viewElementId,
-                    viewName,
-                    viewType,
-                    lastViewer,
-                    creatorName,
-                    lastChangedBy,
-                    sheetNumber,
-                    viewNumber);
+                await _supabaseService.UpsertViewActivationAsync(record);
             }
             catch (Exception ex)
             {
@@ -50,13 +33,13 @@ namespace ViewTracker
             }
         }
 
-        public async Task HandleViewActivationAsync(View view, Document document, string fileName, string lastViewer)
+        // Overload to construct from view/document parameters
+        public async Task HandleViewActivationAsync(View view, Document document, string fileName, string lastViewer, Guid projectId)
         {
             try
             {
                 string viewName = view.Name;
                 string viewType = GetViewType(view);
-
                 string sheetNumber = null;
                 string viewNumber = null;
 
@@ -65,6 +48,50 @@ namespace ViewTracker
                     viewName = $"{sheet.SheetNumber}_{sheet.Name}";
                     viewType = "Sheet";
                     sheetNumber = sheet.SheetNumber;
+                }
+                else if (view.ViewType == ViewType.Schedule)
+                {
+                    // Always collect all actual sheets for this schedule (never just the current context!)
+                    var allScheduleInstances = new FilteredElementCollector(document)
+                        .OfClass(typeof(ScheduleSheetInstance))
+                        .Cast<ScheduleSheetInstance>()
+                        .ToList();
+
+                    var sheetNumbers = new List<string>();
+                    foreach (var sInst in allScheduleInstances)
+                    {
+                        Element scheduleElem = document.GetElement(sInst.ScheduleId);
+                        bool isRevisionSchedule = scheduleElem is ViewSchedule vs &&
+                                                 vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
+
+                        if (sInst.ScheduleId.IntegerValue == view.Id.IntegerValue && !isRevisionSchedule)
+                        {
+                            var parentSheet = document.GetElement(sInst.OwnerViewId) as ViewSheet;
+                            if (parentSheet != null && !string.IsNullOrEmpty(parentSheet.SheetNumber))
+                                sheetNumbers.Add(parentSheet.SheetNumber);
+                        }
+                    }
+                    sheetNumber = sheetNumbers.Count > 0 ? string.Join(",", sheetNumbers) : null;
+                }
+                else if (view.ViewType == ViewType.Legend)
+                {
+                    // Always collect all sheets for this legend
+                    var allSheets = new FilteredElementCollector(document)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .ToList();
+
+                    var sheetNumbers = new List<string>();
+                    foreach (var legendSheet in allSheets)
+                    {
+                        var placedViews = legendSheet.GetAllPlacedViews();
+                        if (placedViews.Contains(view.Id))
+                        {
+                            if (!string.IsNullOrEmpty(legendSheet.SheetNumber))
+                                sheetNumbers.Add(legendSheet.SheetNumber);
+                        }
+                    }
+                    sheetNumber = sheetNumbers.Count > 0 ? string.Join(",", sheetNumbers) : null;
                 }
                 else
                 {
@@ -87,28 +114,29 @@ namespace ViewTracker
                 }
 
                 WorksharingTooltipInfo info = null;
-                try
-                {
-                    info = WorksharingUtils.GetWorksharingTooltipInfo(document, view.Id);
-                }
-                catch
-                {
-                }
+                try { info = WorksharingUtils.GetWorksharingTooltipInfo(document, view.Id); } catch { }
                 string creatorName = info?.Creator ?? "";
                 string lastChangedBy = info?.LastChangedBy ?? "";
 
-                await _supabaseService.UpsertViewActivationAsync(
-                    fileName,
-                    view.UniqueId,
-                    view.Id.Value.ToString(),
-                    viewName,
-                    viewType,
-                    lastViewer,
-                    creatorName,
-                    lastChangedBy,
-                    sheetNumber,
-                    viewNumber
-                );
+                var record = new ViewActivationRecord
+                {
+                    ViewUniqueId = view.UniqueId,
+                    FileName = fileName,
+                    ViewId = view.Id.Value.ToString(),
+                    ViewName = viewName,
+                    ViewType = viewType,
+                    LastViewer = lastViewer,
+                    LastActivationDate = null,
+                    ActivationCount = 0,
+                    LastInitialization = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    CreatorName = creatorName,
+                    LastChangedBy = lastChangedBy,
+                    SheetNumber = sheetNumber, // ALWAYS all sheets
+                    ViewNumber = viewNumber,
+                    ProjectId = projectId
+                };
+
+                await HandleViewActivationAsync(record);
             }
             catch (Exception ex)
             {

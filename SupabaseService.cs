@@ -25,43 +25,22 @@ namespace ViewTracker
             await _supabase.InitializeAsync();
         }
 
-        public async Task UpsertViewActivationAsync(
-            string fileName,
-            string viewUniqueId,
-            string viewElementId,
-            string viewName,
-            string viewType,
-            string lastViewer,
-            string creatorName,
-            string lastChangedBy,
-            string sheetNumber,
-            string viewNumber)
+        // Fetch activation count for one view
+        public async Task<int> GetActivationCountAsync(string viewUniqueId)
+        {
+            var records = (await _supabase
+                .From<ViewActivationRecord>()
+                .Where(x => x.ViewUniqueId == viewUniqueId)
+                .Get()).Models;
+            var record = records.FirstOrDefault();
+            return record?.ActivationCount ?? 0;
+        }
+
+        // Upsert one record (for event-driven activation tracking)
+        public async Task UpsertViewActivationAsync(ViewActivationRecord record)
         {
             try
             {
-                var currentDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-                var existingRecord = (await _supabase
-                    .From<ViewActivationRecord>()
-                    .Where(x => x.ViewUniqueId == viewUniqueId)
-                    .Get()).Models.FirstOrDefault();
-
-                var record = new ViewActivationRecord
-                {
-                    ViewUniqueId = viewUniqueId,
-                    FileName = fileName,
-                    ViewId = viewElementId,
-                    ViewName = viewName,
-                    ViewType = viewType,
-                    LastViewer = lastViewer,
-                    LastActivationDate = currentDateTime,
-                    LastInitialization = existingRecord?.LastInitialization ?? currentDateTime,
-                    ActivationCount = (existingRecord?.ActivationCount ?? 0) + 1,
-                    CreatorName = creatorName,
-                    LastChangedBy = lastChangedBy,
-                    SheetNumber = sheetNumber,
-                    ViewNumber = viewNumber
-                };
-
                 await _supabase.From<ViewActivationRecord>().Upsert(record);
             }
             catch (Exception ex)
@@ -70,8 +49,7 @@ namespace ViewTracker
             }
         }
 
-        // ----------- NEW: Batch Upsert that preserves last_viewer/count/activation_date -----------
-
+        // Batch upsert, preserving user fields
         public async Task BulkUpsertInitViewsPreserveAsync(List<ViewActivationRecord> newRecords, string fileName)
         {
             if (newRecords == null || !newRecords.Any())
@@ -79,7 +57,6 @@ namespace ViewTracker
 
             try
             {
-                // Get all existing records for this file name in one call
                 var existingRecords = (await _supabase
                         .From<ViewActivationRecord>()
                         .Where(x => x.FileName == fileName)
@@ -87,7 +64,6 @@ namespace ViewTracker
 
                 var existingDict = existingRecords.ToDictionary(x => x.ViewUniqueId, x => x);
 
-                // Project: keep new info for each, fill in user fields from existing
                 var finalRecords = newRecords
                     .Select(r =>
                     {
@@ -97,7 +73,7 @@ namespace ViewTracker
                             r.LastActivationDate = found.LastActivationDate;
                             r.ActivationCount = found.ActivationCount;
                         }
-                        // else leave at default/null/zero (new view)
+                        // If new, leave defaults
                         return r;
                     })
                     .ToList();
@@ -115,6 +91,7 @@ namespace ViewTracker
             }
         }
 
+        // Get all uniqueIds for a given file
         public async Task<HashSet<string>> GetExistingViewUniqueIdsAsync(string fileName)
         {
             try
@@ -133,6 +110,7 @@ namespace ViewTracker
             }
         }
 
+        // Delete orphans from DB
         public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds)
         {
             if (orphanUniqueIds == null || !orphanUniqueIds.Any()) return;
@@ -156,6 +134,24 @@ namespace ViewTracker
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error bulk deleting orphaned records: {ex.Message}");
+            }
+        }
+
+        // Optional: Check projectId existence in Projects table
+        public async Task<bool> ProjectIdExistsAsync(Guid projectId)
+        {
+            try
+            {
+                var projects = await _supabase
+                    .From<ProjectRecord>()
+                    .Where(x => x.Uuid == projectId)
+                    .Get();
+                return projects.Models.Any();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking project id: {ex.Message}");
+                return false;
             }
         }
     }
