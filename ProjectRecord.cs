@@ -7,7 +7,7 @@ namespace ViewTracker
     [Table("Projects")]
     public class ProjectRecord : BaseModel
     {
-        [PrimaryKey("uuid")]
+        [PrimaryKey("projectID")]
         public Guid Uuid { get; set; }
 
         [Column("project_name")]

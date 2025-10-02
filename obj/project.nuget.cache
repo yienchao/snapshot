@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "YX15m/BhD1c=",
+  "dgSpecHash": "MxKlunOn3X4=",
   "success": true,
   "projectFilePath": "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\yichao\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.0\\communitytoolkit.mvvm.8.4.0.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\jetbrains.annotations\\2024.3.0\\jetbrains.annotations.2024.3.0.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\jetbrains.annotations\\2023.3.0\\jetbrains.annotations.2023.3.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.0\\microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\microsoft.identitymodel.abstractions\\7.5.1\\microsoft.identitymodel.abstractions.7.5.1.nupkg.sha512",
@@ -15,11 +15,11 @@
     "C:\\Users\\yichao\\.nuget\\packages\\microsoft.io.recyclablememorystream\\3.0.0\\microsoft.io.recyclablememorystream.3.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\mimemapping\\3.0.1\\mimemapping.3.0.1.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapi\\2026.0.4\\nice3point.revit.api.revitapi.2026.0.4.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapiui\\2026.0.4\\nice3point.revit.api.revitapiui.2026.0.4.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapi\\2025.0.2\\nice3point.revit.api.revitapi.2025.0.2.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.api.revitapiui\\2025.0.2\\nice3point.revit.api.revitapiui.2025.0.2.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.build.tasks\\3.0.1\\nice3point.revit.build.tasks.3.0.1.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.extensions\\2026.0.0\\nice3point.revit.extensions.2026.0.0.nupkg.sha512",
-    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.toolkit\\2026.0.0\\nice3point.revit.toolkit.2026.0.0.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.extensions\\2025.0.0\\nice3point.revit.extensions.2025.0.0.nupkg.sha512",
+    "C:\\Users\\yichao\\.nuget\\packages\\nice3point.revit.toolkit\\2025.0.0\\nice3point.revit.toolkit.2025.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\supabase\\1.0.5\\supabase.1.0.5.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\supabase.core\\1.0.0\\supabase.core.1.0.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\supabase.functions\\2.0.0\\supabase.functions.2.0.0.nupkg.sha512",
@@ -37,7 +37,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPI (>= 2026.0.0), mais Nice3point.Revit.Api.RevitAPI 2026.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPI 2026.0.4 a été résolue.",
+      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPI 2025.0.2 a été résolue.",
       "libraryId": "Nice3point.Revit.Api.RevitAPI",
       "targetGraphs": [
         "net8.0-windows7.0"
@@ -47,7 +47,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPIUI (>= 2026.0.0), mais Nice3point.Revit.Api.RevitAPIUI 2026.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPIUI 2026.0.4 a été résolue.",
+      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPIUI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPIUI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPIUI 2025.0.2 a été résolue.",
       "libraryId": "Nice3point.Revit.Api.RevitAPIUI",
       "targetGraphs": [
         "net8.0-windows7.0"

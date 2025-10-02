@@ -23,7 +23,7 @@ namespace ViewTracker.Commands
                 TaskDialog.Show(
                     "ViewTracker",
                     "Missing or invalid 'projectID' parameter!\n\n" +
-                    "Please assign a valid UUID to the 'projectID' Project Information parameter " +
+                    "Please assign a valid projectID to the 'projectID' Project Information parameter " +
                     "before using ViewTracker batch initialize."
                 );
                 return;
