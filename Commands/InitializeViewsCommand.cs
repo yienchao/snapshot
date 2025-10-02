@@ -63,7 +63,11 @@ namespace ViewTracker.Commands
             return new FilteredElementCollector(document)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .Where(v => !v.IsTemplate && trackedTypes.Contains(v.ViewType))
+                .Where(v =>
+                    !v.IsTemplate &&
+                    trackedTypes.Contains(v.ViewType) &&
+                    !(v is ViewSchedule vs && vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions))
+                )
                 .ToList();
         }
 
@@ -112,12 +116,10 @@ namespace ViewTracker.Commands
                             var sheetNumbers = new List<string>();
                             foreach (var sInst in allScheduleInstances)
                             {
-                                // Get actual schedule element associated with the instance
                                 Element scheduleElem = document.GetElement(sInst.ScheduleId);
                                 bool isRevisionSchedule = scheduleElem is ViewSchedule vs &&
                                     vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
 
-                                // Only match this view and skip revision schedules!
                                 if (sInst.ScheduleId.IntegerValue == view.Id.IntegerValue && !isRevisionSchedule)
                                 {
                                     var parentSheet = document.GetElement(sInst.OwnerViewId) as ViewSheet;

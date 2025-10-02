@@ -61,8 +61,9 @@ namespace ViewTracker
                     foreach (var sInst in allScheduleInstances)
                     {
                         Element scheduleElem = document.GetElement(sInst.ScheduleId);
+                        // EXCLUDE Revision Schedules!
                         bool isRevisionSchedule = scheduleElem is ViewSchedule vs &&
-                                                 vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
+                            vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
 
                         if (sInst.ScheduleId.IntegerValue == view.Id.IntegerValue && !isRevisionSchedule)
                         {
