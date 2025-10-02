@@ -120,7 +120,8 @@ namespace ViewTracker.Commands
                                 bool isRevisionSchedule = scheduleElem is ViewSchedule vs &&
                                     vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
 
-                                if (sInst.ScheduleId.IntegerValue == view.Id.IntegerValue && !isRevisionSchedule)
+                                // Use .Value property, version-proof as int
+                                if ((sInst.ScheduleId.Value == view.Id.Value) && !isRevisionSchedule)
                                 {
                                     var parentSheet = document.GetElement(sInst.OwnerViewId) as ViewSheet;
                                     if (parentSheet != null && !string.IsNullOrEmpty(parentSheet.SheetNumber))

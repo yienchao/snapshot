@@ -20,7 +20,6 @@ namespace ViewTracker
             _supabaseService = supabaseService;
         }
 
-        // Updated to accept a ViewActivationRecord object directly
         public async Task HandleViewActivationAsync(ViewActivationRecord record)
         {
             try
@@ -33,7 +32,6 @@ namespace ViewTracker
             }
         }
 
-        // Overload to construct from view/document parameters
         public async Task HandleViewActivationAsync(View view, Document document, string fileName, string lastViewer, Guid projectId)
         {
             try
@@ -51,7 +49,6 @@ namespace ViewTracker
                 }
                 else if (view.ViewType == ViewType.Schedule)
                 {
-                    // Always collect all actual sheets for this schedule (never just the current context!)
                     var allScheduleInstances = new FilteredElementCollector(document)
                         .OfClass(typeof(ScheduleSheetInstance))
                         .Cast<ScheduleSheetInstance>()
@@ -61,11 +58,11 @@ namespace ViewTracker
                     foreach (var sInst in allScheduleInstances)
                     {
                         Element scheduleElem = document.GetElement(sInst.ScheduleId);
-                        // EXCLUDE Revision Schedules!
                         bool isRevisionSchedule = scheduleElem is ViewSchedule vs &&
                             vs.Definition.CategoryId == new ElementId(BuiltInCategory.OST_Revisions);
 
-                        if (sInst.ScheduleId.IntegerValue == view.Id.IntegerValue && !isRevisionSchedule)
+                        // Use .Value property for ElementId comparison
+                        if ((sInst.ScheduleId.Value == view.Id.Value) && !isRevisionSchedule)
                         {
                             var parentSheet = document.GetElement(sInst.OwnerViewId) as ViewSheet;
                             if (parentSheet != null && !string.IsNullOrEmpty(parentSheet.SheetNumber))
@@ -76,7 +73,6 @@ namespace ViewTracker
                 }
                 else if (view.ViewType == ViewType.Legend)
                 {
-                    // Always collect all sheets for this legend
                     var allSheets = new FilteredElementCollector(document)
                         .OfClass(typeof(ViewSheet))
                         .Cast<ViewSheet>()
@@ -132,7 +128,7 @@ namespace ViewTracker
                     LastInitialization = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                     CreatorName = creatorName,
                     LastChangedBy = lastChangedBy,
-                    SheetNumber = sheetNumber, // ALWAYS all sheets
+                    SheetNumber = sheetNumber,
                     ViewNumber = viewNumber,
                     ProjectId = projectId
                 };
