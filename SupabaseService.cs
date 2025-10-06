@@ -140,31 +140,32 @@ public async Task<List<ViewActivationRecord>> GetViewActivationsByProjectAsync(G
     return allRows;
 }
 
-        public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds)
+public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, string fileName)
+{
+    if (orphanUniqueIds == null || !orphanUniqueIds.Any()) return;
+
+    try
+    {
+        const int batchSize = 200;
+        for (int i = 0; i < orphanUniqueIds.Count; i += batchSize)
         {
-            if (orphanUniqueIds == null || !orphanUniqueIds.Any()) return;
+            var batch = orphanUniqueIds.Skip(i).Take(batchSize).ToList();
 
-            try
+            foreach (var orphanId in batch)
             {
-                const int batchSize = 200;
-                for (int i = 0; i < orphanUniqueIds.Count; i += batchSize)
+                await _supabase.From<ViewActivationRecord>().Delete(new ViewActivationRecord
                 {
-                    var batch = orphanUniqueIds.Skip(i).Take(batchSize).ToList();
-
-                    var recordsToDelete = (await _supabase
-                        .From<ViewActivationRecord>()
-                        .Where(x => batch.Contains(x.ViewUniqueId))
-                        .Get()).Models.ToList();
-
-                    foreach (var record in recordsToDelete)
-                        await _supabase.From<ViewActivationRecord>().Delete(record);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error bulk deleting orphaned records: {ex.Message}");
+                    ViewUniqueId = orphanId,
+                    FileName = fileName  // ← ADD THIS LINE!
+                });
             }
         }
+    }
+    catch (Exception ex)
+    {
+        System.Diagnostics.Debug.WriteLine($"Error bulk deleting orphaned records: {ex.Message}");
+    }
+}
 
         // Optional: Check projectId existence in Projects table
         public async Task<bool> ProjectIdExistsAsync(Guid projectId)

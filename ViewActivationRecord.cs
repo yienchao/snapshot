@@ -5,6 +5,7 @@ using Supabase.Postgrest.Models;
 namespace ViewTracker
 {
     [Table("view_activations")]
+    
     public class ViewActivationRecord : BaseModel
     {
         [PrimaryKey("view_unique_id")]

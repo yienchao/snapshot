@@ -195,7 +195,7 @@ namespace ViewTracker.Commands
 
                 if (orphanIds.Any())
                 {
-                    await supabaseService.BulkDeleteOrphanedRecordsAsync(orphanIds);
+                    await supabaseService.BulkDeleteOrphanedRecordsAsync(orphanIds, fileName);
                 }
             }
             catch (Exception ex)
