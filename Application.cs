@@ -1,7 +1,6 @@
 ﻿using System;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
-using System.Threading.Tasks;
 
 namespace ViewTracker
 {
@@ -26,15 +25,28 @@ namespace ViewTracker
             {
                 string tabName = "ViewTracker";
                 try { application.CreateRibbonTab(tabName); } catch { }
+
                 var ribbonPanel = application.CreateRibbonPanel(tabName, tabName);
-                var buttonData = new PushButtonData(
+
+                // Initialize Views
+                var initializeBtn = new PushButtonData(
                     "InitializeViews",
                     "Initialize\nViews",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.InitializeViewsCommand"
                 );
-                buttonData.ToolTip = "Initialize all views in the project database";
-                ribbonPanel.AddItem(buttonData);
+                initializeBtn.ToolTip = "Initialize all views in the project database";
+                ribbonPanel.AddItem(initializeBtn);
+
+                // Export CSV
+                var exportBtn = new PushButtonData(
+                    "ExportCsv",
+                    "Export\nCSV",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ExportCsvCommand"
+                );
+                exportBtn.ToolTip = "Export Supabase view_activations for this project's projectID to CSV";
+                ribbonPanel.AddItem(exportBtn);
             }
             catch (Exception ex)
             {
@@ -42,7 +54,7 @@ namespace ViewTracker
             }
         }
 
-        // Event handler for view activation
+        // Existing ViewActivated handler (unchanged)
         private void OnViewActivated(object sender, Autodesk.Revit.UI.Events.ViewActivatedEventArgs e)
         {
             try
@@ -95,8 +107,7 @@ namespace ViewTracker
                 string creatorName = info?.Creator ?? "";
                 string lastChangedBy = info?.LastChangedBy ?? "";
 
-                // Send activation data to Supabase (increment count!)
-                Task.Run(async () =>
+                System.Threading.Tasks.Task.Run(async () =>
                 {
                     var supabaseService = new SupabaseService();
                     await supabaseService.InitializeAsync();

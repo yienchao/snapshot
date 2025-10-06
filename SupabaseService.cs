@@ -111,6 +111,35 @@ namespace ViewTracker
         }
 
         // Delete orphans from DB
+
+
+public async Task<List<ViewActivationRecord>> GetViewActivationsByProjectAsync(Guid projectId)
+{
+    var allRows = new List<ViewActivationRecord>();
+    const int batchSize = 1000;
+    int offset = 0;
+
+    while (true)
+    {
+        var resp = await _supabase
+            .From<ViewActivationRecord>()
+            .Where(x => x.ProjectId == projectId)
+            // Add any secondary ordering for deterministic pagination
+            .Order(x => x.FileName, Supabase.Postgrest.Constants.Ordering.Ascending)
+            .Order(x => x.ViewUniqueId, Supabase.Postgrest.Constants.Ordering.Ascending)
+            .Range(offset, offset + batchSize - 1)
+            .Get();
+
+        var batch = resp.Models.ToList();
+        allRows.AddRange(batch);
+
+        if (batch.Count < batchSize) break;
+        offset += batchSize;
+    }
+
+    return allRows;
+}
+
         public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds)
         {
             if (orphanUniqueIds == null || !orphanUniqueIds.Any()) return;

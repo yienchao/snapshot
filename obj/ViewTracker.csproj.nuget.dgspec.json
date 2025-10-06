@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj": {}
+    "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj": {}
   },
   "projects": {
-    "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj": {
+    "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj",
+        "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj",
         "projectName": "ViewTracker",
-        "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\ViewTracker.csproj",
+        "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj",
         "packagesPath": "C:\\Users\\yichao\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\viewtracker\\obj\\",
+        "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\yichao\\AppData\\Roaming\\NuGet\\NuGet.Config"
