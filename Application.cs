@@ -23,10 +23,10 @@ namespace ViewTracker
         {
             try
             {
-                string tabName = "ViewTracker";
+                string tabName = "dataTracker";
                 try { application.CreateRibbonTab(tabName); } catch { }
 
-                var ribbonPanel = application.CreateRibbonPanel(tabName, tabName);
+                var ribbonPanel = application.CreateRibbonPanel(tabName, "viewTracker");
 
                 // Initialize Views
                 var initializeBtn = new PushButtonData(
@@ -41,12 +41,28 @@ namespace ViewTracker
                 // Export CSV
                 var exportBtn = new PushButtonData(
                     "ExportCsv",
-                    "Export\nCSV",
+                    "Export views\nCSV",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.ExportCsvCommand"
                 );
                 exportBtn.ToolTip = "Export Supabase view_activations for this project's projectID to CSV";
                 ribbonPanel.AddItem(exportBtn);
+
+                
+
+                // Create roomTracker panel
+                var roomPanel = application.CreateRibbonPanel(tabName, "roomTracker");
+
+                // Placeholder button for roomTracker
+                var roomPlaceholderBtn = new PushButtonData(
+                    "RoomPlaceholder",
+                    "Coming\nSoon",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.PlaceholderCommand" // temporary - reuse existing command
+                );
+                roomPlaceholderBtn.ToolTip = "Room tracking features coming soon";
+                roomPanel.AddItem(roomPlaceholderBtn);
+            
             }
             catch (Exception ex)
             {

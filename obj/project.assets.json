@@ -1067,9 +1067,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj",
-      "projectName": "ViewTracker",
-      "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj",
+      "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\dataTracker.csproj",
+      "projectName": "dataTracker",
+      "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\dataTracker.csproj",
       "packagesPath": "C:\\Users\\yichao\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
       "projectStyle": "PackageReference",
@@ -1160,7 +1160,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPI 2025.0.2 a été résolue.",
+      "message": "dataTracker dépend de Nice3point.Revit.Api.RevitAPI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPI 2025.0.2 a été résolue.",
       "libraryId": "Nice3point.Revit.Api.RevitAPI",
       "targetGraphs": [
         "net8.0-windows7.0"
@@ -1170,7 +1170,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPIUI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPIUI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPIUI 2025.0.2 a été résolue.",
+      "message": "dataTracker dépend de Nice3point.Revit.Api.RevitAPIUI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPIUI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPIUI 2025.0.2 a été résolue.",
       "libraryId": "Nice3point.Revit.Api.RevitAPIUI",
       "targetGraphs": [
         "net8.0-windows7.0"

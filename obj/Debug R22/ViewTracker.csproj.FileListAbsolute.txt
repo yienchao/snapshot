@@ -1,4 +1,0 @@
-C:\Users\yichao\Documents\VsCode\viewtracker\obj\Debug R22\ViewTracker.csproj.AssemblyReference.cache
-C:\Users\yichao\Documents\VsCode\viewtracker\obj\Debug R22\Views\ViewTrackerView.g.cs
-C:\Users\yichao\Documents\VsCode\viewtracker\obj\Debug R22\ViewTracker_MarkupCompile.cache
-C:\Users\yichao\Documents\VsCode\viewtracker\obj\Debug R22\ViewTracker_MarkupCompile.lref

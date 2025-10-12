@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "86/q59CsfeA=",
+  "dgSpecHash": "lDNqmEv9240=",
   "success": true,
-  "projectFilePath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\ViewTracker.csproj",
+  "projectFilePath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\dataTracker.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\yichao\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.0\\communitytoolkit.mvvm.8.4.0.nupkg.sha512",
     "C:\\Users\\yichao\\.nuget\\packages\\jetbrains.annotations\\2023.3.0\\jetbrains.annotations.2023.3.0.nupkg.sha512",
@@ -37,7 +37,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPI 2025.0.2 a été résolue.",
+      "message": "dataTracker dépend de Nice3point.Revit.Api.RevitAPI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPI 2025.0.2 a été résolue.",
       "libraryId": "Nice3point.Revit.Api.RevitAPI",
       "targetGraphs": [
         "net8.0-windows7.0"
@@ -47,7 +47,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "ViewTracker dépend de Nice3point.Revit.Api.RevitAPIUI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPIUI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPIUI 2025.0.2 a été résolue.",
+      "message": "dataTracker dépend de Nice3point.Revit.Api.RevitAPIUI (>= 2025.0.0), mais Nice3point.Revit.Api.RevitAPIUI 2025.0.0 est introuvable. Une meilleure correspondance approximative de Nice3point.Revit.Api.RevitAPIUI 2025.0.2 a été résolue.",
       "libraryId": "Nice3point.Revit.Api.RevitAPIUI",
       "targetGraphs": [
         "net8.0-windows7.0"
