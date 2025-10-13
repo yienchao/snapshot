@@ -153,6 +153,18 @@ namespace ViewTracker.Commands
                     RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
                     Level = doc.GetElement(room.LevelId)?.Name,
                     Area = room.Area,
+                    Perimeter = room.Perimeter,
+                    Volume = room.Volume,
+                    UnboundHeight = room.UnboundedHeight,
+                    Occupancy = room.LookupParameter("Occupation")?.AsString(),
+                    Department = room.LookupParameter("Service")?.AsString(),
+                    Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsValueString(),
+                    BaseFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_BASE)?.AsString(),
+                    CeilingFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_CEILING)?.AsString(),
+                    WallFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_WALL)?.AsString(),
+                    FloorFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_FLOOR)?.AsString(),
+                    Comments = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(),
+                    Occupant = room.LookupParameter("Occupant")?.AsString(),
                     AllParameters = allParams
                 };
 
@@ -184,38 +196,82 @@ namespace ViewTracker.Commands
         {
             var parameters = new Dictionary<string, object>();
 
+            // Parameters that are stored in dedicated columns - exclude from JSON
+            var excludedParams = new HashSet<string>
+            {
+                "Numéro", "Number",  // room_number column
+                "Nom", "Name",  // room_name column
+                "Niveau", "Level",  // level column
+                "Surface", "Area",  // area column
+                "Périmètre", "Perimeter",  // perimeter column
+                "Volume",  // volume column
+                "Hauteur non liée", "Unbounded Height",  // unbound_height column
+                "Occupation", "Occupancy",  // occupancy column
+                "Service", "Department",  // department column
+                "Phase",  // phase column
+                "Finition de la base", "Base Finish",  // base_finish column
+                "Finition du plafond", "Ceiling Finish",  // ceiling_finish column
+                "Finition du mur", "Wall Finish",  // wall_finish column
+                "Finition du sol", "Floor Finish",  // floor_finish column
+                "Commentaires", "Comments",  // comments column
+                "Occupant"  // occupant column
+            };
+
             foreach (Parameter param in room.Parameters)
             {
-                if (param.HasValue)
+                string paramName = param.Definition.Name;
+
+                // Skip parameters that are already in dedicated columns
+                if (excludedParams.Contains(paramName))
+                    continue;
+
+                object paramValue = null;
+                bool shouldAdd = false;
+
+                switch (param.StorageType)
                 {
-                    string paramName = param.Definition.Name;
-                    object paramValue = GetParameterValue(param);
-                    
-                    if (paramValue != null)
-                    {
-                        parameters[paramName] = paramValue;
-                    }
+                    case StorageType.Double:
+                        // Always add double values, even if 0
+                        paramValue = param.AsDouble();
+                        shouldAdd = true;
+                        break;
+                    case StorageType.Integer:
+                        // Always add integer values, even if 0
+                        paramValue = param.AsInteger();
+                        shouldAdd = true;
+                        break;
+                    case StorageType.String:
+                        // Only add non-empty strings
+                        var stringValue = param.AsString();
+                        if (!string.IsNullOrEmpty(stringValue))
+                        {
+                            paramValue = stringValue;
+                            shouldAdd = true;
+                        }
+                        break;
+                    case StorageType.ElementId:
+                        // Use AsValueString() to get the display value instead of the ID
+                        var valueString = param.AsValueString();
+                        if (!string.IsNullOrEmpty(valueString))
+                        {
+                            paramValue = valueString;
+                            shouldAdd = true;
+                        }
+                        else if (param.AsElementId().Value != -1)
+                        {
+                            paramValue = param.AsElementId().Value.ToString();
+                            shouldAdd = true;
+                        }
+                        break;
+                }
+
+                if (shouldAdd)
+                {
+                    parameters[paramName] = paramValue;
                 }
             }
 
             return parameters;
-        }
-
-        private object GetParameterValue(Parameter param)
-        {
-            switch (param.StorageType)
-            {
-                case StorageType.Double:
-                    return param.AsDouble();
-                case StorageType.Integer:
-                    return param.AsInteger();
-                case StorageType.String:
-                    return param.AsString();
-                case StorageType.ElementId:
-                    return param.AsElementId().IntegerValue;
-                default:
-                    return null;
-            }
         }
     }
 }

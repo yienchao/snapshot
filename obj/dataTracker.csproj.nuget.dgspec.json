@@ -29,6 +29,9 @@
           }
         },
         "warningProperties": {
+          "noWarn": [
+            "NU1603"
+          ],
           "warnAsError": [
             "NU1605"
           ]
@@ -46,6 +49,10 @@
             "CommunityToolkit.Mvvm": {
               "target": "Package",
               "version": "[8.4.0, )"
+            },
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.5.2, )"
             },
             "Nice3point.Revit.Api.RevitAPI": {
               "target": "Package",

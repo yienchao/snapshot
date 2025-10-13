@@ -10,11 +10,11 @@ none
 false
 ;DEBUG;TRACE;DEBUG_R25;NET;NET8_0;NETCOREAPP
 
-21803030384
+3-1680184508
 
-29-1934357027
-2231185875725
-Views\ComparisonResultWindow.xaml;Views\ViewTrackerView.xaml;
+28469230058
+235-1590058948
+Views\ComparisonResultWindow.xaml;Views\VersionSelectionWindow.xaml;Views\ViewTrackerView.xaml;
 
 False
 

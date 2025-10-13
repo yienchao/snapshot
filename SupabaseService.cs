@@ -270,6 +270,30 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
             }
         }
 
+        // Get all versions with detailed info (for version selection UI)
+        public async Task<List<RoomSnapshot>> GetAllVersionsWithInfoAsync(Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                // Return one snapshot per version (with metadata)
+                return results.Models
+                    .GroupBy(r => r.VersionName)
+                    .Select(g => g.First())
+                    .OrderByDescending(r => r.SnapshotDate)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting versions with info: {ex.Message}");
+                return new List<RoomSnapshot>();
+            }
+        }
+
         // Get all rooms for a specific version and project
         public async Task<List<RoomSnapshot>> GetRoomsByVersionAsync(string versionName, Guid projectId)
         {
