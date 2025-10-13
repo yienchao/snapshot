@@ -1,0 +1,221 @@
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.VisualBasic;
+
+namespace ViewTracker.Commands
+{
+    [Transaction(TransactionMode.ReadOnly)]
+    public class RoomSnapshotCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uiApp = commandData.Application;
+            var doc = uiApp.ActiveUIDocument.Document;
+
+            // 1. Validate projectID
+            var projectIdStr = doc.ProjectInformation.LookupParameter("projectID")?.AsString();
+            if (!Guid.TryParse(projectIdStr, out Guid projectId))
+            {
+                TaskDialog.Show("Error", "This file does not have a valid projectID parameter.");
+                return Result.Failed;
+            }
+
+            var fileName = System.IO.Path.GetFileNameWithoutExtension(doc.PathName);
+            if (string.IsNullOrEmpty(fileName))
+                fileName = doc.Title;
+
+            // 2. Get all rooms with trackID parameter (including unplaced)
+            var allRooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Room>()
+                .ToList();
+
+            var roomsWithTrackId = allRooms
+                .Where(r => r.LookupParameter("trackID") != null && 
+                           !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
+                .ToList();
+
+            if (!roomsWithTrackId.Any())
+            {
+                TaskDialog.Show("No Rooms", "No rooms found with trackID parameter.");
+                return Result.Cancelled;
+            }
+
+            // 3. Check for duplicate trackIDs in current file
+            var trackIdGroups = roomsWithTrackId
+                .GroupBy(r => r.LookupParameter("trackID").AsString())
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            if (trackIdGroups.Any())
+            {
+                var duplicates = string.Join("\n", trackIdGroups.Select(g => 
+                    $"trackID '{g.Key}': {string.Join(", ", g.Select(r => $"Room {r.Number}"))}"));
+                
+                TaskDialog.Show("Duplicate trackIDs", 
+                    $"Found duplicate trackIDs in this file:\n\n{duplicates}\n\nPlease fix before creating snapshot.");
+                return Result.Failed;
+            }
+
+            // 4. Get version name and type
+            var versionDialog = new TaskDialog("Create Room Snapshot");
+            versionDialog.MainInstruction = "Select snapshot type:";
+            versionDialog.MainContent = "Official versions should be created by BIM Manager for milestones.\nDraft versions are for work-in-progress tracking.";
+            versionDialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Draft Version", "For testing and work-in-progress");
+            versionDialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Official Version", "For milestones and deliverables (BIM Manager)");
+            versionDialog.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var result = versionDialog.Show();
+            if (result == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            bool isOfficial = (result == TaskDialogResult.CommandLink2);
+
+            // Get version name
+            string defaultName = isOfficial ? $"official_{DateTime.Now:yyyyMMdd}" : $"draft_{DateTime.Now:yyyyMMdd}";
+            string versionName = Microsoft.VisualBasic.Interaction.InputBox(
+                isOfficial ? "Enter official version name:\n(e.g., permit_set, design_v2)" : "Enter draft version name:\n(e.g., wip_jan15, test_v1)",
+                "Room Snapshot Version",
+                defaultName,
+                -1, -1);
+
+            if (string.IsNullOrWhiteSpace(versionName))
+                return Result.Cancelled;
+
+            // Validate version name (alphanumeric, underscore, dash only)
+            if (!System.Text.RegularExpressions.Regex.IsMatch(versionName, @"^[a-zA-Z0-9_-]+$"))
+            {
+                TaskDialog.Show("Invalid Version Name", "Version name must contain only letters, numbers, underscores, and dashes.");
+                return Result.Failed;
+            }
+
+            // Check if version already exists
+            var supabaseService = new SupabaseService();
+            bool versionExists = false;
+            RoomSnapshot existingVersion = null;
+
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await supabaseService.InitializeAsync();
+                    versionExists = await supabaseService.VersionExistsAsync(versionName);
+                    if (versionExists)
+                    {
+                        existingVersion = await supabaseService.GetVersionInfoAsync(versionName);
+                    }
+                }).Wait();
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to check existing versions:\n{ex.InnerException?.Message ?? ex.Message}");
+                return Result.Failed;
+            }
+
+            if (versionExists && existingVersion != null)
+            {
+                string existingType = existingVersion.IsOfficial ? "Official" : "Draft";
+                TaskDialog.Show("Version Already Exists",
+                    $"Version '{versionName}' already exists:\n\n" +
+                    $"Type: {existingType}\n" +
+                    $"Created by: {existingVersion.CreatedBy}\n" +
+                    $"Date: {existingVersion.SnapshotDate:yyyy-MM-dd HH:mm}\n\n" +
+                    $"Please choose a different version name.");
+                return Result.Failed;
+            }
+
+            // 5. Create snapshots
+            var snapshots = new List<RoomSnapshot>();
+            var now = DateTime.UtcNow;
+            string currentUser = Environment.UserName;
+
+            foreach (var room in roomsWithTrackId)
+            {
+                var trackId = room.LookupParameter("trackID").AsString();
+                var allParams = GetAllParameters(room);
+
+                var snapshot = new RoomSnapshot
+                {
+                    TrackId = trackId,
+                    VersionName = versionName,
+                    ProjectId = projectId,
+                    FileName = fileName,
+                    SnapshotDate = now,
+                    CreatedBy = currentUser,
+                    IsOfficial = isOfficial,
+                    RoomNumber = room.Number,
+                    RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
+                    Level = doc.GetElement(room.LevelId)?.Name,
+                    Area = room.Area,
+                    AllParameters = allParams
+                };
+
+                snapshots.Add(snapshot);
+            }
+
+            // 6. Upload to Supabase (reuse existing service)
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await supabaseService.BulkUpsertRoomSnapshotsAsync(snapshots);
+                }).Wait();
+
+                string typeLabel = isOfficial ? "Official" : "Draft";
+                TaskDialog.Show("Success",
+                    $"Captured {snapshots.Count} room(s) to Supabase.\n\nVersion: {versionName} ({typeLabel})\nCreated by: {currentUser}\nDate: {now:yyyy-MM-dd HH:mm:ss} UTC");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to upload snapshots:\n\n{ex.InnerException?.Message ?? ex.Message}");
+                return Result.Failed;
+            }
+
+            return Result.Succeeded;
+        }
+
+        private Dictionary<string, object> GetAllParameters(Room room)
+        {
+            var parameters = new Dictionary<string, object>();
+
+            foreach (Parameter param in room.Parameters)
+            {
+                if (param.HasValue)
+                {
+                    string paramName = param.Definition.Name;
+                    object paramValue = GetParameterValue(param);
+                    
+                    if (paramValue != null)
+                    {
+                        parameters[paramName] = paramValue;
+                    }
+                }
+            }
+
+            return parameters;
+        }
+
+        private object GetParameterValue(Parameter param)
+        {
+            switch (param.StorageType)
+            {
+                case StorageType.Double:
+                    return param.AsDouble();
+                case StorageType.Integer:
+                    return param.AsInteger();
+                case StorageType.String:
+                    return param.AsString();
+                case StorageType.ElementId:
+                    return param.AsElementId().IntegerValue;
+                default:
+                    return null;
+            }
+        }
+    }
+}

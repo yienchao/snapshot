@@ -184,5 +184,67 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 return false;
             }
         }
+
+        // Room Snapshot Methods
+
+        // Check if version name already exists
+        public async Task<bool> VersionExistsAsync(string versionName)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.VersionName == versionName)
+                    .Limit(1)
+                    .Get();
+                return results.Models.Any();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking version: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Get version info (for showing who created it)
+        public async Task<RoomSnapshot?> GetVersionInfoAsync(string versionName)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.VersionName == versionName)
+                    .Limit(1)
+                    .Get();
+                return results.Models.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting version info: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Batch upsert room snapshots
+        public async Task BulkUpsertRoomSnapshotsAsync(List<RoomSnapshot> snapshots)
+        {
+            if (snapshots == null || !snapshots.Any())
+                return;
+
+            try
+            {
+                const int batchSize = 300;
+                for (int i = 0; i < snapshots.Count; i += batchSize)
+                {
+                    var batch = snapshots.Skip(i).Take(batchSize).ToList();
+                    await _supabase.From<RoomSnapshot>().Upsert(batch);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error bulk upserting room snapshots: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

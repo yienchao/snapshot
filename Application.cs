@@ -53,15 +53,25 @@ namespace ViewTracker
                 // Create roomTracker panel
                 var roomPanel = application.CreateRibbonPanel(tabName, "roomTracker");
 
-                // Placeholder button for roomTracker
-                var roomPlaceholderBtn = new PushButtonData(
-                    "RoomPlaceholder",
-                    "Coming\nSoon",
+                // Room Snapshot button
+                var roomSnapshotBtn = new PushButtonData(
+                    "RoomSnapshot",
+                    "Snapshot",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.PlaceholderCommand" // temporary - reuse existing command
+                    "ViewTracker.Commands.RoomSnapshotCommand"
                 );
-                roomPlaceholderBtn.ToolTip = "Room tracking features coming soon";
-                roomPanel.AddItem(roomPlaceholderBtn);
+                roomSnapshotBtn.ToolTip = "Capture room data with trackID to Supabase";
+                roomPanel.AddItem(roomSnapshotBtn);
+
+                // Room Compare button (placeholder for now)
+                var roomCompareBtn = new PushButtonData(
+                    "RoomCompare",
+                    "Compare",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.PlaceholderCommand"
+                );
+                roomCompareBtn.ToolTip = "Compare current rooms with snapshot (coming soon)";
+                roomPanel.AddItem(roomCompareBtn);
             
             }
             catch (Exception ex)
