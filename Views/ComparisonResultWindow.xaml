@@ -1,0 +1,153 @@
+<Window x:Class="ViewTracker.Views.ComparisonResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Room Comparison Results" 
+        Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+    
+    <Window.Resources>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="GridLinesVisibility" Value="All"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9F9F9"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2196F3" Padding="15" CornerRadius="5" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Room Comparison Results" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="{Binding VersionInfo}" FontSize="14" Foreground="White" Margin="0,5,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Summary Cards -->
+        <Grid Grid.Row="1" Margin="0,0,0,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="#4CAF50" CornerRadius="5" Padding="15" Margin="0,0,5,0">
+                <StackPanel>
+                    <TextBlock Text="NEW ROOMS" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                    <TextBlock Text="{Binding NewRoomsCount}" FontSize="32" FontWeight="Bold" Foreground="White" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Background="#FF9800" CornerRadius="5" Padding="15" Margin="5,0">
+                <StackPanel>
+                    <TextBlock Text="MODIFIED ROOMS" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                    <TextBlock Text="{Binding ModifiedRoomsCount}" FontSize="32" FontWeight="Bold" Foreground="White" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Background="#F44336" CornerRadius="5" Padding="15" Margin="5,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="DELETED ROOMS" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                    <TextBlock Text="{Binding DeletedRoomsCount}" FontSize="32" FontWeight="Bold" Foreground="White" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Filter/Search -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="Filter:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="Bold"/>
+            <TextBox Grid.Column="1" x:Name="SearchBox" TextChanged="SearchBox_TextChanged" 
+                     Padding="8" FontSize="14" BorderBrush="#CCCCCC" BorderThickness="1"/>
+            <ComboBox Grid.Column="2" x:Name="ChangeTypeFilter" SelectionChanged="ChangeTypeFilter_SelectionChanged"
+                      Width="150" Margin="10,0,0,0" Padding="8" FontSize="14">
+                <ComboBoxItem Content="All Changes" IsSelected="True"/>
+                <ComboBoxItem Content="New Only"/>
+                <ComboBoxItem Content="Modified Only"/>
+                <ComboBoxItem Content="Deleted Only"/>
+            </ComboBox>
+        </Grid>
+
+        <!-- DataGrid -->
+        <DataGrid Grid.Row="3" x:Name="ResultsGrid" ItemsSource="{Binding FilteredResults}"
+                  SelectionMode="Single" CanUserResizeColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Change Type" Binding="{Binding ChangeType}" Width="120">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="New">
+                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                </Trigger>
+                                <Trigger Property="Text" Value="Modified">
+                                    <Setter Property="Foreground" Value="#FF9800"/>
+                                </Trigger>
+                                <Trigger Property="Text" Value="Deleted">
+                                    <Setter Property="Foreground" Value="#F44336"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                
+                <DataGridTextColumn Header="Track ID" Binding="{Binding TrackId}" Width="150"/>
+                <DataGridTextColumn Header="Room Number" Binding="{Binding RoomNumber}" Width="120"/>
+                <DataGridTextColumn Header="Room Name" Binding="{Binding RoomName}" Width="200"/>
+                <DataGridTextColumn Header="Changes Count" Binding="{Binding ChangesCount}" Width="120"/>
+                <DataGridTextColumn Header="Details" Binding="{Binding ChangesSummary}" Width="*"/>
+            </DataGrid.Columns>
+            
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Border Background="#F0F0F0" Padding="15" Margin="5">
+                        <StackPanel>
+                            <TextBlock Text="Parameter Changes:" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <ItemsControl ItemsSource="{Binding Changes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Margin="20,2,0,2" FontFamily="Consolas"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
+        </DataGrid>
+
+        <!-- Footer Buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="📊 Export to CSV" Click="ExportCSV_Click" Background="#4CAF50" Foreground="White"/>
+            <Button Content="📋 Copy to Clipboard" Click="CopyToClipboard_Click" Background="#2196F3" Foreground="White"/>
+            <Button Content="✖ Close" Click="Close_Click" Background="#757575" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -63,14 +63,14 @@ namespace ViewTracker
                 roomSnapshotBtn.ToolTip = "Capture room data with trackID to Supabase";
                 roomPanel.AddItem(roomSnapshotBtn);
 
-                // Room Compare button (placeholder for now)
+                // Room Compare button
                 var roomCompareBtn = new PushButtonData(
                     "RoomCompare",
                     "Compare",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.PlaceholderCommand"
+                    "ViewTracker.Commands.RoomCompareCommand"
                 );
-                roomCompareBtn.ToolTip = "Compare current rooms with snapshot (coming soon)";
+                roomCompareBtn.ToolTip = "Compare current rooms with a snapshot version";
                 roomPanel.AddItem(roomCompareBtn);
             
             }

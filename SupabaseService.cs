@@ -246,5 +246,47 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 throw;
             }
         }
+
+        // Get all unique version names for a project (for dropdown selection)
+        public async Task<List<string>> GetAllVersionNamesAsync(Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                return results.Models
+                    .Select(r => r.VersionName)
+                    .Distinct()
+                    .OrderByDescending(v => v)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting versions: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
+        // Get all rooms for a specific version and project
+        public async Task<List<RoomSnapshot>> GetRoomsByVersionAsync(string versionName, Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
+                    .Get();
+
+                return results.Models.ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting rooms for version: {ex.Message}");
+                return new List<RoomSnapshot>();
+            }
+        }
     }
 }

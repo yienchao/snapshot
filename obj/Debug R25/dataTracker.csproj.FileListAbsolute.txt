@@ -42,3 +42,5 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\refint\dataTracker.dl
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\dataTracker.pdb
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\dataTracker.genruntimeconfig.cache
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\ref\dataTracker.dll
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ComparisonResultWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ComparisonResultWindow.g.cs
