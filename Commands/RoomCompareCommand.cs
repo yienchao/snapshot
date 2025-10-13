@@ -87,19 +87,74 @@ namespace ViewTracker.Commands
                 return Result.Failed;
             }
 
-            // 5. Get current rooms from Revit
-            var currentRooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .Cast<Room>()
-                .Where(r => r.LookupParameter("trackID") != null &&
-                           !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
-                .ToList();
+            // 5. Get current rooms from Revit - check for pre-selection first
+            var uiDoc = commandData.Application.ActiveUIDocument;
+            var selectedIds = uiDoc.Selection.GetElementIds();
 
-            // 6. Compare
-            ComparisonResult comparison = CompareRooms(currentRooms, snapshotRooms, doc);
+            List<Room> currentRooms;
 
-            // 7. Show results
+            // Check if user has pre-selected rooms
+            if (selectedIds.Any())
+            {
+                // Use only selected rooms that have trackID
+                currentRooms = selectedIds
+                    .Select(id => doc.GetElement(id))
+                    .OfType<Room>()
+                    .Where(r => r.LookupParameter("trackID") != null &&
+                               !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
+                    .ToList();
+
+                if (!currentRooms.Any())
+                {
+                    TaskDialog.Show("No Valid Rooms Selected",
+                        "None of the selected elements are rooms with trackID.\n\n" +
+                        "Please select rooms with trackID parameter, or run without selection to compare all rooms.");
+                    return Result.Cancelled;
+                }
+
+                // Inform user about selection
+                TaskDialog.Show("Using Selection",
+                    $"Comparing {currentRooms.Count} pre-selected room(s) against version '{selectedVersion}'.");
+            }
+            else
+            {
+                // No selection - use all rooms with trackID
+                currentRooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Room>()
+                    .Where(r => r.LookupParameter("trackID") != null &&
+                               !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
+                    .ToList();
+
+                if (!currentRooms.Any())
+                {
+                    TaskDialog.Show("No Rooms Found", "No rooms with trackID parameter found in the model.");
+                    return Result.Cancelled;
+                }
+            }
+
+            // 6. Filter snapshot to only include rooms we're comparing
+            // If user pre-selected rooms, only compare against those trackIDs in the snapshot
+            List<RoomSnapshot> filteredSnapshotRooms;
+            if (selectedIds.Any())
+            {
+                // Get trackIDs of selected rooms
+                var selectedTrackIds = currentRooms.Select(r => r.LookupParameter("trackID").AsString()).ToHashSet();
+
+                // Only include snapshot rooms that match selected trackIDs
+                filteredSnapshotRooms = snapshotRooms.Where(s => selectedTrackIds.Contains(s.TrackId)).ToList();
+            }
+            else
+            {
+                // No selection - use all snapshot rooms
+                filteredSnapshotRooms = snapshotRooms;
+            }
+
+            // 7. Compare
+            ComparisonResult comparison = CompareRooms(currentRooms, filteredSnapshotRooms, doc);
+
+            // 8. Show results
             ShowComparisonResults(comparison, selectedVersion, commandData.Application);
 
             return Result.Succeeded;
