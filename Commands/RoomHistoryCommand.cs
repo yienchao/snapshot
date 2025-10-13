@@ -1,0 +1,278 @@
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.UI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ViewTracker.Commands
+{
+    [Transaction(TransactionMode.ReadOnly)]
+    public class RoomHistoryCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uiDoc = commandData.Application.ActiveUIDocument;
+            var doc = uiDoc.Document;
+
+            // 1. Validate projectID
+            var projectIdStr = doc.ProjectInformation.LookupParameter("projectID")?.AsString();
+            if (!Guid.TryParse(projectIdStr, out Guid projectId))
+            {
+                TaskDialog.Show("Error", "This file does not have a valid projectID parameter.");
+                return Result.Failed;
+            }
+
+            // 2. Check if user selected a room
+            var selectedIds = uiDoc.Selection.GetElementIds();
+            Room selectedRoom = null;
+
+            if (selectedIds.Count == 1)
+            {
+                var element = doc.GetElement(selectedIds.First());
+                selectedRoom = element as Room;
+            }
+
+            if (selectedRoom == null || selectedRoom.LookupParameter("trackID") == null ||
+                string.IsNullOrWhiteSpace(selectedRoom.LookupParameter("trackID").AsString()))
+            {
+                TaskDialog.Show("No Room Selected",
+                    "Please select exactly one room with a trackID parameter to view its history.");
+                return Result.Cancelled;
+            }
+
+            string trackId = selectedRoom.LookupParameter("trackID").AsString();
+            string roomNumber = selectedRoom.Number;
+            string roomName = selectedRoom.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString();
+
+            // 3. Get all snapshots for this room across all versions
+            var supabaseService = new SupabaseService();
+            List<RoomSnapshot> roomHistory = new List<RoomSnapshot>();
+
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await supabaseService.InitializeAsync();
+                    roomHistory = await supabaseService.GetRoomHistoryAsync(trackId, projectId);
+                }).Wait();
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to load room history:\n{ex.InnerException?.Message ?? ex.Message}");
+                return Result.Failed;
+            }
+
+            if (!roomHistory.Any())
+            {
+                TaskDialog.Show("No History",
+                    $"No snapshot history found for room:\n\nTrack ID: {trackId}\nRoom Number: {roomNumber}\nRoom Name: {roomName}");
+                return Result.Cancelled;
+            }
+
+            // 4. Build history timeline
+            var timeline = BuildTimeline(roomHistory, doc);
+
+            // 5. Display history
+            ShowHistory(trackId, roomNumber, roomName, timeline);
+
+            return Result.Succeeded;
+        }
+
+        private List<HistoryEntry> BuildTimeline(List<RoomSnapshot> snapshots, Document doc)
+        {
+            var timeline = new List<HistoryEntry>();
+
+            // Sort by date (oldest first)
+            var sortedSnapshots = snapshots.OrderBy(s => s.SnapshotDate).ToList();
+
+            for (int i = 0; i < sortedSnapshots.Count; i++)
+            {
+                var snapshot = sortedSnapshots[i];
+                var entry = new HistoryEntry
+                {
+                    VersionName = snapshot.VersionName,
+                    SnapshotDate = snapshot.SnapshotDate ?? DateTime.MinValue,
+                    CreatedBy = snapshot.CreatedBy,
+                    IsOfficial = snapshot.IsOfficial,
+                    RoomNumber = snapshot.RoomNumber,
+                    RoomName = snapshot.RoomName,
+                    Level = snapshot.Level
+                };
+
+                // Compare with previous version to find changes
+                if (i > 0)
+                {
+                    var previousSnapshot = sortedSnapshots[i - 1];
+                    entry.Changes = GetChangesSincePrevious(previousSnapshot, snapshot, doc);
+                    entry.ChangeCount = entry.Changes.Count;
+                }
+                else
+                {
+                    entry.Changes = new List<string> { "Initial snapshot" };
+                    entry.ChangeCount = 0;
+                }
+
+                timeline.Add(entry);
+            }
+
+            return timeline;
+        }
+
+        private List<string> GetChangesSincePrevious(RoomSnapshot previous, RoomSnapshot current, Document doc)
+        {
+            var changes = new List<string>();
+
+            // Build parameter dictionaries
+            var prevParams = BuildSnapshotParams(previous);
+            var currParams = BuildSnapshotParams(current);
+
+            // Find all changed parameters
+            foreach (var currParam in currParams)
+            {
+                if (prevParams.TryGetValue(currParam.Key, out var prevValue))
+                {
+                    bool isDifferent = false;
+
+                    if (currParam.Value is double currDouble && prevValue is double prevDouble)
+                    {
+                        isDifferent = Math.Abs(currDouble - prevDouble) > 0.001;
+                    }
+                    else
+                    {
+                        var currStr = currParam.Value?.ToString() ?? "";
+                        var prevStr = prevValue?.ToString() ?? "";
+                        isDifferent = (currStr != prevStr);
+                    }
+
+                    if (isDifferent)
+                    {
+                        changes.Add($"{currParam.Key}: {prevValue} → {currParam.Value}");
+                    }
+                }
+                else
+                {
+                    changes.Add($"{currParam.Key}: (new) {currParam.Value}");
+                }
+            }
+
+            // Find removed parameters
+            foreach (var prevParam in prevParams)
+            {
+                if (!currParams.ContainsKey(prevParam.Key))
+                {
+                    changes.Add($"{prevParam.Key}: {prevParam.Value} → (removed)");
+                }
+            }
+
+            return changes;
+        }
+
+        private Dictionary<string, object> BuildSnapshotParams(RoomSnapshot snapshot)
+        {
+            var parameters = new Dictionary<string, object>();
+
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var kvp in snapshot.AllParameters)
+                {
+                    parameters[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Add dedicated columns
+            if (!string.IsNullOrEmpty(snapshot.RoomNumber))
+                parameters["Number"] = snapshot.RoomNumber;
+            if (!string.IsNullOrEmpty(snapshot.RoomName))
+                parameters["Name"] = snapshot.RoomName;
+            if (!string.IsNullOrEmpty(snapshot.Level))
+                parameters["Level"] = snapshot.Level;
+            if (snapshot.Area.HasValue)
+                parameters["Area"] = snapshot.Area.Value;
+            if (snapshot.Perimeter.HasValue)
+                parameters["Perimeter"] = snapshot.Perimeter.Value;
+            if (snapshot.Volume.HasValue)
+                parameters["Volume"] = snapshot.Volume.Value;
+            if (snapshot.UnboundHeight.HasValue)
+                parameters["UnboundHeight"] = snapshot.UnboundHeight.Value;
+            if (!string.IsNullOrEmpty(snapshot.Occupancy))
+                parameters["Occupancy"] = snapshot.Occupancy;
+            if (!string.IsNullOrEmpty(snapshot.Department))
+                parameters["Department"] = snapshot.Department;
+            if (!string.IsNullOrEmpty(snapshot.Phase))
+                parameters["Phase"] = snapshot.Phase;
+            if (!string.IsNullOrEmpty(snapshot.BaseFinish))
+                parameters["BaseFinish"] = snapshot.BaseFinish;
+            if (!string.IsNullOrEmpty(snapshot.CeilingFinish))
+                parameters["CeilingFinish"] = snapshot.CeilingFinish;
+            if (!string.IsNullOrEmpty(snapshot.WallFinish))
+                parameters["WallFinish"] = snapshot.WallFinish;
+            if (!string.IsNullOrEmpty(snapshot.FloorFinish))
+                parameters["FloorFinish"] = snapshot.FloorFinish;
+            if (!string.IsNullOrEmpty(snapshot.Comments))
+                parameters["Comments"] = snapshot.Comments;
+            if (!string.IsNullOrEmpty(snapshot.Occupant))
+                parameters["Occupant"] = snapshot.Occupant;
+
+            return parameters;
+        }
+
+        private void ShowHistory(string trackId, string roomNumber, string roomName, List<HistoryEntry> timeline)
+        {
+            var dialog = new TaskDialog("Room Change History");
+            dialog.MainInstruction = $"History for Room: {roomNumber} - {roomName}";
+            dialog.MainContent = $"Track ID: {trackId}\nTotal snapshots: {timeline.Count}\n\n";
+
+            // Build timeline text
+            var timelineText = "TIMELINE (oldest to newest):\n";
+            timelineText += new string('-', 60) + "\n\n";
+
+            foreach (var entry in timeline)
+            {
+                var typeLabel = entry.IsOfficial ? "OFFICIAL" : "draft";
+                var dateStr = entry.SnapshotDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+                timelineText += $"📅 {dateStr} | {entry.VersionName} ({typeLabel})\n";
+                timelineText += $"   By: {entry.CreatedBy ?? "Unknown"}\n";
+
+                if (entry.ChangeCount > 0)
+                {
+                    timelineText += $"   Changes: {entry.ChangeCount} parameter(s) changed\n";
+                    foreach (var change in entry.Changes.Take(3)) // Show first 3 changes
+                    {
+                        timelineText += $"      • {change}\n";
+                    }
+                    if (entry.Changes.Count > 3)
+                    {
+                        timelineText += $"      ... and {entry.Changes.Count - 3} more\n";
+                    }
+                }
+                else
+                {
+                    timelineText += $"   {entry.Changes.FirstOrDefault()}\n";
+                }
+
+                timelineText += "\n";
+            }
+
+            dialog.MainContent += timelineText;
+
+            dialog.CommonButtons = TaskDialogCommonButtons.Ok;
+            dialog.Show();
+        }
+
+        private class HistoryEntry
+        {
+            public string VersionName { get; set; }
+            public DateTime SnapshotDate { get; set; }
+            public string CreatedBy { get; set; }
+            public bool IsOfficial { get; set; }
+            public string RoomNumber { get; set; }
+            public string RoomName { get; set; }
+            public string Level { get; set; }
+            public List<string> Changes { get; set; }
+            public int ChangeCount { get; set; }
+        }
+    }
+}

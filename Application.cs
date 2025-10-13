@@ -66,13 +66,33 @@ namespace ViewTracker
                 // Room Compare button
                 var roomCompareBtn = new PushButtonData(
                     "RoomCompare",
-                    "Compare",
+                    "Compare\nCurrent",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.RoomCompareCommand"
                 );
                 roomCompareBtn.ToolTip = "Compare current rooms with a snapshot version";
                 roomPanel.AddItem(roomCompareBtn);
-            
+
+                // Room Compare Two Versions button
+                var roomCompareTwoBtn = new PushButtonData(
+                    "RoomCompareTwoVersions",
+                    "Compare\nVersions",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.RoomCompareTwoVersionsCommand"
+                );
+                roomCompareTwoBtn.ToolTip = "Compare two snapshot versions";
+                roomPanel.AddItem(roomCompareTwoBtn);
+
+                // Room History button
+                var roomHistoryBtn = new PushButtonData(
+                    "RoomHistory",
+                    "History",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.RoomHistoryCommand"
+                );
+                roomHistoryBtn.ToolTip = "View history of a selected room across all versions";
+                roomPanel.AddItem(roomHistoryBtn);
+
             }
             catch (Exception ex)
             {

@@ -312,5 +312,25 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 return new List<RoomSnapshot>();
             }
         }
+
+        // Get all snapshots for a specific room (by trackID) across all versions
+        public async Task<List<RoomSnapshot>> GetRoomHistoryAsync(string trackId, Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.TrackId == trackId && x.ProjectId == projectId)
+                    .Order(x => x.SnapshotDate, Supabase.Postgrest.Constants.Ordering.Ascending)
+                    .Get();
+
+                return results.Models.ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting room history: {ex.Message}");
+                return new List<RoomSnapshot>();
+            }
+        }
     }
 }

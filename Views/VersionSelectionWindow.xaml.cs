@@ -75,7 +75,15 @@ namespace ViewTracker.Views
     public class VersionInfo
     {
         public string VersionName { get; set; }
-        public string DisplayName => $"{VersionName}";
+        public string DisplayName
+        {
+            get
+            {
+                var typeLabel = IsOfficial ? "Official" : "Draft";
+                var dateStr = SnapshotDate.HasValue ? SnapshotDate.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "Unknown date";
+                return $"{VersionName} ({typeLabel} - {dateStr})";
+            }
+        }
         public DateTime? SnapshotDate { get; set; }
         public string CreatedBy { get; set; }
         public bool IsOfficial { get; set; }
