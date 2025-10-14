@@ -87,6 +87,8 @@ namespace ViewTracker.Commands
             // Sort by date (oldest first)
             var sortedSnapshots = snapshots.OrderBy(s => s.SnapshotDate).ToList();
 
+            RoomSnapshot lastAddedSnapshot = null;
+
             for (int i = 0; i < sortedSnapshots.Count; i++)
             {
                 var snapshot = sortedSnapshots[i];
@@ -102,19 +104,24 @@ namespace ViewTracker.Commands
                 };
 
                 // Compare with previous version to find changes
-                if (i > 0)
+                if (lastAddedSnapshot != null)
                 {
-                    var previousSnapshot = sortedSnapshots[i - 1];
-                    entry.Changes = GetChangesSincePrevious(previousSnapshot, snapshot, doc);
+                    entry.Changes = GetChangesSincePrevious(lastAddedSnapshot, snapshot, doc);
                     entry.ChangeCount = entry.Changes.Count;
+
+                    // Skip this entry if there are no changes
+                    if (entry.ChangeCount == 0)
+                        continue;
                 }
                 else
                 {
+                    // First snapshot - always show
                     entry.Changes = new List<string> { "Initial snapshot" };
                     entry.ChangeCount = 0;
                 }
 
                 timeline.Add(entry);
+                lastAddedSnapshot = snapshot;
             }
 
             return timeline;
@@ -224,11 +231,12 @@ namespace ViewTracker.Commands
             dialog.MainInstruction = $"History for Room: {roomNumber} - {roomName}";
             dialog.MainContent = $"Track ID: {trackId}\nTotal snapshots: {timeline.Count}\n\n";
 
-            // Build timeline text
-            var timelineText = "TIMELINE (oldest to newest):\n";
+            // Build timeline text (newest first)
+            var timelineText = "TIMELINE (newest to oldest):\n";
             timelineText += new string('-', 60) + "\n\n";
 
-            foreach (var entry in timeline)
+            // Reverse the timeline to show most recent first
+            foreach (var entry in timeline.AsEnumerable().Reverse())
             {
                 var typeLabel = entry.IsOfficial ? "OFFICIAL" : "draft";
                 var dateStr = entry.SnapshotDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
