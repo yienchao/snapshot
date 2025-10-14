@@ -60,3 +60,9 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\System.Security.Crypt
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\runtimes\win\lib\net8.0\System.Security.Cryptography.Pkcs.dll
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\VersionSelectionWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\VersionSelectionWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Snapshot16.png
+C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Compare16.png
+C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\History16.png
+c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Snapshot32.png
+c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Compare32.png
+c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\History32.png

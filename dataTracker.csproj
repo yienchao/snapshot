@@ -64,6 +64,7 @@
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
         <PackageReference Include="Supabase" Version="0.15.2" />
         <PackageReference Include="EPPlus" Version="7.5.2" />
+        <Reference Include="Microsoft.VisualBasic" />
     </ItemGroup>
 
     <!-- Revit 2025 and 2026 (.NET 8) -->
@@ -81,6 +82,24 @@
     <ItemGroup>
         <Resource Include="Resources\Icons\RibbonIcon16.png" />
         <Resource Include="Resources\Icons\RibbonIcon32.png" />
+        <None Include="Resources\Icons\Snapshot16.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="Resources\Icons\Snapshot32.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="Resources\Icons\Compare16.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="Resources\Icons\Compare32.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="Resources\Icons\History16.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="Resources\Icons\History32.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
     <ItemGroup>

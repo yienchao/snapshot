@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Media.Imaging;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 
@@ -90,51 +91,90 @@ namespace ViewTracker
 
                 trackerPanel.AddSeparator();
 
-                // Snapshot button
+                // Create regular buttons with 16x16 icons
                 var snapshotBtn = new PushButtonData(
                     "UnifiedSnapshot",
-                    "📷\nSnapshot",
+                    "Snapshot",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedSnapshotCommand"
                 );
                 snapshotBtn.ToolTip = "Create snapshot with trackID (draft or official)";
-                snapshotBtn.LongDescription = "Captures current data to Supabase for the selected entity type. You'll choose draft or official when creating.";
+                try
+                {
+                    string assemblyPath = typeof(Application).Assembly.Location;
+                    string iconPath16 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "Snapshot16.png");
+                    string iconPath32 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "Snapshot32.png");
+                    if (System.IO.File.Exists(iconPath16))
+                    {
+                        snapshotBtn.Image = new BitmapImage(new Uri(iconPath16, UriKind.Absolute));
+                    }
+                    if (System.IO.File.Exists(iconPath32))
+                    {
+                        snapshotBtn.LargeImage = new BitmapImage(new Uri(iconPath32, UriKind.Absolute));
+                    }
+                }
+                catch { }
                 trackerPanel.AddItem(snapshotBtn);
 
-                trackerPanel.AddSeparator();
-
-                // Compare split button
                 var compareBtn = new PushButtonData(
                     "UnifiedCompare",
-                    "⇄\nCompare to\nSnapshot",
+                    "Compare",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedCompareCommand"
                 );
                 compareBtn.ToolTip = "Compare current state with a snapshot version";
+                try
+                {
+                    string assemblyPath = typeof(Application).Assembly.Location;
+                    string iconPath16 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "Compare16.png");
+                    string iconPath32 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "Compare32.png");
+                    if (System.IO.File.Exists(iconPath16))
+                    {
+                        compareBtn.Image = new BitmapImage(new Uri(iconPath16, UriKind.Absolute));
+                    }
+                    if (System.IO.File.Exists(iconPath32))
+                    {
+                        compareBtn.LargeImage = new BitmapImage(new Uri(iconPath32, UriKind.Absolute));
+                    }
+                }
+                catch { }
+                trackerPanel.AddItem(compareBtn);
 
-                var compareTwoBtn = new PushButtonData(
-                    "UnifiedCompareTwoVersions",
-                    "Compare\nSnapshots",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.UnifiedCompareTwoVersionsCommand"
-                );
-                compareTwoBtn.ToolTip = "Compare two snapshot versions with each other";
-
-                var compareSplit = trackerPanel.AddItem(new SplitButtonData("UnifiedCompareSplit", "⇄ Compare")) as SplitButton;
-                compareSplit.AddPushButton(compareBtn);
-                compareSplit.AddPushButton(compareTwoBtn);
-
-                trackerPanel.AddSeparator();
-
-                // History button
                 var historyBtn = new PushButtonData(
                     "UnifiedHistory",
-                    "⟲\nHistory",
+                    "History",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedHistoryCommand"
                 );
                 historyBtn.ToolTip = "View history of a selected element across all versions";
+                try
+                {
+                    string assemblyPath = typeof(Application).Assembly.Location;
+                    string iconPath16 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "History16.png");
+                    string iconPath32 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "History32.png");
+                    if (System.IO.File.Exists(iconPath16))
+                    {
+                        historyBtn.Image = new BitmapImage(new Uri(iconPath16, UriKind.Absolute));
+                    }
+                    if (System.IO.File.Exists(iconPath32))
+                    {
+                        historyBtn.LargeImage = new BitmapImage(new Uri(iconPath32, UriKind.Absolute));
+                    }
+                }
+                catch { }
                 trackerPanel.AddItem(historyBtn);
+
+                trackerPanel.AddSeparator();
+
+                // Export History button
+                var exportHistoryBtn = new PushButtonData(
+                    "UnifiedExportHistory",
+                    "Export\nHistory",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.UnifiedExportHistoryCommand"
+                );
+                exportHistoryBtn.ToolTip = "Export all snapshot history to Excel or CSV";
+                trackerPanel.AddItem(exportHistoryBtn);
 
             }
             catch (Exception ex)
