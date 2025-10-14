@@ -154,6 +154,7 @@
 
         <!-- Footer Buttons -->
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="📊 Export to Excel" Click="ExportExcel_Click" Background="#4CAF50" Foreground="White"/>
             <Button Content="📊 Export to CSV" Click="ExportCSV_Click" Background="#4CAF50" Foreground="White"/>
             <Button Content="📋 Copy to Clipboard" Click="CopyToClipboard_Click" Background="#2196F3" Foreground="White"/>
             <Button Content="✖ Close" Click="Close_Click" Background="#757575" Foreground="White"/>

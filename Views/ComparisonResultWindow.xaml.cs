@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
+using OfficeOpenXml;
 
 namespace ViewTracker.Views
 {
@@ -143,6 +145,105 @@ namespace ViewTracker.Views
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to copy to clipboard:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var saveDialog = new SaveFileDialog
+                {
+                    Filter = "Excel Files (*.xlsx)|*.xlsx",
+                    DefaultExt = "xlsx",
+                    FileName = $"RoomComparison_{_viewModel.VersionName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
+                };
+
+                if (saveDialog.ShowDialog() != true)
+                    return;
+
+                ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+
+                using (var package = new ExcelPackage())
+                {
+                    var worksheet = package.Workbook.Worksheets.Add("Comparison Results");
+
+                    // Header
+                    int col = 1;
+                    worksheet.Cells[1, col++].Value = "Change Type";
+                    worksheet.Cells[1, col++].Value = "Track ID";
+                    worksheet.Cells[1, col++].Value = "Room Number";
+                    worksheet.Cells[1, col++].Value = "Room Name";
+                    worksheet.Cells[1, col++].Value = "Parameter Name";
+                    worksheet.Cells[1, col++].Value = "Old Value";
+                    worksheet.Cells[1, col++].Value = "New Value";
+
+                    // Data
+                    int row = 2;
+                    foreach (var room in _viewModel.AllResults)
+                    {
+                        if (room.ChangeType == "New")
+                        {
+                            worksheet.Cells[row, 1].Value = "New";
+                            worksheet.Cells[row, 2].Value = room.TrackId;
+                            worksheet.Cells[row, 3].Value = room.RoomNumber;
+                            worksheet.Cells[row, 4].Value = room.RoomName;
+                            row++;
+                        }
+                        else if (room.ChangeType == "Deleted")
+                        {
+                            worksheet.Cells[row, 1].Value = "Deleted";
+                            worksheet.Cells[row, 2].Value = room.TrackId;
+                            worksheet.Cells[row, 3].Value = room.RoomNumber;
+                            worksheet.Cells[row, 4].Value = room.RoomName;
+                            row++;
+                        }
+                        else if (room.ChangeType == "Modified")
+                        {
+                            if (room.Changes.Any())
+                            {
+                                foreach (var change in room.Changes)
+                                {
+                                    var parts = ParseChange(change);
+                                    worksheet.Cells[row, 1].Value = "Modified";
+                                    worksheet.Cells[row, 2].Value = room.TrackId;
+                                    worksheet.Cells[row, 3].Value = room.RoomNumber;
+                                    worksheet.Cells[row, 4].Value = room.RoomName;
+                                    worksheet.Cells[row, 5].Value = parts.ParamName;
+                                    worksheet.Cells[row, 6].Value = parts.OldValue;
+                                    worksheet.Cells[row, 7].Value = parts.NewValue;
+                                    row++;
+                                }
+                            }
+                            else
+                            {
+                                worksheet.Cells[row, 1].Value = "Modified";
+                                worksheet.Cells[row, 2].Value = room.TrackId;
+                                worksheet.Cells[row, 3].Value = room.RoomNumber;
+                                worksheet.Cells[row, 4].Value = room.RoomName;
+                                row++;
+                            }
+                        }
+                    }
+
+                    // Format header
+                    using (var range = worksheet.Cells[1, 1, 1, 7])
+                    {
+                        range.Style.Font.Bold = true;
+                        range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+                    }
+
+                    worksheet.Cells.AutoFitColumns();
+                    package.SaveAs(new FileInfo(saveDialog.FileName));
+                }
+
+                MessageBox.Show($"Comparison exported to:\n{saveDialog.FileName}", "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{saveDialog.FileName}\"");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export Excel:\n{ex.Message}", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
