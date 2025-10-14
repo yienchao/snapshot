@@ -55,21 +55,30 @@
 
             <Border Grid.Column="0" Background="#4CAF50" CornerRadius="5" Padding="15" Margin="0,0,5,0">
                 <StackPanel>
-                    <TextBlock Text="NEW ROOMS" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                    <TextBlock FontWeight="Bold" Foreground="White" FontSize="12">
+                        <Run Text="NEW "/>
+                        <Run Text="{Binding EntityTypeLabel}"/>
+                    </TextBlock>
                     <TextBlock Text="{Binding NewRoomsCount}" FontSize="32" FontWeight="Bold" Foreground="White" Margin="0,5,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Grid.Column="1" Background="#FF9800" CornerRadius="5" Padding="15" Margin="5,0">
                 <StackPanel>
-                    <TextBlock Text="MODIFIED ROOMS" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                    <TextBlock FontWeight="Bold" Foreground="White" FontSize="12">
+                        <Run Text="MODIFIED "/>
+                        <Run Text="{Binding EntityTypeLabel}"/>
+                    </TextBlock>
                     <TextBlock Text="{Binding ModifiedRoomsCount}" FontSize="32" FontWeight="Bold" Foreground="White" Margin="0,5,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Grid.Column="2" Background="#F44336" CornerRadius="5" Padding="15" Margin="5,0,0,0">
                 <StackPanel>
-                    <TextBlock Text="DELETED ROOMS" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                    <TextBlock FontWeight="Bold" Foreground="White" FontSize="12">
+                        <Run Text="DELETED "/>
+                        <Run Text="{Binding EntityTypeLabel}"/>
+                    </TextBlock>
                     <TextBlock Text="{Binding DeletedRoomsCount}" FontSize="32" FontWeight="Bold" Foreground="White" Margin="0,5,0,0"/>
                 </StackPanel>
             </Border>

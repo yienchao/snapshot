@@ -93,6 +93,92 @@ namespace ViewTracker
                 roomHistoryBtn.ToolTip = "View history of a selected room across all versions";
                 roomPanel.AddItem(roomHistoryBtn);
 
+                // Create doorTracker panel
+                var doorPanel = application.CreateRibbonPanel(tabName, "doorTracker");
+
+                // Door Snapshot button
+                var doorSnapshotBtn = new PushButtonData(
+                    "DoorSnapshot",
+                    "Snapshot",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.DoorSnapshotCommand"
+                );
+                doorSnapshotBtn.ToolTip = "Capture door data with trackID to Supabase";
+                doorPanel.AddItem(doorSnapshotBtn);
+
+                // Door Compare button
+                var doorCompareBtn = new PushButtonData(
+                    "DoorCompare",
+                    "Compare\nCurrent",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.DoorCompareCommand"
+                );
+                doorCompareBtn.ToolTip = "Compare current doors with a snapshot version";
+                doorPanel.AddItem(doorCompareBtn);
+
+                // Door Compare Two Versions button
+                var doorCompareTwoBtn = new PushButtonData(
+                    "DoorCompareTwoVersions",
+                    "Compare\nVersions",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.DoorCompareTwoVersionsCommand"
+                );
+                doorCompareTwoBtn.ToolTip = "Compare two door snapshot versions";
+                doorPanel.AddItem(doorCompareTwoBtn);
+
+                // Door History button
+                var doorHistoryBtn = new PushButtonData(
+                    "DoorHistory",
+                    "History",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.DoorHistoryCommand"
+                );
+                doorHistoryBtn.ToolTip = "View history of a selected door across all versions";
+                doorPanel.AddItem(doorHistoryBtn);
+
+                // Create elementTracker panel
+                var elementPanel = application.CreateRibbonPanel(tabName, "elementTracker");
+
+                // Element Snapshot button
+                var elementSnapshotBtn = new PushButtonData(
+                    "ElementSnapshot",
+                    "Snapshot",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ElementSnapshotCommand"
+                );
+                elementSnapshotBtn.ToolTip = "Capture element data with trackID to Supabase (furniture, equipment, etc.)";
+                elementPanel.AddItem(elementSnapshotBtn);
+
+                // Element Compare button
+                var elementCompareBtn = new PushButtonData(
+                    "ElementCompare",
+                    "Compare\nCurrent",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ElementCompareCommand"
+                );
+                elementCompareBtn.ToolTip = "Compare current elements with a snapshot version";
+                elementPanel.AddItem(elementCompareBtn);
+
+                // Element Compare Two Versions button
+                var elementCompareTwoBtn = new PushButtonData(
+                    "ElementCompareTwoVersions",
+                    "Compare\nVersions",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ElementCompareTwoVersionsCommand"
+                );
+                elementCompareTwoBtn.ToolTip = "Compare two element snapshot versions";
+                elementPanel.AddItem(elementCompareTwoBtn);
+
+                // Element History button
+                var elementHistoryBtn = new PushButtonData(
+                    "ElementHistory",
+                    "History",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ElementHistoryCommand"
+                );
+                elementHistoryBtn.ToolTip = "View history of a selected element across all versions";
+                elementPanel.AddItem(elementHistoryBtn);
+
             }
             catch (Exception ex)
             {

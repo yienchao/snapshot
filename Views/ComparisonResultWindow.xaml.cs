@@ -161,6 +161,7 @@ namespace ViewTracker.Views
 
         public string VersionName { get; set; }
         public string VersionInfo { get; set; }
+        public string EntityTypeLabel { get; set; } = "ROOMS"; // Can be "ROOMS", "DOORS", or "ELEMENTS"
         public int NewRoomsCount { get; set; }
         public int ModifiedRoomsCount { get; set; }
         public int DeletedRoomsCount { get; set; }

@@ -332,5 +332,301 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 return new List<RoomSnapshot>();
             }
         }
+
+        // Door Snapshot Methods
+
+        // Check if door version name already exists
+        public async Task<bool> DoorVersionExistsAsync(string versionName)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.VersionName == versionName)
+                    .Limit(1)
+                    .Get();
+                return results.Models.Any();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking door version: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Get door version info (for showing who created it)
+        public async Task<DoorSnapshot?> GetDoorVersionInfoAsync(string versionName)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.VersionName == versionName)
+                    .Limit(1)
+                    .Get();
+                return results.Models.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting door version info: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Batch upsert door snapshots
+        public async Task BulkUpsertDoorSnapshotsAsync(List<DoorSnapshot> snapshots)
+        {
+            if (snapshots == null || !snapshots.Any())
+                return;
+
+            try
+            {
+                const int batchSize = 300;
+                for (int i = 0; i < snapshots.Count; i += batchSize)
+                {
+                    var batch = snapshots.Skip(i).Take(batchSize).ToList();
+                    await _supabase.From<DoorSnapshot>().Upsert(batch);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error bulk upserting door snapshots: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Get all unique door version names for a project (for dropdown selection)
+        public async Task<List<string>> GetAllDoorVersionNamesAsync(Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                return results.Models
+                    .Select(r => r.VersionName)
+                    .Distinct()
+                    .OrderByDescending(v => v)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting door versions: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
+        // Get all door versions with detailed info (for version selection UI)
+        public async Task<List<DoorSnapshot>> GetAllDoorVersionsWithInfoAsync(Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                // Return one snapshot per version (with metadata)
+                return results.Models
+                    .GroupBy(r => r.VersionName)
+                    .Select(g => g.First())
+                    .OrderByDescending(r => r.SnapshotDate)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting door versions with info: {ex.Message}");
+                return new List<DoorSnapshot>();
+            }
+        }
+
+        // Get all doors for a specific version and project
+        public async Task<List<DoorSnapshot>> GetDoorsByVersionAsync(string versionName, Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
+                    .Get();
+
+                return results.Models.ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting doors for version: {ex.Message}");
+                return new List<DoorSnapshot>();
+            }
+        }
+
+        // Get all snapshots for a specific door (by trackID) across all versions
+        public async Task<List<DoorSnapshot>> GetDoorHistoryAsync(string trackId, Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.TrackId == trackId && x.ProjectId == projectId)
+                    .Order(x => x.SnapshotDate, Supabase.Postgrest.Constants.Ordering.Ascending)
+                    .Get();
+
+                return results.Models.ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting door history: {ex.Message}");
+                return new List<DoorSnapshot>();
+            }
+        }
+
+        // Element Snapshot Methods
+
+        // Check if element version name already exists
+        public async Task<bool> ElementVersionExistsAsync(string versionName)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.VersionName == versionName)
+                    .Limit(1)
+                    .Get();
+                return results.Models.Any();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking element version: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Get element version info (for showing who created it)
+        public async Task<ElementSnapshot?> GetElementVersionInfoAsync(string versionName)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.VersionName == versionName)
+                    .Limit(1)
+                    .Get();
+                return results.Models.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting element version info: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Batch upsert element snapshots
+        public async Task BulkUpsertElementSnapshotsAsync(List<ElementSnapshot> snapshots)
+        {
+            if (snapshots == null || !snapshots.Any())
+                return;
+
+            try
+            {
+                const int batchSize = 300;
+                for (int i = 0; i < snapshots.Count; i += batchSize)
+                {
+                    var batch = snapshots.Skip(i).Take(batchSize).ToList();
+                    await _supabase.From<ElementSnapshot>().Upsert(batch);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error bulk upserting element snapshots: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Get all unique element version names for a project (for dropdown selection)
+        public async Task<List<string>> GetAllElementVersionNamesAsync(Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                return results.Models
+                    .Select(r => r.VersionName)
+                    .Distinct()
+                    .OrderByDescending(v => v)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting element versions: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
+        // Get all element versions with detailed info (for version selection UI)
+        public async Task<List<ElementSnapshot>> GetAllElementVersionsWithInfoAsync(Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                // Return one snapshot per version (with metadata)
+                return results.Models
+                    .GroupBy(r => r.VersionName)
+                    .Select(g => g.First())
+                    .OrderByDescending(r => r.SnapshotDate)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting element versions with info: {ex.Message}");
+                return new List<ElementSnapshot>();
+            }
+        }
+
+        // Get all elements for a specific version and project
+        public async Task<List<ElementSnapshot>> GetElementsByVersionAsync(string versionName, Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
+                    .Get();
+
+                return results.Models.ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting elements for version: {ex.Message}");
+                return new List<ElementSnapshot>();
+            }
+        }
+
+        // Get all snapshots for a specific element (by trackID) across all versions
+        public async Task<List<ElementSnapshot>> GetElementHistoryAsync(string trackId, Guid projectId)
+        {
+            try
+            {
+                var results = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.TrackId == trackId && x.ProjectId == projectId)
+                    .Order(x => x.SnapshotDate, Supabase.Postgrest.Constants.Ordering.Ascending)
+                    .Get();
+
+                return results.Models.ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting element history: {ex.Message}");
+                return new List<ElementSnapshot>();
+            }
+        }
     }
 }
