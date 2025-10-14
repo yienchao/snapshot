@@ -1,8 +1,11 @@
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Microsoft.Win32;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace ViewTracker.Commands
@@ -257,8 +260,134 @@ namespace ViewTracker.Commands
 
             dialog.MainContent += timelineText;
 
-            dialog.CommonButtons = TaskDialogCommonButtons.Ok;
-            dialog.Show();
+            // Add export button
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Export to Excel/CSV", "Export this element's history to a file");
+            dialog.CommonButtons = TaskDialogCommonButtons.Close;
+            dialog.DefaultButton = TaskDialogResult.Close;
+
+            var result = dialog.Show();
+
+            if (result == TaskDialogResult.CommandLink1)
+            {
+                ExportHistory(trackId, category, mark, familyName, typeName, timeline);
+            }
+        }
+
+        private void ExportHistory(string trackId, string category, string mark, string familyName, string typeName, List<HistoryEntry> timeline)
+        {
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "Excel Files (*.xlsx)|*.xlsx|CSV Files (*.csv)|*.csv",
+                DefaultExt = "xlsx",
+                FileName = $"ElementHistory_{category}_{mark}_{DateTime.Now:yyyyMMdd_HHmmss}"
+            };
+
+            if (saveDialog.ShowDialog() != true)
+                return;
+
+            string filePath = saveDialog.FileName;
+            string extension = Path.GetExtension(filePath).ToLower();
+
+            try
+            {
+                if (extension == ".xlsx")
+                    ExportHistoryToExcel(trackId, category, mark, familyName, typeName, timeline, filePath);
+                else
+                    ExportHistoryToCsv(trackId, category, mark, familyName, typeName, timeline, filePath);
+
+                TaskDialog.Show("Success", $"History exported successfully to:\n{filePath}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to export:\n{ex.Message}");
+            }
+        }
+
+        private void ExportHistoryToExcel(string trackId, string category, string mark, string familyName, string typeName, List<HistoryEntry> timeline, string filePath)
+        {
+            ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+
+            using (var package = new ExcelPackage())
+            {
+                var worksheet = package.Workbook.Worksheets.Add("Element History");
+
+                // Title
+                worksheet.Cells[1, 1].Value = $"History for {category}: {mark}";
+                worksheet.Cells[1, 1].Style.Font.Bold = true;
+                worksheet.Cells[1, 1].Style.Font.Size = 14;
+                worksheet.Cells[2, 1].Value = $"Track ID: {trackId}";
+                worksheet.Cells[2, 2].Value = $"Family: {familyName}";
+                worksheet.Cells[2, 3].Value = $"Type: {typeName}";
+
+                // Headers
+                int headerRow = 4;
+                int col = 1;
+                worksheet.Cells[headerRow, col++].Value = "Snapshot Date";
+                worksheet.Cells[headerRow, col++].Value = "Version Name";
+                worksheet.Cells[headerRow, col++].Value = "Created By";
+                worksheet.Cells[headerRow, col++].Value = "Type";
+                worksheet.Cells[headerRow, col++].Value = "Category";
+                worksheet.Cells[headerRow, col++].Value = "Mark";
+                worksheet.Cells[headerRow, col++].Value = "Family";
+                worksheet.Cells[headerRow, col++].Value = "Type Name";
+                worksheet.Cells[headerRow, col++].Value = "Level";
+                worksheet.Cells[headerRow, col++].Value = "Changes Count";
+                worksheet.Cells[headerRow, col++].Value = "Change Details";
+
+                // Data (newest first)
+                int row = headerRow + 1;
+                foreach (var entry in timeline.AsEnumerable().Reverse())
+                {
+                    col = 1;
+                    worksheet.Cells[row, col++].Value = entry.SnapshotDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+                    worksheet.Cells[row, col++].Value = entry.VersionName;
+                    worksheet.Cells[row, col++].Value = entry.CreatedBy ?? "Unknown";
+                    worksheet.Cells[row, col++].Value = entry.IsOfficial ? "Official" : "Draft";
+                    worksheet.Cells[row, col++].Value = entry.Category;
+                    worksheet.Cells[row, col++].Value = entry.Mark;
+                    worksheet.Cells[row, col++].Value = entry.FamilyName;
+                    worksheet.Cells[row, col++].Value = entry.TypeName;
+                    worksheet.Cells[row, col++].Value = entry.Level;
+                    worksheet.Cells[row, col++].Value = entry.ChangeCount;
+                    worksheet.Cells[row, col++].Value = string.Join("; ", entry.Changes);
+                    row++;
+                }
+
+                // Format header
+                using (var range = worksheet.Cells[headerRow, 1, headerRow, 11])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+                }
+
+                worksheet.Cells.AutoFitColumns();
+                package.SaveAs(new FileInfo(filePath));
+            }
+        }
+
+        private void ExportHistoryToCsv(string trackId, string category, string mark, string familyName, string typeName, List<HistoryEntry> timeline, string filePath)
+        {
+            using (var writer = new StreamWriter(filePath))
+            {
+                // Title
+                writer.WriteLine($"\"History for {category}: {mark}\"");
+                writer.WriteLine($"\"Track ID: {trackId}\",\"Family: {familyName}\",\"Type: {typeName}\"");
+                writer.WriteLine();
+
+                // Header
+                writer.WriteLine("\"Snapshot Date\",\"Version Name\",\"Created By\",\"Type\",\"Category\",\"Mark\",\"Family\",\"Type Name\",\"Level\",\"Changes Count\",\"Change Details\"");
+
+                // Data (newest first)
+                foreach (var entry in timeline.AsEnumerable().Reverse())
+                {
+                    var dateStr = entry.SnapshotDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+                    var typeStr = entry.IsOfficial ? "Official" : "Draft";
+                    var changeDetails = string.Join("; ", entry.Changes).Replace("\"", "\"\"");
+
+                    writer.WriteLine($"\"{dateStr}\",\"{entry.VersionName}\",\"{entry.CreatedBy ?? "Unknown"}\",\"{typeStr}\",\"{entry.Category}\",\"{entry.Mark}\",\"{entry.FamilyName}\",\"{entry.TypeName}\",\"{entry.Level}\",{entry.ChangeCount},\"{changeDetails}\"");
+                }
+            }
         }
 
         private class HistoryEntry
