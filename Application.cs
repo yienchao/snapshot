@@ -23,10 +23,11 @@ namespace ViewTracker
         {
             try
             {
-                string tabName = "dataTracker";
+                string tabName = "Data Tracker";
                 try { application.CreateRibbonTab(tabName); } catch { }
 
-                var ribbonPanel = application.CreateRibbonPanel(tabName, "viewTracker");
+                // ===== VIEW TRACKER PANEL =====
+                var viewPanel = application.CreateRibbonPanel(tabName, "View Tracker");
 
                 // Initialize Views
                 var initializeBtn = new PushButtonData(
@@ -36,148 +37,104 @@ namespace ViewTracker
                     "ViewTracker.Commands.InitializeViewsCommand"
                 );
                 initializeBtn.ToolTip = "Initialize all views in the project database";
-                ribbonPanel.AddItem(initializeBtn);
+                viewPanel.AddItem(initializeBtn);
 
                 // Export CSV
                 var exportBtn = new PushButtonData(
                     "ExportCsv",
-                    "Export views\nCSV",
+                    "Export Views\nCSV",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.ExportCsvCommand"
                 );
                 exportBtn.ToolTip = "Export Supabase view_activations for this project's projectID to CSV";
-                ribbonPanel.AddItem(exportBtn);
+                viewPanel.AddItem(exportBtn);
 
-                
+                // ===== UNIFIED TRACKER PANEL =====
+                var trackerPanel = application.CreateRibbonPanel(tabName, "Tracker");
 
-                // Create roomTracker panel
-                var roomPanel = application.CreateRibbonPanel(tabName, "roomTracker");
+                // Entity Type ComboBox
+                var comboBoxData = new ComboBoxData("EntityTypeCombo");
+                var comboBox = trackerPanel.AddItem(comboBoxData) as ComboBox;
+                comboBox.ToolTip = "Select entity type to track (Rooms, Doors, or Elements)";
+                comboBox.LongDescription = "Choose which type of elements you want to snapshot, compare, or view history for.";
 
-                // Room Snapshot button
-                var roomSnapshotBtn = new PushButtonData(
-                    "RoomSnapshot",
-                    "Snapshot",
+                var roomItemData = new ComboBoxMemberData("Room", "Rooms");
+                roomItemData.GroupName = "Entity Type";
+                var roomItem = comboBox.AddItem(roomItemData);
+
+                var doorItemData = new ComboBoxMemberData("Door", "Doors");
+                doorItemData.GroupName = "Entity Type";
+                var doorItem = comboBox.AddItem(doorItemData);
+
+                var elementItemData = new ComboBoxMemberData("Element", "Elements");
+                elementItemData.GroupName = "Entity Type";
+                var elementItem = comboBox.AddItem(elementItemData);
+
+                comboBox.CurrentChanged += (sender, e) =>
+                {
+                    var selectedComboBox = sender as ComboBox;
+                    if (selectedComboBox?.Current != null)
+                    {
+                        TrackerContext.CurrentEntityType = selectedComboBox.Current.Name switch
+                        {
+                            "Door" => TrackerContext.EntityType.Door,
+                            "Element" => TrackerContext.EntityType.Element,
+                            _ => TrackerContext.EntityType.Room
+                        };
+                    }
+                };
+
+                // Set default to Room
+                comboBox.Current = roomItem;
+                TrackerContext.CurrentEntityType = TrackerContext.EntityType.Room;
+
+                trackerPanel.AddSeparator();
+
+                // Snapshot button
+                var snapshotBtn = new PushButtonData(
+                    "UnifiedSnapshot",
+                    "📷\nSnapshot",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.RoomSnapshotCommand"
+                    "ViewTracker.Commands.UnifiedSnapshotCommand"
                 );
-                roomSnapshotBtn.ToolTip = "Capture room data with trackID to Supabase";
-                roomPanel.AddItem(roomSnapshotBtn);
+                snapshotBtn.ToolTip = "Create snapshot with trackID (draft or official)";
+                snapshotBtn.LongDescription = "Captures current data to Supabase for the selected entity type. You'll choose draft or official when creating.";
+                trackerPanel.AddItem(snapshotBtn);
 
-                // Room Compare button
-                var roomCompareBtn = new PushButtonData(
-                    "RoomCompare",
-                    "Compare\nCurrent",
+                trackerPanel.AddSeparator();
+
+                // Compare split button
+                var compareBtn = new PushButtonData(
+                    "UnifiedCompare",
+                    "⇄\nCompare to\nSnapshot",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.RoomCompareCommand"
+                    "ViewTracker.Commands.UnifiedCompareCommand"
                 );
-                roomCompareBtn.ToolTip = "Compare current rooms with a snapshot version";
-                roomPanel.AddItem(roomCompareBtn);
+                compareBtn.ToolTip = "Compare current state with a snapshot version";
 
-                // Room Compare Two Versions button
-                var roomCompareTwoBtn = new PushButtonData(
-                    "RoomCompareTwoVersions",
-                    "Compare\nVersions",
+                var compareTwoBtn = new PushButtonData(
+                    "UnifiedCompareTwoVersions",
+                    "Compare\nSnapshots",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.RoomCompareTwoVersionsCommand"
+                    "ViewTracker.Commands.UnifiedCompareTwoVersionsCommand"
                 );
-                roomCompareTwoBtn.ToolTip = "Compare two snapshot versions";
-                roomPanel.AddItem(roomCompareTwoBtn);
+                compareTwoBtn.ToolTip = "Compare two snapshot versions with each other";
 
-                // Room History button
-                var roomHistoryBtn = new PushButtonData(
-                    "RoomHistory",
-                    "History",
+                var compareSplit = trackerPanel.AddItem(new SplitButtonData("UnifiedCompareSplit", "⇄ Compare")) as SplitButton;
+                compareSplit.AddPushButton(compareBtn);
+                compareSplit.AddPushButton(compareTwoBtn);
+
+                trackerPanel.AddSeparator();
+
+                // History button
+                var historyBtn = new PushButtonData(
+                    "UnifiedHistory",
+                    "⟲\nHistory",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.RoomHistoryCommand"
+                    "ViewTracker.Commands.UnifiedHistoryCommand"
                 );
-                roomHistoryBtn.ToolTip = "View history of a selected room across all versions";
-                roomPanel.AddItem(roomHistoryBtn);
-
-                // Create doorTracker panel
-                var doorPanel = application.CreateRibbonPanel(tabName, "doorTracker");
-
-                // Door Snapshot button
-                var doorSnapshotBtn = new PushButtonData(
-                    "DoorSnapshot",
-                    "Snapshot",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.DoorSnapshotCommand"
-                );
-                doorSnapshotBtn.ToolTip = "Capture door data with trackID to Supabase";
-                doorPanel.AddItem(doorSnapshotBtn);
-
-                // Door Compare button
-                var doorCompareBtn = new PushButtonData(
-                    "DoorCompare",
-                    "Compare\nCurrent",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.DoorCompareCommand"
-                );
-                doorCompareBtn.ToolTip = "Compare current doors with a snapshot version";
-                doorPanel.AddItem(doorCompareBtn);
-
-                // Door Compare Two Versions button
-                var doorCompareTwoBtn = new PushButtonData(
-                    "DoorCompareTwoVersions",
-                    "Compare\nVersions",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.DoorCompareTwoVersionsCommand"
-                );
-                doorCompareTwoBtn.ToolTip = "Compare two door snapshot versions";
-                doorPanel.AddItem(doorCompareTwoBtn);
-
-                // Door History button
-                var doorHistoryBtn = new PushButtonData(
-                    "DoorHistory",
-                    "History",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.DoorHistoryCommand"
-                );
-                doorHistoryBtn.ToolTip = "View history of a selected door across all versions";
-                doorPanel.AddItem(doorHistoryBtn);
-
-                // Create elementTracker panel
-                var elementPanel = application.CreateRibbonPanel(tabName, "elementTracker");
-
-                // Element Snapshot button
-                var elementSnapshotBtn = new PushButtonData(
-                    "ElementSnapshot",
-                    "Snapshot",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.ElementSnapshotCommand"
-                );
-                elementSnapshotBtn.ToolTip = "Capture element data with trackID to Supabase (furniture, equipment, etc.)";
-                elementPanel.AddItem(elementSnapshotBtn);
-
-                // Element Compare button
-                var elementCompareBtn = new PushButtonData(
-                    "ElementCompare",
-                    "Compare\nCurrent",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.ElementCompareCommand"
-                );
-                elementCompareBtn.ToolTip = "Compare current elements with a snapshot version";
-                elementPanel.AddItem(elementCompareBtn);
-
-                // Element Compare Two Versions button
-                var elementCompareTwoBtn = new PushButtonData(
-                    "ElementCompareTwoVersions",
-                    "Compare\nVersions",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.ElementCompareTwoVersionsCommand"
-                );
-                elementCompareTwoBtn.ToolTip = "Compare two element snapshot versions";
-                elementPanel.AddItem(elementCompareTwoBtn);
-
-                // Element History button
-                var elementHistoryBtn = new PushButtonData(
-                    "ElementHistory",
-                    "History",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.ElementHistoryCommand"
-                );
-                elementHistoryBtn.ToolTip = "View history of a selected element across all versions";
-                elementPanel.AddItem(elementHistoryBtn);
+                historyBtn.ToolTip = "View history of a selected element across all versions";
+                trackerPanel.AddItem(historyBtn);
 
             }
             catch (Exception ex)
