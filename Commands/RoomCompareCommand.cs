@@ -477,14 +477,31 @@ namespace ViewTracker.Commands
         private ComparisonResult CompareRooms(List<Room> currentRooms, List<RoomSnapshot> snapshotRooms, Document doc)
         {
             var result = new ComparisonResult();
-            var snapshotDict = snapshotRooms.ToDictionary(s => s.TrackId, s => s);
-            var currentDict = currentRooms.ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+
+            // Build dictionaries with normalized trackIDs (trim whitespace)
+            // Use GroupBy to handle potential duplicates, taking the first occurrence
+            var snapshotDict = snapshotRooms
+                .Where(s => !string.IsNullOrWhiteSpace(s.TrackId))
+                .GroupBy(s => s.TrackId.Trim())
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var currentDict = currentRooms
+                .Where(r => r.LookupParameter("trackID") != null &&
+                           !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
+                .GroupBy(r => r.LookupParameter("trackID").AsString().Trim())
+                .ToDictionary(g => g.Key, g => g.First());
 
             // Find new rooms (in current, not in snapshot)
             foreach (var room in currentRooms)
             {
-                var trackId = room.LookupParameter("trackID").AsString();
-                if (!snapshotDict.ContainsKey(trackId))
+                var trackIdParam = room.LookupParameter("trackID");
+                if (trackIdParam == null) continue;
+
+                var trackId = trackIdParam.AsString();
+                if (string.IsNullOrWhiteSpace(trackId)) continue;
+
+                var trackIdNormalized = trackId.Trim();
+                if (!snapshotDict.ContainsKey(trackIdNormalized))
                 {
                     result.NewRooms.Add(new RoomChange
                     {
@@ -499,7 +516,10 @@ namespace ViewTracker.Commands
             // Find deleted rooms (in snapshot, not in current)
             foreach (var snapshot in snapshotRooms)
             {
-                if (!currentDict.ContainsKey(snapshot.TrackId))
+                if (string.IsNullOrWhiteSpace(snapshot.TrackId)) continue;
+
+                var trackIdNormalized = snapshot.TrackId.Trim();
+                if (!currentDict.ContainsKey(trackIdNormalized))
                 {
                     result.DeletedRooms.Add(new RoomChange
                     {
@@ -514,8 +534,14 @@ namespace ViewTracker.Commands
             // Find modified rooms and unplaced rooms
             foreach (var room in currentRooms)
             {
-                var trackId = room.LookupParameter("trackID").AsString();
-                if (snapshotDict.TryGetValue(trackId, out var snapshot))
+                var trackIdParam = room.LookupParameter("trackID");
+                if (trackIdParam == null) continue;
+
+                var trackId = trackIdParam.AsString();
+                if (string.IsNullOrWhiteSpace(trackId)) continue;
+
+                var trackIdNormalized = trackId.Trim();
+                if (snapshotDict.TryGetValue(trackIdNormalized, out var snapshot))
                 {
                     // Check if room became unplaced (was placed in snapshot, now unplaced in current)
                     bool wasPlaced = snapshot.Area.HasValue && snapshot.Area.Value > 0.001;
@@ -568,8 +594,28 @@ namespace ViewTracker.Commands
             {
                 string paramName = param.Definition.Name;
 
-                // Skip Level/Niveau - read-only and causes false positives for unplaced rooms
-                if (paramName == "Niveau" || paramName == "Level")
+                // Skip placement-dependent and system parameters that cause false positives
+                // Use BuiltInParameter for language-independent exclusion
+                if (param.Definition is InternalDefinition internalDef)
+                {
+                    var builtInParam = internalDef.BuiltInParameter;
+
+                    // Skip these read-only placement-dependent parameters
+                    if (builtInParam == BuiltInParameter.ROOM_LEVEL_ID ||
+                        builtInParam == BuiltInParameter.ROOM_AREA ||
+                        builtInParam == BuiltInParameter.ROOM_PERIMETER ||
+                        builtInParam == BuiltInParameter.ROOM_VOLUME ||
+                        builtInParam == BuiltInParameter.ROOM_UPPER_LEVEL ||
+                        builtInParam == BuiltInParameter.ROOM_UPPER_OFFSET ||
+                        builtInParam == BuiltInParameter.ROOM_LOWER_OFFSET ||
+                        builtInParam == BuiltInParameter.ROOM_COMPUTATION_HEIGHT ||
+                        builtInParam == BuiltInParameter.EDITED_BY ||
+                        builtInParam == BuiltInParameter.IFC_EXPORT_ELEMENT_AS)  // IFC export (has formatting issues)
+                        continue;
+                }
+
+                // Also skip by parameter name for IFC export (covers all languages)
+                if (paramName == "Exporter au format IFC" || paramName == "Export to IFC" || paramName == "IFC Export")
                     continue;
 
                 object paramValue = null;
@@ -709,102 +755,158 @@ namespace ViewTracker.Commands
             };
 
             // Now map these to actual parameter names found in the current room (user-visible only)
+            // Use BuiltInParameter enum for language-independent mapping
             foreach (Parameter param in orderedParams)
             {
                 var paramName = param.Definition.Name;
                 string columnKey = null;
 
-                // Determine which snapshot column this parameter corresponds to
-                // Support both French and English names
-                switch (paramName)
+                // For built-in parameters, use BuiltInParameter enum (language-independent)
+                if (param.Definition is InternalDefinition internalDef)
                 {
-                    case "Numéro":
-                    case "Number":
-                        columnKey = "room_number";
-                        break;
-                    case "Nom":
-                    case "Name":
-                        columnKey = "room_name";
-                        break;
-                    case "Niveau":
-                    case "Level":
-                        // Skip level - it's read-only and causes false positives for unplaced rooms
-                        continue;
-                    case "Surface":
-                    case "Area":
-                        columnKey = "area";
-                        break;
-                    case "Périmètre":
-                    case "Perimeter":
-                        columnKey = "perimeter";
-                        break;
-                    case "Volume":
-                        columnKey = "volume";
-                        break;
-                    case "Hauteur non liée":
-                    case "Unbounded Height":
-                        columnKey = "unbound_height";
-                        break;
-                    case "Occupation":
-                    case "Occupancy":
-                        columnKey = "occupancy";
-                        break;
-                    case "Service":
-                    case "Department":
-                        columnKey = "department";
-                        break;
-                    case "Phase":
-                        columnKey = "phase";
-                        break;
-                    case "Finition de la base":
-                    case "Base Finish":
-                        columnKey = "base_finish";
-                        break;
-                    case "Finition du plafond":
-                    case "Ceiling Finish":
-                        columnKey = "ceiling_finish";
-                        break;
-                    case "Finition du mur":
-                    case "Wall Finish":
-                        columnKey = "wall_finish";
-                        break;
-                    case "Finition du sol":
-                    case "Floor Finish":
-                        columnKey = "floor_finish";
-                        break;
-                    case "Commentaires":
-                    case "Comments":
-                        columnKey = "comments";
-                        break;
-                    case "Occupant":
+                    var builtInParam = internalDef.BuiltInParameter;
+                    switch (builtInParam)
+                    {
+                        case BuiltInParameter.ROOM_NUMBER:
+                            columnKey = "room_number";
+                            break;
+                        case BuiltInParameter.ROOM_NAME:
+                            columnKey = "room_name";
+                            break;
+                        case BuiltInParameter.ROOM_LEVEL_ID:
+                            // Skip level - it's read-only and causes false positives
+                            continue;
+                        case BuiltInParameter.ROOM_AREA:
+                            // Skip area - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_PERIMETER:
+                            // Skip perimeter - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_VOLUME:
+                            // Skip volume - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_UPPER_LEVEL:
+                            // Skip upper level - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_UPPER_OFFSET:
+                            // Skip upper offset (Limite supérieure) - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_LOWER_OFFSET:
+                            // Skip lower offset - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_COMPUTATION_HEIGHT:
+                            // Skip computation height - placement-dependent
+                            continue;
+                        case BuiltInParameter.ROOM_OCCUPANCY:
+                            columnKey = "occupancy";
+                            break;
+                        case BuiltInParameter.ROOM_DEPARTMENT:
+                            columnKey = "department";
+                            break;
+                        case BuiltInParameter.ROOM_PHASE:
+                            columnKey = "phase";
+                            break;
+                        case BuiltInParameter.ROOM_FINISH_BASE:
+                            columnKey = "base_finish";
+                            break;
+                        case BuiltInParameter.ROOM_FINISH_CEILING:
+                            columnKey = "ceiling_finish";
+                            break;
+                        case BuiltInParameter.ROOM_FINISH_WALL:
+                            columnKey = "wall_finish";
+                            break;
+                        case BuiltInParameter.ROOM_FINISH_FLOOR:
+                            columnKey = "floor_finish";
+                            break;
+                        case BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS:
+                            columnKey = "comments";
+                            break;
+                    }
+                }
+                else
+                {
+                    // For shared parameters, check by name
+                    if (paramName == "Occupant")
                         columnKey = "occupant";
-                        break;
                 }
 
-                // If this parameter maps to a snapshot column and the snapshot has a value, add it
-                if (columnKey != null && paramMapping.TryGetValue(columnKey, out var snapshotData) && snapshotData.hasValue)
+                // If this parameter maps to a snapshot column, check if snapshot has value OR if parameter exists in current room
+                // This ensures we compare even when snapshot OR current value is empty
+                if (columnKey != null && paramMapping.TryGetValue(columnKey, out var snapshotData))
                 {
-                    snapshotParams[paramName] = snapshotData.value;
-                    // Format display value using the current parameter's formatting
-                    try
+                    // Always add the parameter to comparison if either:
+                    // 1. Snapshot has a value
+                    // 2. Current room has this parameter (even if empty)
+                    if (snapshotData.hasValue || param != null)
                     {
-                        var formatted = FormatParameterValue(param, snapshotData.value, doc);
-                        snapshotParamsDisplay[paramName] = formatted;
-                        System.Diagnostics.Debug.WriteLine($"Formatted {paramName}: raw={snapshotData.value}, formatted={formatted}");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to format {paramName}: {ex.Message}");
-                        snapshotParamsDisplay[paramName] = snapshotData.value?.ToString() ?? "";
+                        snapshotParams[paramName] = snapshotData.value;
+                        // Format display value using the current parameter's formatting
+                        try
+                        {
+                            var formatted = FormatParameterValue(param, snapshotData.value, doc);
+                            snapshotParamsDisplay[paramName] = formatted;
+                            System.Diagnostics.Debug.WriteLine($"Formatted {paramName}: raw={snapshotData.value}, formatted={formatted}");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to format {paramName}: {ex.Message}");
+                            snapshotParamsDisplay[paramName] = snapshotData.value?.ToString() ?? "";
+                        }
                     }
                 }
             }
 
             // Compare: check if values changed
+            // For each snapshot parameter, look it up in current room directly (not just in currentParams dictionary)
             foreach (var snapshotParam in snapshotParams)
             {
-                if (currentParams.TryGetValue(snapshotParam.Key, out var currentValue))
+                // Try to get value from currentParams dictionary first
+                object currentValue = null;
+                string currentDisplay = "";
+                bool paramExistsInCurrent = false;
+
+                if (currentParams.TryGetValue(snapshotParam.Key, out var dictValue))
                 {
+                    // Found in dictionary (non-empty)
+                    currentValue = dictValue;
+                    currentDisplay = currentParamsDisplay.ContainsKey(snapshotParam.Key)
+                        ? currentParamsDisplay[snapshotParam.Key]
+                        : currentValue?.ToString() ?? "";
+                    paramExistsInCurrent = true;
+                }
+                else
+                {
+                    // Not in dictionary - check if parameter exists in room but is empty
+                    var param = currentRoom.Parameters.Cast<Parameter>().FirstOrDefault(p => p.Definition.Name == snapshotParam.Key);
+                    if (param != null)
+                    {
+                        // Parameter exists but value is empty/null
+                        paramExistsInCurrent = true;
+                        switch (param.StorageType)
+                        {
+                            case StorageType.String:
+                                currentValue = param.AsString() ?? "";
+                                currentDisplay = currentValue.ToString();
+                                break;
+                            case StorageType.Integer:
+                                currentValue = param.AsInteger();
+                                currentDisplay = param.AsValueString()?.Split(' ')[0]?.Replace(",", ".") ?? currentValue.ToString();
+                                break;
+                            case StorageType.Double:
+                                currentValue = param.AsDouble();
+                                currentDisplay = param.AsValueString()?.Split(' ')[0]?.Replace(",", ".") ?? currentValue.ToString();
+                                break;
+                            case StorageType.ElementId:
+                                currentValue = param.AsValueString() ?? "";
+                                currentDisplay = currentValue.ToString();
+                                break;
+                        }
+                    }
+                }
+
+                if (paramExistsInCurrent)
+                {
+                    // Compare values
                     bool isDifferent = false;
 
                     // For doubles, use tolerance comparison
@@ -823,9 +925,12 @@ namespace ViewTracker.Commands
                     }
                     else
                     {
-                        var snapStr = snapshotParam.Value?.ToString() ?? "";
-                        var currStr = currentValue?.ToString() ?? "";
-                        isDifferent = (snapStr != currStr);
+                        // For string comparison, use the formatted display values
+                        var snapDisplay = snapshotParamsDisplay.ContainsKey(snapshotParam.Key)
+                            ? snapshotParamsDisplay[snapshotParam.Key]
+                            : snapshotParam.Value?.ToString() ?? "";
+
+                        isDifferent = (snapDisplay != currentDisplay);
                     }
 
                     if (isDifferent)
@@ -834,16 +939,13 @@ namespace ViewTracker.Commands
                         var snapDisplay = snapshotParamsDisplay.ContainsKey(snapshotParam.Key)
                             ? snapshotParamsDisplay[snapshotParam.Key]
                             : snapshotParam.Value?.ToString() ?? "";
-                        var currDisplay = currentParamsDisplay.ContainsKey(snapshotParam.Key)
-                            ? currentParamsDisplay[snapshotParam.Key]
-                            : currentValue?.ToString() ?? "";
 
-                        changes.Add($"{snapshotParam.Key}: '{snapDisplay}' → '{currDisplay}'");
+                        changes.Add($"{snapshotParam.Key}: '{snapDisplay}' → '{currentDisplay}'");
                     }
                 }
                 else
                 {
-                    // Parameter was removed from current room
+                    // Parameter doesn't exist in current room at all
                     var snapDisplay = snapshotParamsDisplay.ContainsKey(snapshotParam.Key)
                         ? snapshotParamsDisplay[snapshotParam.Key]
                         : snapshotParam.Value?.ToString() ?? "";

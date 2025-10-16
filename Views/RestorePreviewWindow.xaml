@@ -41,7 +41,7 @@
         <!-- Filter -->
         <GroupBox Grid.Row="1" Header="Filter" Padding="10" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="AllChangesRadio" Content="All Changes" IsChecked="True"
+                <RadioButton x:Name="AllChangesRadio" Content="All" IsChecked="True"
                              GroupName="Filter" Margin="0,0,15,0" Checked="FilterRadio_Changed"/>
                 <RadioButton x:Name="ModifiedOnlyRadio" Content="Modified Only"
                              GroupName="Filter" Margin="0,0,15,0" Checked="FilterRadio_Changed"/>

@@ -10,6 +10,15 @@
         <Configurations>Debug R21;Debug R22;Debug R23;Debug R24;Debug R25;Debug R26</Configurations>
         <Configurations>$(Configurations);Release R21;Release R22;Release R23;Release R24;Release R25;Release R26</Configurations>
         <NoWarn>$(NoWarn);CS8632;NU1603</NoWarn>
+
+        <!-- Assembly Information -->
+        <Company>MSDL architects</Company>
+        <Authors>Yien Chao</Authors>
+        <Product>dataTracker - Room Snapshot Manager</Product>
+        <Description>Room tracking and snapshot management for Revit</Description>
+        <Copyright>Copyright © 2025 Yien Chao</Copyright>
+        <Version>1.0.0</Version>
+        <AssemblyTitle>dataTracker</AssemblyTitle>
     </PropertyGroup>
 
     <!-- Revit configuration -->

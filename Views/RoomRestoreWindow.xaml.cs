@@ -104,47 +104,99 @@ namespace ViewTracker.Views
             if (_selectedVersionSnapshots == null || !_selectedVersionSnapshots.Any())
                 return;
 
-            // Collect all unique parameter names from the snapshot
+            // Collect all unique parameter names from BOTH snapshots AND current rooms
             var allParameters = new HashSet<string>();
 
             // Get first snapshot to examine parameters
             var sampleSnapshot = _selectedVersionSnapshots.First();
 
-            // Read-only parameters to skip
-            var readOnlyParams = new HashSet<string> { "Area", "Surface", "Perimeter", "Périmètre", "Volume", "Level", "Niveau" };
+            // Parameters to exclude from restore (read-only, placement-dependent, or system parameters)
+            // Using both BuiltInParameter enum check and string name fallback for comprehensive filtering
+            var excludedBuiltInParams = new HashSet<BuiltInParameter>
+            {
+                // Placement-dependent (read-only, calculated from room geometry)
+                BuiltInParameter.ROOM_AREA,
+                BuiltInParameter.ROOM_PERIMETER,
+                BuiltInParameter.ROOM_VOLUME,
+                BuiltInParameter.ROOM_UPPER_LEVEL,
+                BuiltInParameter.ROOM_UPPER_OFFSET,
+                BuiltInParameter.ROOM_LOWER_OFFSET,
+                BuiltInParameter.ROOM_COMPUTATION_HEIGHT,
+                BuiltInParameter.ROOM_LEVEL_ID,
 
-            // Add dedicated column parameters
-            if (!string.IsNullOrEmpty(sampleSnapshot.RoomNumber))
-                allParameters.Add("Room Number|RoomNumber");
-            if (!string.IsNullOrEmpty(sampleSnapshot.RoomName))
-                allParameters.Add("Room Name|RoomName");
-            if (!string.IsNullOrEmpty(sampleSnapshot.Department))
-                allParameters.Add("Department|Department");
-            if (!string.IsNullOrEmpty(sampleSnapshot.Occupancy))
-                allParameters.Add("Occupancy|Occupancy");
-            if (!string.IsNullOrEmpty(sampleSnapshot.BaseFinish))
-                allParameters.Add("Base Finish|BaseFinish");
-            if (!string.IsNullOrEmpty(sampleSnapshot.CeilingFinish))
-                allParameters.Add("Ceiling Finish|CeilingFinish");
-            if (!string.IsNullOrEmpty(sampleSnapshot.WallFinish))
-                allParameters.Add("Wall Finish|WallFinish");
-            if (!string.IsNullOrEmpty(sampleSnapshot.FloorFinish))
-                allParameters.Add("Floor Finish|FloorFinish");
-            if (!string.IsNullOrEmpty(sampleSnapshot.Comments))
-                allParameters.Add("Comments|Comments");
-            if (!string.IsNullOrEmpty(sampleSnapshot.Occupant))
-                allParameters.Add("Occupant|Occupant");
-            if (!string.IsNullOrEmpty(sampleSnapshot.Phase))
-                allParameters.Add("Phase|Phase");
+                // System metadata (read-only, managed by Revit)
+                BuiltInParameter.EDITED_BY,
+
+                // Design/organizational (should not be restored)
+                BuiltInParameter.DESIGN_OPTION_ID,
+                BuiltInParameter.DESIGN_OPTION_PARAM,
+                BuiltInParameter.ELEM_PARTITION_PARAM  // Workset
+            };
+
+            // String-based exclusions for shared parameters or when BuiltInParameter is not available
+            var excludedParamNames = new HashSet<string>();
+
+            // Add dedicated column parameters - ALWAYS add them, even if empty in snapshot
+            // (they might have values in current model that user wants to clear)
+            allParameters.Add("Room Number|RoomNumber");
+            allParameters.Add("Room Name|RoomName");
+            allParameters.Add("Department|Department");
+            allParameters.Add("Occupancy|Occupancy");
+            allParameters.Add("Comments|Comments");
+            allParameters.Add("Base Finish|BaseFinish");
+            allParameters.Add("Ceiling Finish|CeilingFinish");
+            allParameters.Add("Wall Finish|WallFinish");
+            allParameters.Add("Floor Finish|FloorFinish");
+            allParameters.Add("Occupant|Occupant");
+            allParameters.Add("Phase|Phase");
 
             // Add parameters from AllParameters JSON (excluding read-only ones)
             if (sampleSnapshot.AllParameters != null)
             {
                 foreach (var param in sampleSnapshot.AllParameters.Keys)
                 {
-                    if (!readOnlyParams.Contains(param))
+                    if (!excludedParamNames.Contains(param))
                     {
                         allParameters.Add($"{param}|AllParam_{param}");
+                    }
+                }
+            }
+
+            // ALSO add parameters from current rooms that might not be in snapshot
+            // (e.g., shared parameters that currently have empty values)
+            if (_currentRooms != null && _currentRooms.Any())
+            {
+                var sampleRoom = _currentRooms.First();
+                foreach (Parameter param in sampleRoom.GetOrderedParameters())
+                {
+                    string paramName = param.Definition.Name;
+
+                    // Skip built-in parameters using BuiltInParameter enum (language-independent)
+                    if (param.Definition is InternalDefinition internalDef)
+                    {
+                        var builtInParam = internalDef.BuiltInParameter;
+                        if (builtInParam != BuiltInParameter.INVALID && excludedBuiltInParams.Contains(builtInParam))
+                            continue;
+                    }
+
+                    // Skip shared parameters by name
+                    if (excludedParamNames.Contains(paramName))
+                        continue;
+
+                    // Skip built-in parameters that are already in dedicated columns (Number, Name)
+                    if (param.Definition is InternalDefinition internalDef2)
+                    {
+                        var builtInParam2 = internalDef2.BuiltInParameter;
+                        if (builtInParam2 == BuiltInParameter.ROOM_NUMBER ||
+                            builtInParam2 == BuiltInParameter.ROOM_NAME)
+                            continue;
+                    }
+
+                    // Add parameter if not already in list
+                    string paramKey = $"{paramName}|AllParam_{paramName}";
+                    if (!allParameters.Any(p => p.StartsWith(paramName + "|")))
+                    {
+                        allParameters.Add(paramKey);
                     }
                 }
             }
@@ -179,6 +231,11 @@ namespace ViewTracker.Views
             UpdateStatus();
         }
 
+        private void RecreateDeleted_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateStatus();
+        }
+
         private void UpdateStatus()
         {
             if (StatusText == null || _selectedVersionSnapshots == null)
@@ -197,9 +254,14 @@ namespace ViewTracker.Views
             var sb = new StringBuilder();
             sb.AppendLine($"• {existingCount} existing rooms will be updated");
 
-            if (deletedCount > 0)
+            // Only show deleted rooms message if the checkbox is checked
+            if (deletedCount > 0 && ChkRecreateDeleted != null && ChkRecreateDeleted.IsChecked == true)
             {
                 sb.AppendLine($"• {deletedCount} deleted rooms will be created (unplaced)");
+            }
+            else if (deletedCount > 0)
+            {
+                sb.AppendLine($"• {deletedCount} deleted rooms will be ignored");
             }
 
             var selectedParamsCount = GetSelectedParameters().Count;
@@ -581,7 +643,37 @@ namespace ViewTracker.Views
                         break;
 
                     case StorageType.ElementId:
-                        // ElementId parameters are complex, skip for now
+                        // For ElementId parameters (materials, etc.), the snapshot stores display text (name)
+                        // We need to find the element by name and set its ID
+                        if (value == null)
+                            break;
+
+                        string elementName = value.ToString();
+                        if (string.IsNullOrEmpty(elementName))
+                            break;
+
+                        // Try to find material by name (most common ElementId parameter for rooms)
+                        var material = new FilteredElementCollector(_doc)
+                            .OfClass(typeof(Material))
+                            .Cast<Material>()
+                            .FirstOrDefault(m => m.Name == elementName);
+
+                        if (material != null)
+                        {
+                            param.Set(material.Id);
+                        }
+                        // If not found, try to find any element with that name
+                        else
+                        {
+                            var element = new FilteredElementCollector(_doc)
+                                .WhereElementIsNotElementType()
+                                .FirstOrDefault(e => e.Name == elementName);
+
+                            if (element != null)
+                            {
+                                param.Set(element.Id);
+                            }
+                        }
                         break;
                 }
             }

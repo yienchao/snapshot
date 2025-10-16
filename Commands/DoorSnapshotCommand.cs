@@ -273,8 +273,19 @@ namespace ViewTracker.Commands
                     shouldAdd = true;
                     break;
                 case StorageType.Integer:
-                    paramValue = param.AsInteger();
-                    shouldAdd = true;
+                    // Use AsValueString() to get display text for enums (e.g., "Par type" instead of "0")
+                    var intValueString = param.AsValueString();
+                    if (!string.IsNullOrEmpty(intValueString))
+                    {
+                        paramValue = intValueString;
+                        shouldAdd = true;
+                    }
+                    else
+                    {
+                        // Fallback to integer if no display string available
+                        paramValue = param.AsInteger();
+                        shouldAdd = true;
+                    }
                     break;
                 case StorageType.String:
                     var stringValue = param.AsString();

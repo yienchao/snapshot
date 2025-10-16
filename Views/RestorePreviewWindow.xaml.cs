@@ -90,6 +90,21 @@ namespace ViewTracker.Views
                 string snapshotValue = "";
                 string displayParamName = "";
 
+                // Skip read-only parameters that can't be restored
+                // (Area, Perimeter, Volume, Level are placement-dependent)
+                var readOnlyParams = new HashSet<string>
+                {
+                    "Area", "Surface",
+                    "Perimeter", "Périmètre",
+                    "Volume",
+                    "Level", "Niveau",
+                    "Unbounded Height", "Hauteur non liée",
+                    "Upper Limit", "Limite supérieure",
+                    "Limit Offset", "Décalage limite",
+                    "Base Offset", "Décalage inférieur",
+                    "Computation Height", "Hauteur de calcul"
+                };
+
                 switch (paramName)
                 {
                 case "RoomNumber":
@@ -105,13 +120,13 @@ namespace ViewTracker.Views
                     break;
 
                 case "Department":
-                    currentValue = room.LookupParameter("Department")?.AsString() ?? room.LookupParameter("Service")?.AsString();
+                    currentValue = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ROOM_DEPARTMENT)?.AsString();
                     snapshotValue = snapshot.Department;
                     displayParamName = "Department";
                     break;
 
                 case "Occupancy":
-                    currentValue = room.LookupParameter("Occupancy")?.AsString() ?? room.LookupParameter("Occupation")?.AsString();
+                    currentValue = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ROOM_OCCUPANCY)?.AsString();
                     snapshotValue = snapshot.Occupancy;
                     displayParamName = "Occupancy";
                     break;
@@ -157,17 +172,92 @@ namespace ViewTracker.Views
                     if (paramName.StartsWith("AllParam_"))
                     {
                         string actualParamName = paramName.Substring("AllParam_".Length);
+
+                        // Skip if this is a read-only parameter
+                        if (readOnlyParams.Contains(actualParamName))
+                            return null;
+
                         displayParamName = actualParamName;
 
                         var param = room.LookupParameter(actualParamName);
                         if (param != null)
                         {
-                            currentValue = param.AsValueString() ?? param.AsString() ?? "";
-                        }
+                            // Format current value to match comparison logic (including empty values)
+                            switch (param.StorageType)
+                            {
+                                case StorageType.Double:
+                                    // Extract numeric part only (remove unit symbols) to match comparison
+                                    var valueString = param.AsValueString();
+                                    if (!string.IsNullOrEmpty(valueString))
+                                    {
+                                        currentValue = valueString.Split(' ')[0].Replace(",", ".");
+                                    }
+                                    else
+                                    {
+                                        currentValue = param.AsDouble().ToString("F2").TrimEnd('0').TrimEnd('.');
+                                    }
+                                    break;
 
-                        if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(actualParamName, out object value))
+                                case StorageType.Integer:
+                                    // For integer parameters, check if snapshot has numeric or text value
+                                    if (snapshot.AllParameters != null &&
+                                        snapshot.AllParameters.TryGetValue(actualParamName, out object snapValue))
+                                    {
+                                        // If snapshot has a numeric value, compare as integers
+                                        if (int.TryParse(snapValue?.ToString(), out int _))
+                                        {
+                                            currentValue = param.AsInteger().ToString();
+                                        }
+                                        else
+                                        {
+                                            // Snapshot has text, use text comparison
+                                            var intValueString = param.AsValueString();
+                                            if (!string.IsNullOrEmpty(intValueString))
+                                            {
+                                                currentValue = intValueString.Split(' ')[0].Replace(",", ".");
+                                            }
+                                            else
+                                            {
+                                                currentValue = param.AsInteger().ToString();
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        currentValue = param.AsInteger().ToString();
+                                    }
+                                    break;
+
+                                case StorageType.String:
+                                    // Always get current value, even if empty
+                                    currentValue = param.AsString() ?? "";
+                                    break;
+
+                                case StorageType.ElementId:
+                                    currentValue = param.AsValueString() ?? "";
+                                    break;
+
+                                default:
+                                    currentValue = param.AsValueString() ?? param.AsString() ?? "";
+                                    break;
+                            }
+
+                            // Get snapshot value (may be null if not in AllParameters)
+                            if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(actualParamName, out object value))
+                            {
+                                // Format snapshot value to match current value display
+                                snapshotValue = FormatSnapshotValue(param, value);
+                            }
+                            else
+                            {
+                                // Snapshot doesn't have this parameter - show as empty
+                                snapshotValue = "";
+                            }
+                        }
+                        else
                         {
-                            snapshotValue = value?.ToString() ?? "";
+                            // Parameter doesn't exist in current room
+                            return null;
                         }
                     }
                     else
@@ -240,6 +330,103 @@ namespace ViewTracker.Views
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        /// <summary>
+        /// Formats a snapshot's raw parameter value to match the display format of the current parameter
+        /// Uses the same logic as RoomCompareCommand.FormatParameterValue
+        /// </summary>
+        private string FormatSnapshotValue(Parameter currentParam, object snapshotValue)
+        {
+            if (snapshotValue == null)
+                return "";
+
+            // If parameter doesn't exist in current room, just return the raw value as string
+            if (currentParam == null)
+                return snapshotValue.ToString();
+
+            try
+            {
+                switch (currentParam.StorageType)
+                {
+                    case StorageType.Double:
+                        // Convert value to double (handles int, long, double from JSON)
+                        double doubleValue = 0;
+
+                        if (snapshotValue is double d)
+                            doubleValue = d;
+                        else if (snapshotValue is float f)
+                            doubleValue = f;
+                        else if (snapshotValue is int i)
+                            doubleValue = i;
+                        else if (snapshotValue is long l)
+                            doubleValue = l;
+                        else if (double.TryParse(snapshotValue.ToString(), out double parsed))
+                            doubleValue = parsed;
+                        else
+                            return snapshotValue.ToString();
+
+                        // Get the conversion factor from the current parameter
+                        // by comparing its raw value (internal units) to display value (file units)
+                        var currentRawValue = currentParam.AsDouble();
+                        var currentDisplayString = currentParam.AsValueString();
+
+                        if (!string.IsNullOrEmpty(currentDisplayString) && Math.Abs(currentRawValue) > 0.0001)
+                        {
+                            // Parse the numeric part from the display string
+                            // Handle formats like "32.8", "32.8 m", "32,8", etc.
+                            string numericPart = currentDisplayString.Split(' ')[0].Replace(",", ".");
+
+                            if (double.TryParse(numericPart, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out double currentDisplayValue))
+                            {
+                                // Calculate conversion factor (display units / internal units)
+                                double conversionFactor = currentDisplayValue / currentRawValue;
+
+                                // Apply the same conversion to the snapshot value
+                                double convertedValue = doubleValue * conversionFactor;
+
+                                // Format with appropriate precision (remove trailing zeros and decimal point if integer)
+                                string formatted = convertedValue.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                                // Remove trailing zeros and decimal point if not needed
+                                formatted = formatted.TrimEnd('0').TrimEnd('.');
+                                return formatted;
+                            }
+                        }
+
+                        // If we can't determine conversion, return as-is with precision
+                        return doubleValue.ToString("F2", System.Globalization.CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
+
+                    case StorageType.Integer:
+                        // Integer parameters should be stored as display text in newer snapshots (e.g., "Par type")
+                        // but older snapshots might have numeric values. Handle both cases:
+
+                        // If snapshot value is a number, convert it to display text
+                        if (int.TryParse(snapshotValue.ToString(), out int intVal))
+                        {
+                            // Get the display text for this integer value
+                            // We can't directly convert without setting the parameter, so return formatted value
+                            return intVal.ToString();
+                        }
+
+                        // Otherwise it's already text - extract first word to match current value format
+                        // (e.g., "Par type" → "Par" to match how current value is extracted)
+                        return snapshotValue.ToString().Split(' ')[0];
+
+                    case StorageType.String:
+                        return snapshotValue.ToString();
+
+                    case StorageType.ElementId:
+                        return snapshotValue.ToString();
+                }
+            }
+            catch
+            {
+                // If formatting fails, return raw value
+                return snapshotValue.ToString();
+            }
+
+            return snapshotValue.ToString();
         }
     }
 

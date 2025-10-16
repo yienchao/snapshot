@@ -156,14 +156,14 @@ namespace ViewTracker.Commands
                     Perimeter = room.Perimeter,
                     Volume = room.Volume,
                     UnboundHeight = room.UnboundedHeight,
-                    Occupancy = room.LookupParameter("Occupation")?.AsString(),
-                    Department = room.LookupParameter("Service")?.AsString(),
+                    Occupancy = room.get_Parameter(BuiltInParameter.ROOM_OCCUPANCY)?.AsString(),
+                    Department = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString(),
                     Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsValueString(),
                     BaseFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_BASE)?.AsString(),
                     CeilingFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_CEILING)?.AsString(),
                     WallFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_WALL)?.AsString(),
                     FloorFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_FLOOR)?.AsString(),
-                    Comments = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(),
+                    Comments = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? room.LookupParameter("Comments")?.AsString() ?? room.LookupParameter("Commentaires")?.AsString(),
                     Occupant = room.LookupParameter("Occupant")?.AsString(),
                     AllParameters = allParams
                 };
@@ -196,25 +196,35 @@ namespace ViewTracker.Commands
         {
             var parameters = new Dictionary<string, object>();
 
-            // Parameters that are stored in dedicated columns - exclude from JSON
-            var excludedParams = new HashSet<string>
+            // Built-in parameters that are stored in dedicated columns - exclude from JSON
+            // Using BuiltInParameter enum IDs for language-independence
+            var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                "Numéro", "Number",  // room_number column
-                "Nom", "Name",  // room_name column
-                "Niveau", "Level",  // level column
-                "Surface", "Area",  // area column
-                "Périmètre", "Perimeter",  // perimeter column
-                "Volume",  // volume column
-                "Hauteur non liée", "Unbounded Height",  // unbound_height column
-                "Occupation", "Occupancy",  // occupancy column
-                "Service", "Department",  // department column
-                "Phase",  // phase column
-                "Finition de la base", "Base Finish",  // base_finish column
-                "Finition du plafond", "Ceiling Finish",  // ceiling_finish column
-                "Finition du mur", "Wall Finish",  // wall_finish column
-                "Finition du sol", "Floor Finish",  // floor_finish column
-                "Commentaires", "Comments",  // comments column
-                "Occupant"  // occupant column
+                BuiltInParameter.ROOM_NUMBER,           // room_number column
+                BuiltInParameter.ROOM_NAME,             // room_name column
+                BuiltInParameter.ROOM_LEVEL_ID,         // level column
+                BuiltInParameter.ROOM_AREA,             // area column
+                BuiltInParameter.ROOM_PERIMETER,        // perimeter column
+                BuiltInParameter.ROOM_VOLUME,           // volume column
+                BuiltInParameter.ROOM_UPPER_LEVEL,      // unbound_height column
+                BuiltInParameter.ROOM_OCCUPANCY,        // occupancy column
+                BuiltInParameter.ROOM_DEPARTMENT,       // department column
+                BuiltInParameter.ROOM_PHASE,            // phase column
+                BuiltInParameter.ROOM_FINISH_BASE,      // base_finish column
+                BuiltInParameter.ROOM_FINISH_CEILING,   // ceiling_finish column
+                BuiltInParameter.ROOM_FINISH_WALL,      // wall_finish column
+                BuiltInParameter.ROOM_FINISH_FLOOR,     // floor_finish column
+                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,  // comments column
+                BuiltInParameter.IFC_EXPORT_ELEMENT_AS  // IFC export parameter (has formatting issues)
+            };
+
+            // Shared/string parameters to exclude (by name, for language-independence)
+            var excludedSharedParams = new HashSet<string>
+            {
+                "Occupant",  // occupant column (shared parameter)
+                "Exporter au format IFC",  // IFC export (French)
+                "Export to IFC",  // IFC export (English)
+                "IFC Export"  // IFC export (alternative English)
             };
 
             // Use GetOrderedParameters to get only user-visible parameters
@@ -223,8 +233,16 @@ namespace ViewTracker.Commands
             {
                 string paramName = param.Definition.Name;
 
-                // Skip parameters that are already in dedicated columns
-                if (excludedParams.Contains(paramName))
+                // Skip built-in parameters that are already in dedicated columns
+                if (param.Definition is InternalDefinition internalDef)
+                {
+                    var builtInParam = internalDef.BuiltInParameter;
+                    if (builtInParam != BuiltInParameter.INVALID && excludedBuiltInParams.Contains(builtInParam))
+                        continue;
+                }
+
+                // Skip shared parameters that are already in dedicated columns
+                if (excludedSharedParams.Contains(paramName))
                     continue;
 
                 object paramValue = null;
@@ -238,18 +256,26 @@ namespace ViewTracker.Commands
                         shouldAdd = true;
                         break;
                     case StorageType.Integer:
-                        // Always add integer values, even if 0
-                        paramValue = param.AsInteger();
-                        shouldAdd = true;
-                        break;
-                    case StorageType.String:
-                        // Only add non-empty strings
-                        var stringValue = param.AsString();
-                        if (!string.IsNullOrEmpty(stringValue))
+                        // Use AsValueString() to get display text for enums (e.g., "Par type" instead of "0")
+                        var intValueString = param.AsValueString();
+                        if (!string.IsNullOrEmpty(intValueString))
                         {
-                            paramValue = stringValue;
+                            paramValue = intValueString;
                             shouldAdd = true;
                         }
+                        else
+                        {
+                            // Fallback to integer if no display string available
+                            paramValue = param.AsInteger();
+                            shouldAdd = true;
+                        }
+                        break;
+                    case StorageType.String:
+                        // Always add string parameters, even if empty
+                        // This allows detecting when a value is added or removed
+                        var stringValue = param.AsString();
+                        paramValue = stringValue ?? "";
+                        shouldAdd = true;
                         break;
                     case StorageType.ElementId:
                         // Use AsValueString() to get the display value instead of the ID

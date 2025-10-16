@@ -4,7 +4,9 @@
       "Bash(mv:*)",
       "Bash(dotnet build)",
       "Bash(dotnet build:*)",
-      "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/2025/dataTracker/**)"
+      "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/2025/dataTracker/**)",
+      "Bash(Select-String -Pattern \"error|warning|succeeded\")",
+      "Bash(Select-Object -Last 5)"
     ],
     "deny": [],
     "ask": []
