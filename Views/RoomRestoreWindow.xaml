@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Restore Rooms from Snapshot"
-        Height="750" Width="600"
+        Height="900" Width="600"
         WindowStartupLocation="CenterScreen"
         Background="#F5F5F5">
 
@@ -61,6 +61,8 @@
                 <RadioButton x:Name="AllRoomsRadio" Content="All rooms with trackID" IsChecked="True"
                              GroupName="Scope" Checked="ScopeRadio_Changed"/>
                 <RadioButton x:Name="SelectedRoomsRadio" Content="Pre-selected rooms only"
+                             GroupName="Scope" Margin="0,5,0,0" Checked="ScopeRadio_Changed"/>
+                <RadioButton x:Name="DeletedRoomsRadio" Content="Deleted rooms only (recreate)"
                              GroupName="Scope" Margin="0,5,0,0" Checked="ScopeRadio_Changed"/>
                 <TextBlock x:Name="ScopeInfoText" Margin="20,5,0,0" FontSize="11" Foreground="#666"/>
             </StackPanel>

@@ -259,33 +259,62 @@ namespace ViewTracker.Views
                 return;
             }
 
-            // If user pre-selected specific rooms, only consider snapshots for those rooms
+            // Get current room trackIDs
             var currentTrackIds = _currentRooms
                 .Select(r => r.LookupParameter("trackID")?.AsString())
                 .Where(id => !string.IsNullOrWhiteSpace(id))
                 .ToHashSet();
 
-            // Filter snapshots to only those matching pre-selected rooms (if pre-selection exists)
-            var relevantSnapshots = _hasPreSelection
-                ? _selectedVersionSnapshots.Where(s => currentTrackIds.Contains(s.TrackId)).ToList()
-                : _selectedVersionSnapshots;
+            var snapshotTrackIds = _selectedVersionSnapshots.Select(s => s.TrackId).ToHashSet();
 
-            var snapshotTrackIds = relevantSnapshots.Select(s => s.TrackId).ToHashSet();
-
+            // Calculate counts based on scope selection
             var existingCount = currentTrackIds.Intersect(snapshotTrackIds).Count();
             var deletedCount = snapshotTrackIds.Except(currentTrackIds).Count();
 
-            var sb = new StringBuilder();
-            sb.AppendLine($"• {existingCount} existing rooms will be updated");
-
-            // Only show deleted rooms message if the checkbox is checked
-            if (deletedCount > 0 && ChkRecreateDeleted != null && ChkRecreateDeleted.IsChecked == true)
+            // Filter based on selected scope
+            List<RoomSnapshot> relevantSnapshots = null;
+            if (DeletedRoomsRadio?.IsChecked == true)
             {
-                sb.AppendLine($"• {deletedCount} deleted rooms will be created (unplaced)");
+                relevantSnapshots = _selectedVersionSnapshots
+                    .Where(s => !currentTrackIds.Contains(s.TrackId))
+                    .ToList();
             }
-            else if (deletedCount > 0)
+            else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
             {
-                sb.AppendLine($"• {deletedCount} deleted rooms will be ignored");
+                relevantSnapshots = _selectedVersionSnapshots
+                    .Where(s => currentTrackIds.Contains(s.TrackId))
+                    .ToList();
+            }
+            else
+            {
+                relevantSnapshots = _selectedVersionSnapshots;
+            }
+
+            var sb = new StringBuilder();
+
+            // Show different status based on scope
+            if (DeletedRoomsRadio?.IsChecked == true)
+            {
+                sb.AppendLine($"• {deletedCount} deleted rooms will be recreated");
+                sb.AppendLine($"  (Rooms in snapshot but not in current model)");
+            }
+            else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
+            {
+                sb.AppendLine($"• {relevantSnapshots.Count} pre-selected rooms will be updated");
+            }
+            else
+            {
+                sb.AppendLine($"• {existingCount} existing rooms will be updated");
+
+                // Only show deleted rooms message if the checkbox is checked
+                if (deletedCount > 0 && ChkRecreateDeleted != null && ChkRecreateDeleted.IsChecked == true)
+                {
+                    sb.AppendLine($"• {deletedCount} deleted rooms will be created");
+                }
+                else if (deletedCount > 0)
+                {
+                    sb.AppendLine($"• {deletedCount} deleted rooms will be ignored");
+                }
             }
 
             var selectedParamsCount = GetSelectedParameters().Count;
@@ -406,32 +435,48 @@ namespace ViewTracker.Views
         }
 
         /// <summary>
-        /// Gets the relevant snapshots based on whether user pre-selected specific rooms.
-        /// If rooms were pre-selected, only returns snapshots for those rooms.
-        /// Otherwise returns all snapshots for the selected version.
+        /// Gets the relevant snapshots based on user scope selection.
         /// </summary>
         private List<RoomSnapshot> GetRelevantSnapshots()
         {
-            if (!_hasPreSelection || _selectedVersionSnapshots == null)
+            if (_selectedVersionSnapshots == null)
                 return _selectedVersionSnapshots;
 
-            // Get trackIDs of pre-selected rooms
-            var selectedTrackIds = _currentRooms
+            // Get current room trackIDs for filtering
+            var currentTrackIds = _currentRooms
                 .Select(r => r.LookupParameter("trackID")?.AsString())
                 .Where(id => !string.IsNullOrWhiteSpace(id))
                 .ToHashSet();
 
-            // Return only snapshots matching pre-selected rooms
-            return _selectedVersionSnapshots
-                .Where(s => selectedTrackIds.Contains(s.TrackId))
-                .ToList();
+            // Filter based on scope selection
+            if (DeletedRoomsRadio?.IsChecked == true)
+            {
+                // Deleted rooms only: snapshots that DON'T exist in current model
+                return _selectedVersionSnapshots
+                    .Where(s => !currentTrackIds.Contains(s.TrackId))
+                    .ToList();
+            }
+            else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
+            {
+                // Pre-selected rooms only: snapshots matching pre-selected rooms
+                return _selectedVersionSnapshots
+                    .Where(s => currentTrackIds.Contains(s.TrackId))
+                    .ToList();
+            }
+            else
+            {
+                // All rooms: return all snapshots
+                return _selectedVersionSnapshots;
+            }
         }
 
         private void PerformRestore(List<string> selectedParams, List<RoomSnapshot> snapshotsToRestore)
         {
             string versionName = (VersionComboBox.SelectedItem as VersionInfo).VersionName;
             bool createBackup = ChkCreateBackup.IsChecked == true;
-            bool recreateDeleted = ChkRecreateDeleted.IsChecked == true;
+
+            // If "Deleted Rooms Only" scope is selected, force recreate mode
+            bool recreateDeleted = (DeletedRoomsRadio?.IsChecked == true) || (ChkRecreateDeleted.IsChecked == true);
             bool restorePlacement = ChkRestorePlacement.IsChecked == true;
 
             // Step 1: Create backup snapshot if requested
