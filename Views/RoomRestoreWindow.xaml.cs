@@ -53,6 +53,11 @@ namespace ViewTracker.Views
                 SelectedRoomsRadio.IsChecked = true;
                 AllRoomsRadio.IsEnabled = true;
                 ScopeInfoText.Text = $"{_totalRoomCount} rooms pre-selected";
+
+                // Update checkbox label to clarify it won't affect pre-selected rooms
+                ChkRecreateDeleted.Content = "Recreate deleted rooms (only applies when restoring all rooms)";
+                ChkRecreateDeleted.IsEnabled = false;
+                ChkRecreateDeleted.IsChecked = false;
             }
             else
             {
@@ -245,8 +250,18 @@ namespace ViewTracker.Views
                 return;
             }
 
-            var currentTrackIds = _currentRooms.Select(r => r.LookupParameter("trackID").AsString()).ToHashSet();
-            var snapshotTrackIds = _selectedVersionSnapshots.Select(s => s.TrackId).ToHashSet();
+            // If user pre-selected specific rooms, only consider snapshots for those rooms
+            var currentTrackIds = _currentRooms
+                .Select(r => r.LookupParameter("trackID")?.AsString())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet();
+
+            // Filter snapshots to only those matching pre-selected rooms (if pre-selection exists)
+            var relevantSnapshots = _hasPreSelection
+                ? _selectedVersionSnapshots.Where(s => currentTrackIds.Contains(s.TrackId)).ToList()
+                : _selectedVersionSnapshots;
+
+            var snapshotTrackIds = relevantSnapshots.Select(s => s.TrackId).ToHashSet();
 
             var existingCount = currentTrackIds.Intersect(snapshotTrackIds).Count();
             var deletedCount = snapshotTrackIds.Except(currentTrackIds).Count();
@@ -326,11 +341,14 @@ namespace ViewTracker.Views
                 return;
             }
 
+            // Filter snapshots to only those matching pre-selected rooms (if applicable)
+            var snapshotsToRestore = GetRelevantSnapshots();
+
             // Show preview window
             var previewWindow = new RestorePreviewWindow(
                 _doc,
                 _currentRooms,
-                _selectedVersionSnapshots,
+                snapshotsToRestore,
                 selectedParams,
                 (VersionComboBox.SelectedItem as VersionInfo).VersionName
             );
@@ -367,7 +385,9 @@ namespace ViewTracker.Views
 
             try
             {
-                PerformRestore(selectedParams);
+                // Filter snapshots to only those matching pre-selected rooms (if applicable)
+                var snapshotsToRestore = GetRelevantSnapshots();
+                PerformRestore(selectedParams, snapshotsToRestore);
             }
             catch (Exception ex)
             {
@@ -376,7 +396,29 @@ namespace ViewTracker.Views
             }
         }
 
-        private void PerformRestore(List<string> selectedParams)
+        /// <summary>
+        /// Gets the relevant snapshots based on whether user pre-selected specific rooms.
+        /// If rooms were pre-selected, only returns snapshots for those rooms.
+        /// Otherwise returns all snapshots for the selected version.
+        /// </summary>
+        private List<RoomSnapshot> GetRelevantSnapshots()
+        {
+            if (!_hasPreSelection || _selectedVersionSnapshots == null)
+                return _selectedVersionSnapshots;
+
+            // Get trackIDs of pre-selected rooms
+            var selectedTrackIds = _currentRooms
+                .Select(r => r.LookupParameter("trackID")?.AsString())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet();
+
+            // Return only snapshots matching pre-selected rooms
+            return _selectedVersionSnapshots
+                .Where(s => selectedTrackIds.Contains(s.TrackId))
+                .ToList();
+        }
+
+        private void PerformRestore(List<string> selectedParams, List<RoomSnapshot> snapshotsToRestore)
         {
             string versionName = (VersionComboBox.SelectedItem as VersionInfo).VersionName;
             bool createBackup = ChkCreateBackup.IsChecked == true;
@@ -388,8 +430,8 @@ namespace ViewTracker.Views
                 CreateBackupSnapshot();
             }
 
-            // Step 2: Perform restore
-            var restoreResult = RestoreRoomsFromSnapshot(selectedParams, recreateDeleted);
+            // Step 2: Perform restore (using filtered snapshots)
+            var restoreResult = RestoreRoomsFromSnapshot(selectedParams, recreateDeleted, snapshotsToRestore);
 
             // Step 3: Show result
             ShowRestoreResult(restoreResult, versionName);
@@ -464,7 +506,7 @@ namespace ViewTracker.Views
             return snapshot;
         }
 
-        private RestoreResult RestoreRoomsFromSnapshot(List<string> selectedParams, bool recreateDeleted)
+        private RestoreResult RestoreRoomsFromSnapshot(List<string> selectedParams, bool recreateDeleted, List<RoomSnapshot> snapshotsToRestore)
         {
             var result = new RestoreResult();
 
@@ -485,7 +527,7 @@ namespace ViewTracker.Views
             {
                 trans.Start();
 
-                foreach (var snapshot in _selectedVersionSnapshots)
+                foreach (var snapshot in snapshotsToRestore)
                 {
                     // Check if room exists anywhere in document (O(1) dictionary lookup)
                     if (allRoomsDict.TryGetValue(snapshot.TrackId, out Room existingRoom))

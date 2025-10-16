@@ -275,13 +275,31 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         {
             try
             {
-                var results = await _supabase
-                    .From<RoomSnapshot>()
-                    .Where(x => x.ProjectId == projectId)
-                    .Get();
+                var allSnapshots = new List<RoomSnapshot>();
+                const int batchSize = 1000;
+                int offset = 0;
+
+                // Load all snapshots with pagination
+                while (true)
+                {
+                    var resp = await _supabase
+                        .From<RoomSnapshot>()
+                        .Where(x => x.ProjectId == projectId)
+                        // Add ordering for deterministic pagination
+                        .Order(x => x.VersionName, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Order(x => x.TrackId, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Range(offset, offset + batchSize - 1)
+                        .Get();
+
+                    var batch = resp.Models.ToList();
+                    allSnapshots.AddRange(batch);
+
+                    if (batch.Count < batchSize) break;
+                    offset += batchSize;
+                }
 
                 // Return one snapshot per version (with metadata)
-                return results.Models
+                return allSnapshots
                     .GroupBy(r => r.VersionName)
                     .Select(g => g.First())
                     .OrderByDescending(r => r.SnapshotDate)
@@ -294,17 +312,34 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
             }
         }
 
-        // Get all rooms for a specific version and project
+        // Get all rooms for a specific version and project (with pagination for large datasets)
         public async Task<List<RoomSnapshot>> GetRoomsByVersionAsync(string versionName, Guid projectId)
         {
             try
             {
-                var results = await _supabase
-                    .From<RoomSnapshot>()
-                    .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
-                    .Get();
+                var allRooms = new List<RoomSnapshot>();
+                const int batchSize = 1000;
+                int offset = 0;
 
-                return results.Models.ToList();
+                while (true)
+                {
+                    var resp = await _supabase
+                        .From<RoomSnapshot>()
+                        .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
+                        // Add ordering for deterministic pagination
+                        .Order(x => x.TrackId, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Range(offset, offset + batchSize - 1)
+                        .Get();
+
+                    var batch = resp.Models.ToList();
+                    allRooms.AddRange(batch);
+
+                    // If we got fewer results than batch size, we've reached the end
+                    if (batch.Count < batchSize) break;
+                    offset += batchSize;
+                }
+
+                return allRooms;
             }
             catch (Exception ex)
             {

@@ -271,11 +271,14 @@ namespace ViewTracker.Commands
                         }
                         break;
                     case StorageType.String:
-                        // Always add string parameters, even if empty
-                        // This allows detecting when a value is added or removed
+                        // Only add string parameters if they have a value (non-empty)
+                        // This reduces database storage size significantly
                         var stringValue = param.AsString();
-                        paramValue = stringValue ?? "";
-                        shouldAdd = true;
+                        if (!string.IsNullOrEmpty(stringValue))
+                        {
+                            paramValue = stringValue;
+                            shouldAdd = true;
+                        }
                         break;
                     case StorageType.ElementId:
                         // Use AsValueString() to get the display value instead of the ID
