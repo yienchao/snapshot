@@ -656,28 +656,28 @@ namespace ViewTracker.Commands
             {
                 string paramName = param.Definition.Name;
 
-                // Skip placement-dependent and system parameters that cause false positives
-                // Use BuiltInParameter for language-independent exclusion
+                // Skip only system metadata and IFC parameters in comparison
+                // We WANT to show placement-dependent parameters in comparison (Area, Volume, Level, etc.)
+                // but they will be excluded from restore since they're read-only
                 if (param.Definition is InternalDefinition internalDef)
                 {
                     var builtInParam = internalDef.BuiltInParameter;
 
-                    // Skip these read-only placement-dependent parameters
-                    if (builtInParam == BuiltInParameter.ROOM_LEVEL_ID ||
-                        builtInParam == BuiltInParameter.ROOM_AREA ||
-                        builtInParam == BuiltInParameter.ROOM_PERIMETER ||
-                        builtInParam == BuiltInParameter.ROOM_VOLUME ||
-                        builtInParam == BuiltInParameter.ROOM_UPPER_LEVEL ||
-                        builtInParam == BuiltInParameter.ROOM_UPPER_OFFSET ||
-                        builtInParam == BuiltInParameter.ROOM_LOWER_OFFSET ||
-                        builtInParam == BuiltInParameter.ROOM_COMPUTATION_HEIGHT ||
-                        builtInParam == BuiltInParameter.EDITED_BY ||
+                    // Skip only these system parameters
+                    if (builtInParam == BuiltInParameter.EDITED_BY ||
                         builtInParam == BuiltInParameter.IFC_EXPORT_ELEMENT_AS)  // IFC export (has formatting issues)
                         continue;
                 }
 
                 // Also skip by parameter name for IFC export (covers all languages)
                 if (paramName == "Exporter au format IFC" || paramName == "Export to IFC" || paramName == "IFC Export")
+                    continue;
+
+                // Skip placement-dependent parameters that cause false positives
+                if (paramName == "Limite supérieure" || paramName == "Upper Limit" ||
+                    paramName == "Décalage limite" || paramName == "Base Offset" || paramName == "Limit Offset" ||
+                    paramName == "Hauteur de calcul" || paramName == "Computation Height" ||
+                    paramName == "Niveau" || paramName == "Level")
                     continue;
 
                 object paramValue = null;
@@ -757,6 +757,18 @@ namespace ViewTracker.Commands
             {
                 foreach (var kvp in snapshot.AllParameters)
                 {
+                    // Skip placement-dependent parameters that cause false positives (for backwards compatibility with old snapshots)
+                    if (kvp.Key == "Limite supérieure" || kvp.Key == "Upper Limit" ||
+                        kvp.Key == "Décalage limite" || kvp.Key == "Base Offset" || kvp.Key == "Limit Offset" ||
+                        kvp.Key == "Hauteur de calcul" || kvp.Key == "Computation Height" ||
+                        kvp.Key == "Niveau" || kvp.Key == "Level")
+                        continue;
+
+                    // Skip IFC parameters
+                    if (kvp.Key == "Exporter au format IFC" || kvp.Key == "Export to IFC" || kvp.Key == "IFC Export" ||
+                        kvp.Key.Contains("IFC") || kvp.Key.Contains("prédéfini d'IFC"))
+                        continue;
+
                     snapshotParams[kvp.Key] = kvp.Value;
 
                     // Try to format snapshot value using current parameter's units (use cached dictionary for fast lookup)
@@ -836,25 +848,25 @@ namespace ViewTracker.Commands
                             // Skip level - it's read-only and causes false positives
                             continue;
                         case BuiltInParameter.ROOM_AREA:
-                            // Skip area - placement-dependent
-                            continue;
+                            columnKey = "area";
+                            break;
                         case BuiltInParameter.ROOM_PERIMETER:
-                            // Skip perimeter - placement-dependent
-                            continue;
+                            columnKey = "perimeter";
+                            break;
                         case BuiltInParameter.ROOM_VOLUME:
-                            // Skip volume - placement-dependent
-                            continue;
+                            columnKey = "volume";
+                            break;
                         case BuiltInParameter.ROOM_UPPER_LEVEL:
-                            // Skip upper level - placement-dependent
-                            continue;
+                            columnKey = "unbound_height";
+                            break;
                         case BuiltInParameter.ROOM_UPPER_OFFSET:
-                            // Skip upper offset (Limite supérieure) - placement-dependent
+                            // Skip upper offset (Limite supérieure) - not in dedicated columns
                             continue;
                         case BuiltInParameter.ROOM_LOWER_OFFSET:
-                            // Skip lower offset - placement-dependent
+                            // Skip lower offset - not in dedicated columns
                             continue;
                         case BuiltInParameter.ROOM_COMPUTATION_HEIGHT:
-                            // Skip computation height - placement-dependent
+                            // Skip computation height - not in dedicated columns
                             continue;
                         case BuiltInParameter.ROOM_OCCUPANCY:
                             columnKey = "occupancy";
@@ -888,6 +900,18 @@ namespace ViewTracker.Commands
                     if (paramName == "Occupant")
                         columnKey = "occupant";
                 }
+
+                // Skip IFC parameters by name (covers all languages, in case they weren't caught by BuiltInParameter check)
+                if (paramName == "Exporter au format IFC" || paramName == "Export to IFC" || paramName == "IFC Export" ||
+                    paramName.Contains("IFC") || paramName.Contains("prédéfini d'IFC"))
+                    continue;
+
+                // Skip placement-dependent parameters that cause false positives (for backwards compatibility with old snapshots)
+                if (paramName == "Limite supérieure" || paramName == "Upper Limit" ||
+                    paramName == "Décalage limite" || paramName == "Base Offset" || paramName == "Limit Offset" ||
+                    paramName == "Hauteur de calcul" || paramName == "Computation Height" ||
+                    paramName == "Niveau" || paramName == "Level")
+                    continue;
 
                 // If this parameter maps to a snapshot column, check if snapshot has value OR if parameter exists in current room
                 // This ensures we compare even when snapshot OR current value is empty
@@ -1019,6 +1043,11 @@ namespace ViewTracker.Commands
                     var currDisplay = currentParamsDisplay.ContainsKey(currentParam.Key)
                         ? currentParamsDisplay[currentParam.Key]
                         : currentParam.Value?.ToString() ?? "";
+
+                    // Skip empty string parameters - they're not really "new", they just weren't captured in snapshot
+                    if (string.IsNullOrEmpty(currDisplay) || currDisplay == "0" || currDisplay == "0.00")
+                        continue;
+
                     changes.Add($"{currentParam.Key}: (new) → '{currDisplay}'");
                 }
             }

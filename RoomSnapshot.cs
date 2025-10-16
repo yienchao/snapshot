@@ -61,6 +61,15 @@ namespace ViewTracker
         [Column("phase")]
         public string? Phase { get; set; }
 
+        [Column("position_x")]
+        public double? PositionX { get; set; }
+
+        [Column("position_y")]
+        public double? PositionY { get; set; }
+
+        [Column("position_z")]
+        public double? PositionZ { get; set; }
+
         [Column("base_finish")]
         public string? BaseFinish { get; set; }
 

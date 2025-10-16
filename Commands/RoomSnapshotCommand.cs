@@ -140,6 +140,16 @@ namespace ViewTracker.Commands
                 var trackId = room.LookupParameter("trackID").AsString();
                 var allParams = GetAllParameters(room);
 
+                // Capture room position (for restoring unplaced rooms)
+                double? posX = null, posY = null, posZ = null;
+                if (room.Location is LocationPoint locationPoint)
+                {
+                    var point = locationPoint.Point;
+                    posX = point.X;
+                    posY = point.Y;
+                    posZ = point.Z;
+                }
+
                 var snapshot = new RoomSnapshot
                 {
                     TrackId = trackId,
@@ -159,6 +169,9 @@ namespace ViewTracker.Commands
                     Occupancy = room.get_Parameter(BuiltInParameter.ROOM_OCCUPANCY)?.AsString(),
                     Department = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString(),
                     Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsValueString(),
+                    PositionX = posX,
+                    PositionY = posY,
+                    PositionZ = posZ,
                     BaseFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_BASE)?.AsString(),
                     CeilingFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_CEILING)?.AsString(),
                     WallFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_WALL)?.AsString(),
@@ -207,6 +220,9 @@ namespace ViewTracker.Commands
                 BuiltInParameter.ROOM_PERIMETER,        // perimeter column
                 BuiltInParameter.ROOM_VOLUME,           // volume column
                 BuiltInParameter.ROOM_UPPER_LEVEL,      // unbound_height column
+                BuiltInParameter.ROOM_UPPER_OFFSET,     // upper limit (not useful for comparison, causes false positives)
+                BuiltInParameter.ROOM_LOWER_OFFSET,     // lower limit (not useful for comparison, causes false positives)
+                BuiltInParameter.ROOM_COMPUTATION_HEIGHT, // computation height (not useful for comparison)
                 BuiltInParameter.ROOM_OCCUPANCY,        // occupancy column
                 BuiltInParameter.ROOM_DEPARTMENT,       // department column
                 BuiltInParameter.ROOM_PHASE,            // phase column

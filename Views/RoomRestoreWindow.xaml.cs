@@ -238,6 +238,15 @@ namespace ViewTracker.Views
 
         private void RecreateDeleted_Changed(object sender, RoutedEventArgs e)
         {
+            // Enable/disable placement checkbox based on recreate checkbox
+            if (ChkRestorePlacement != null)
+            {
+                ChkRestorePlacement.IsEnabled = ChkRecreateDeleted.IsChecked == true;
+                if (ChkRecreateDeleted.IsChecked != true)
+                {
+                    ChkRestorePlacement.IsChecked = false;
+                }
+            }
             UpdateStatus();
         }
 
@@ -423,6 +432,7 @@ namespace ViewTracker.Views
             string versionName = (VersionComboBox.SelectedItem as VersionInfo).VersionName;
             bool createBackup = ChkCreateBackup.IsChecked == true;
             bool recreateDeleted = ChkRecreateDeleted.IsChecked == true;
+            bool restorePlacement = ChkRestorePlacement.IsChecked == true;
 
             // Step 1: Create backup snapshot if requested
             if (createBackup)
@@ -431,7 +441,7 @@ namespace ViewTracker.Views
             }
 
             // Step 2: Perform restore (using filtered snapshots)
-            var restoreResult = RestoreRoomsFromSnapshot(selectedParams, recreateDeleted, snapshotsToRestore);
+            var restoreResult = RestoreRoomsFromSnapshot(selectedParams, recreateDeleted, restorePlacement, snapshotsToRestore);
 
             // Step 3: Show result
             ShowRestoreResult(restoreResult, versionName);
@@ -506,7 +516,7 @@ namespace ViewTracker.Views
             return snapshot;
         }
 
-        private RestoreResult RestoreRoomsFromSnapshot(List<string> selectedParams, bool recreateDeleted, List<RoomSnapshot> snapshotsToRestore)
+        private RestoreResult RestoreRoomsFromSnapshot(List<string> selectedParams, bool recreateDeleted, bool restorePlacement, List<RoomSnapshot> snapshotsToRestore)
         {
             var result = new RestoreResult();
 
@@ -538,8 +548,8 @@ namespace ViewTracker.Views
                     }
                     else if (recreateDeleted)
                     {
-                        // Room doesn't exist - create unplaced room if checkbox is checked
-                        var newRoom = CreateUnplacedRoomWithLevelAndPhase(snapshot, selectedParams);
+                        // Room doesn't exist - create room (unplaced or placed depending on option)
+                        var newRoom = CreateRoomWithPlacement(snapshot, selectedParams, restorePlacement);
                         if (newRoom != null)
                         {
                             result.CreatedRooms++;
@@ -741,7 +751,7 @@ namespace ViewTracker.Views
             }
         }
 
-        private Room CreateUnplacedRoomWithLevelAndPhase(RoomSnapshot snapshot, List<string> selectedParams)
+        private Room CreateRoomWithPlacement(RoomSnapshot snapshot, List<string> selectedParams, bool restorePlacement)
         {
             try
             {
@@ -789,15 +799,47 @@ namespace ViewTracker.Views
                     targetPhase = _doc.Phases.get_Item(_doc.Phases.Size - 1);
                 }
 
-                // Create unplaced room (exists only in schedule, not placed in model)
-                // Using NewRoom(phase) creates an unplaced room
-                Room newRoom = _doc.Create.NewRoom(targetPhase);
+                Room newRoom = null;
 
-                // Set the level manually
-                var levelParam = newRoom.get_Parameter(BuiltInParameter.ROOM_LEVEL_ID);
-                if (levelParam != null && !levelParam.IsReadOnly)
+                // Create room at original position if requested and position data exists
+                if (restorePlacement && snapshot.PositionX.HasValue && snapshot.PositionY.HasValue)
                 {
-                    levelParam.Set(targetLevel.Id);
+                    // Create a UV point at the original position
+                    var position = new XYZ(snapshot.PositionX.Value, snapshot.PositionY.Value,
+                                          snapshot.PositionZ ?? targetLevel.Elevation);
+
+                    // Try to create room at the specified position
+                    // Note: This will only work if there's a valid room boundary at that location
+                    try
+                    {
+                        newRoom = _doc.Create.NewRoom(targetLevel, new UV(position.X, position.Y));
+
+                        // Set phase after creation
+                        var phaseParam = newRoom.get_Parameter(BuiltInParameter.ROOM_PHASE);
+                        if (phaseParam != null && !phaseParam.IsReadOnly)
+                        {
+                            phaseParam.Set(targetPhase.Id);
+                        }
+                    }
+                    catch
+                    {
+                        // If placement fails (no valid boundary), fall back to unplaced room
+                        newRoom = null;
+                    }
+                }
+
+                // If placement was not requested or failed, create unplaced room
+                if (newRoom == null)
+                {
+                    // Create unplaced room (exists only in schedule, not placed in model)
+                    newRoom = _doc.Create.NewRoom(targetPhase);
+
+                    // Set the level manually for unplaced rooms
+                    var levelParam = newRoom.get_Parameter(BuiltInParameter.ROOM_LEVEL_ID);
+                    if (levelParam != null && !levelParam.IsReadOnly)
+                    {
+                        levelParam.Set(targetLevel.Id);
+                    }
                 }
 
                 // Set trackID first
@@ -806,8 +848,6 @@ namespace ViewTracker.Views
                 {
                     trackIdParam.Set(snapshot.TrackId);
                 }
-
-                // Phase was already set during room creation (NewRoom(targetPhase))
 
                 // Update parameters based on selection
                 UpdateRoomParameters(newRoom, snapshot, selectedParams);

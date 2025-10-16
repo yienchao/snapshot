@@ -105,6 +105,10 @@
                 <CheckBox x:Name="ChkRecreateDeleted" Content="Recreate deleted rooms (unplaced in schedule)"
                           IsChecked="False" Margin="0,8,0,0"
                           Checked="RecreateDeleted_Changed" Unchecked="RecreateDeleted_Changed"/>
+                <CheckBox x:Name="ChkRestorePlacement" Content="↳ Place at original location (position, level, phase)"
+                          IsChecked="False" Margin="20,4,0,0" FontSize="12"
+                          IsEnabled="False"
+                          ToolTip="Places recreated rooms at their original position, level, and phase from snapshot"/>
             </StackPanel>
         </GroupBox>
 
