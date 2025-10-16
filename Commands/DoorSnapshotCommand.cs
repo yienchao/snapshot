@@ -206,16 +206,18 @@ namespace ViewTracker.Commands
                 "Comments", "Commentaires"
             };
 
-            // Capture instance parameters
-            foreach (Parameter param in door.Parameters)
+            // Capture instance parameters using GetOrderedParameters (user-visible only)
+            var orderedInstanceParams = door.GetOrderedParameters();
+            foreach (Parameter param in orderedInstanceParams)
             {
                 AddParameterToDictionary(param, parameters, excludedParams);
             }
 
-            // Capture type parameters
+            // Capture type parameters using GetOrderedParameters (user-visible only)
             if (door.Symbol != null)
             {
-                foreach (Parameter param in door.Symbol.Parameters)
+                var orderedTypeParams = door.Symbol.GetOrderedParameters();
+                foreach (Parameter param in orderedTypeParams)
                 {
                     AddParameterToDictionary(param, parameters, excludedParams);
                 }
@@ -255,6 +257,10 @@ namespace ViewTracker.Commands
 
             // Skip parameters that are already in dedicated columns
             if (excludedParams.Contains(paramName))
+                return;
+
+            // Skip if this parameter name already exists (prefer instance over type)
+            if (parameters.ContainsKey(paramName))
                 return;
 
             object paramValue = null;

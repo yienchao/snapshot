@@ -227,20 +227,22 @@ namespace ViewTracker.Commands
         {
             var changes = new List<string>();
 
-            // Get all current door parameters (both instance and type)
+            // Get all current door parameters (both instance and type, user-visible only)
             var currentParams = new Dictionary<string, object>();
             var currentParamsDisplay = new Dictionary<string, string>();
 
-            // Get instance parameters
-            foreach (Parameter param in currentDoor.Parameters)
+            // Get instance parameters using GetOrderedParameters
+            var orderedInstanceParams = currentDoor.GetOrderedParameters();
+            foreach (Parameter param in orderedInstanceParams)
             {
                 AddParameterToDict(param, currentParams, currentParamsDisplay);
             }
 
-            // Get type parameters
+            // Get type parameters using GetOrderedParameters
             if (currentDoor.Symbol != null)
             {
-                foreach (Parameter param in currentDoor.Symbol.Parameters)
+                var orderedTypeParams = currentDoor.Symbol.GetOrderedParameters();
+                foreach (Parameter param in orderedTypeParams)
                 {
                     if (!currentParams.ContainsKey(param.Definition.Name))
                     {

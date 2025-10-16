@@ -1,0 +1,52 @@
+<Window x:Class="ViewTracker.Views.ComparisonModeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select Comparison Mode"
+        Height="400" Width="500"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2196F3" Padding="15" CornerRadius="5" Margin="0,0,0,20">
+            <StackPanel>
+                <TextBlock Text="Choose Comparison Mode" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Select what you want to compare" FontSize="12" Foreground="White" Margin="0,5,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Mode Selection -->
+        <StackPanel Grid.Row="1">
+            <RadioButton x:Name="CurrentVsSnapshotRadio" GroupName="Mode" IsChecked="True" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="Current Model vs Snapshot" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="Compare the current state of your Revit model against a saved snapshot version"
+                               TextWrapping="Wrap" Margin="20,5,0,0" FontSize="12" Foreground="#666"/>
+                </StackPanel>
+            </RadioButton>
+
+            <RadioButton x:Name="SnapshotVsSnapshotRadio" GroupName="Mode">
+                <StackPanel>
+                    <TextBlock Text="Snapshot vs Snapshot" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="Compare two different snapshot versions to see how the project evolved"
+                               TextWrapping="Wrap" Margin="20,5,0,0" FontSize="12" Foreground="#666"/>
+                </StackPanel>
+            </RadioButton>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Cancel" Click="Cancel_Click" Background="#757575" Foreground="White"
+                    Padding="15,8" Margin="5" FontSize="14" Cursor="Hand"/>
+            <Button Content="Continue" Click="Continue_Click" Background="#4CAF50" Foreground="White"
+                    Padding="15,8" Margin="5" FontSize="14" Cursor="Hand" FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>

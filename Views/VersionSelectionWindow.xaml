@@ -21,6 +21,7 @@
                    Margin="0,0,0,20"/>
 
         <TextBlock Grid.Row="1"
+                   x:Name="DescriptionText"
                    Text="Choose a snapshot version to compare with current rooms:"
                    TextWrapping="Wrap"
                    Margin="0,0,0,10"/>

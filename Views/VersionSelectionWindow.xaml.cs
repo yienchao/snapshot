@@ -10,11 +10,23 @@ namespace ViewTracker.Views
     {
         public VersionSelectionViewModel ViewModel { get; set; }
 
-        public VersionSelectionWindow(List<VersionInfo> versions)
+        public VersionSelectionWindow(List<VersionInfo> versions, string customTitle = null, string customDescription = null)
         {
             InitializeComponent();
             ViewModel = new VersionSelectionViewModel(versions);
             DataContext = ViewModel;
+
+            // Set custom title if provided
+            if (!string.IsNullOrWhiteSpace(customTitle))
+            {
+                Title = customTitle;
+            }
+
+            // Set custom description if provided
+            if (!string.IsNullOrWhiteSpace(customDescription))
+            {
+                DescriptionText.Text = customDescription;
+            }
 
             // Auto-select first version
             if (ViewModel.Versions.Any())

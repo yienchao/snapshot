@@ -66,3 +66,11 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Histo
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Snapshot32.png
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\Compare32.png
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\History32.png
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestorePreviewWindow.baml
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestoreResultWindow.baml
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RoomRestoreWindow.baml
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestorePreviewWindow.g.cs
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestoreResultWindow.g.cs
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RoomRestoreWindow.g.cs
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ComparisonModeWindow.baml
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ComparisonModeWindow.g.cs

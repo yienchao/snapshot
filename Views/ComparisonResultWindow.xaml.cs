@@ -266,6 +266,7 @@ namespace ViewTracker.Views
         public int NewRoomsCount { get; set; }
         public int ModifiedRoomsCount { get; set; }
         public int DeletedRoomsCount { get; set; }
+        public int UnplacedRoomsCount { get; set; }
         public ObservableCollection<RoomChangeDisplay> AllResults { get; set; }
 
         public ObservableCollection<RoomChangeDisplay> FilteredResults

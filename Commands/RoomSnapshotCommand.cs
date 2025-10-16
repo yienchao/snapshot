@@ -217,7 +217,9 @@ namespace ViewTracker.Commands
                 "Occupant"  // occupant column
             };
 
-            foreach (Parameter param in room.Parameters)
+            // Use GetOrderedParameters to get only user-visible parameters
+            var orderedParams = room.GetOrderedParameters();
+            foreach (Parameter param in orderedParams)
             {
                 string paramName = param.Definition.Name;
 

@@ -176,6 +176,16 @@ namespace ViewTracker
                 exportHistoryBtn.ToolTip = "Export all snapshot history to Excel or CSV";
                 trackerPanel.AddItem(exportHistoryBtn);
 
+                // Restore button
+                var restoreBtn = new PushButtonData(
+                    "RoomRestore",
+                    "Restore\nRooms",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.RoomRestoreCommand"
+                );
+                restoreBtn.ToolTip = "Restore room parameters from a snapshot version";
+                trackerPanel.AddItem(restoreBtn);
+
             }
             catch (Exception ex)
             {

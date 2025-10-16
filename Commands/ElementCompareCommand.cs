@@ -230,18 +230,22 @@ namespace ViewTracker.Commands
         {
             var changes = new List<string>();
 
-            // Get all current element parameters (both instance and type)
+            // Get all current element parameters (both instance and type, user-visible only)
             var currentParams = new Dictionary<string, object>();
             var currentParamsDisplay = new Dictionary<string, string>();
 
-            foreach (Parameter param in currentElement.Parameters)
+            // Get instance parameters using GetOrderedParameters
+            var orderedInstanceParams = currentElement.GetOrderedParameters();
+            foreach (Parameter param in orderedInstanceParams)
             {
                 AddParameterToDict(param, currentParams, currentParamsDisplay);
             }
 
+            // Get type parameters using GetOrderedParameters
             if (currentElement.Symbol != null)
             {
-                foreach (Parameter param in currentElement.Symbol.Parameters)
+                var orderedTypeParams = currentElement.Symbol.GetOrderedParameters();
+                foreach (Parameter param in orderedTypeParams)
                 {
                     if (!currentParams.ContainsKey(param.Definition.Name))
                     {

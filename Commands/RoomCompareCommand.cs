@@ -25,7 +25,29 @@ namespace ViewTracker.Commands
                 return Result.Failed;
             }
 
-            // 2. Get all versions from Supabase
+            // 2. Show mode selection window
+            var modeWindow = new ComparisonModeWindow();
+            var modeResult = modeWindow.ShowDialog();
+
+            if (modeResult != true)
+                return Result.Cancelled;
+
+            // Branch based on selected mode
+            if (modeWindow.SelectedMode == ComparisonMode.CurrentVsSnapshot)
+            {
+                return ExecuteCurrentVsSnapshot(commandData, projectId);
+            }
+            else // SnapshotVsSnapshot
+            {
+                return ExecuteSnapshotVsSnapshot(commandData, projectId);
+            }
+        }
+
+        private Result ExecuteCurrentVsSnapshot(ExternalCommandData commandData, Guid projectId)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            // 1. Get all versions from Supabase
             var supabaseService = new SupabaseService();
             List<RoomSnapshot> versionSnapshots = new List<RoomSnapshot>();
 
@@ -49,7 +71,7 @@ namespace ViewTracker.Commands
                 return Result.Cancelled;
             }
 
-            // 3. Let user select version using WPF dropdown window
+            // 2. Let user select version using WPF dropdown window
             var versionInfos = versionSnapshots
                 .GroupBy(v => v.VersionName)
                 .Select(g => new VersionInfo
@@ -72,7 +94,7 @@ namespace ViewTracker.Commands
             if (string.IsNullOrWhiteSpace(selectedVersion))
                 return Result.Cancelled;
 
-            // 4. Get snapshot rooms from Supabase
+            // 3. Get snapshot rooms from Supabase
             List<RoomSnapshot> snapshotRooms = new List<RoomSnapshot>();
             try
             {
@@ -87,7 +109,7 @@ namespace ViewTracker.Commands
                 return Result.Failed;
             }
 
-            // 5. Get current rooms from Revit - check for pre-selection first
+            // 4. Get current rooms from Revit - check for pre-selection first
             var uiDoc = commandData.Application.ActiveUIDocument;
             var selectedIds = uiDoc.Selection.GetElementIds();
 
@@ -134,7 +156,7 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // 6. Filter snapshot to only include rooms we're comparing
+            // 5. Filter snapshot to only include rooms we're comparing
             // If user pre-selected rooms, only compare against those trackIDs in the snapshot
             List<RoomSnapshot> filteredSnapshotRooms;
             if (selectedIds.Any())
@@ -151,13 +173,305 @@ namespace ViewTracker.Commands
                 filteredSnapshotRooms = snapshotRooms;
             }
 
-            // 7. Compare
+            // 6. Compare
             ComparisonResult comparison = CompareRooms(currentRooms, filteredSnapshotRooms, doc);
 
-            // 8. Show results
-            ShowComparisonResults(comparison, selectedVersion, commandData.Application);
+            // 7. Show results
+            ShowComparisonResults(comparison, $"Current vs {selectedVersion}", commandData.Application);
 
             return Result.Succeeded;
+        }
+
+        private Result ExecuteSnapshotVsSnapshot(ExternalCommandData commandData, Guid projectId)
+        {
+            var doc = commandData.Application.ActiveUIDocument.Document;
+
+            // 1. Get all versions from Supabase
+            var supabaseService = new SupabaseService();
+            List<RoomSnapshot> versionSnapshots = new List<RoomSnapshot>();
+
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await supabaseService.InitializeAsync();
+                    versionSnapshots = await supabaseService.GetAllVersionsWithInfoAsync(projectId);
+                }).Wait();
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to load versions:\n{ex.InnerException?.Message ?? ex.Message}");
+                return Result.Failed;
+            }
+
+            if (!versionSnapshots.Any())
+            {
+                TaskDialog.Show("No Versions", "No snapshots found in Supabase. Create a snapshot first.");
+                return Result.Cancelled;
+            }
+
+            // 2. Build version list
+            var versionInfos = versionSnapshots
+                .GroupBy(v => v.VersionName)
+                .Select(g => new VersionInfo
+                {
+                    VersionName = g.Key,
+                    SnapshotDate = g.First().SnapshotDate,
+                    CreatedBy = g.First().CreatedBy,
+                    IsOfficial = g.First().IsOfficial
+                })
+                .OrderByDescending(v => v.SnapshotDate)
+                .ToList();
+
+            if (versionInfos.Count < 2)
+            {
+                TaskDialog.Show("Not Enough Versions", "You need at least 2 snapshot versions to compare snapshots.");
+                return Result.Cancelled;
+            }
+
+            // 3. Let user select first version (BEFORE - baseline/older state)
+            var selection1Window = new VersionSelectionWindow(versionInfos,
+                "Select BEFORE Version (Baseline/Older)",
+                "Choose the baseline/older snapshot version:");
+            var result1 = selection1Window.ShowDialog();
+
+            if (result1 != true)
+                return Result.Cancelled;
+
+            string version1 = selection1Window.SelectedVersionName;
+            if (string.IsNullOrWhiteSpace(version1))
+                return Result.Cancelled;
+
+            // 4. Let user select second version (AFTER - what changed)
+            var selection2Window = new VersionSelectionWindow(versionInfos,
+                "Select AFTER Version (What Changed)",
+                "Choose the newer snapshot version to see what changed:");
+            var result2 = selection2Window.ShowDialog();
+
+            if (result2 != true)
+                return Result.Cancelled;
+
+            string version2 = selection2Window.SelectedVersionName;
+            if (string.IsNullOrWhiteSpace(version2))
+                return Result.Cancelled;
+
+            if (version1 == version2)
+            {
+                TaskDialog.Show("Same Version", "You selected the same version twice. Please select two different versions.");
+                return Result.Cancelled;
+            }
+
+            // 5. Load both snapshots
+            List<RoomSnapshot> snapshot1 = new List<RoomSnapshot>();
+            List<RoomSnapshot> snapshot2 = new List<RoomSnapshot>();
+
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    snapshot1 = await supabaseService.GetRoomsByVersionAsync(version1, projectId);
+                    snapshot2 = await supabaseService.GetRoomsByVersionAsync(version2, projectId);
+                }).Wait();
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to load snapshots:\n{ex.InnerException?.Message ?? ex.Message}");
+                return Result.Failed;
+            }
+
+            // 6. Compare snapshots
+            ComparisonResult comparison = CompareSnapshots(snapshot1, snapshot2, doc);
+
+            // 7. Show results with clear BEFORE → AFTER labeling
+            ShowComparisonResults(comparison, $"{version1} (BEFORE) → {version2} (AFTER)", commandData.Application);
+
+            return Result.Succeeded;
+        }
+
+        private ComparisonResult CompareSnapshots(List<RoomSnapshot> snapshot1, List<RoomSnapshot> snapshot2, Document doc)
+        {
+            var result = new ComparisonResult();
+            var snapshot1Dict = snapshot1.ToDictionary(s => s.TrackId, s => s);
+            var snapshot2Dict = snapshot2.ToDictionary(s => s.TrackId, s => s);
+
+            // Find new rooms (in snapshot2, not in snapshot1)
+            foreach (var room in snapshot2)
+            {
+                if (!snapshot1Dict.ContainsKey(room.TrackId))
+                {
+                    result.NewRooms.Add(new RoomChange
+                    {
+                        TrackId = room.TrackId,
+                        RoomNumber = room.RoomNumber,
+                        RoomName = room.RoomName,
+                        ChangeType = "New"
+                    });
+                }
+            }
+
+            // Find deleted rooms (in snapshot1, not in snapshot2)
+            foreach (var room in snapshot1)
+            {
+                if (!snapshot2Dict.ContainsKey(room.TrackId))
+                {
+                    result.DeletedRooms.Add(new RoomChange
+                    {
+                        TrackId = room.TrackId,
+                        RoomNumber = room.RoomNumber,
+                        RoomName = room.RoomName,
+                        ChangeType = "Deleted"
+                    });
+                }
+            }
+
+            // Find modified rooms and unplaced rooms
+            foreach (var room2 in snapshot2)
+            {
+                if (snapshot1Dict.TryGetValue(room2.TrackId, out var room1))
+                {
+                    // Check if room became unplaced (was placed in snapshot1, now unplaced in snapshot2)
+                    bool wasPlaced = room1.Area.HasValue && room1.Area.Value > 0.001;
+                    bool isNowUnplaced = !room2.Area.HasValue || room2.Area.Value <= 0.001;
+
+                    if (wasPlaced && isNowUnplaced)
+                    {
+                        // Room was deleted from plan but still in schedule
+                        result.UnplacedRooms.Add(new RoomChange
+                        {
+                            TrackId = room2.TrackId,
+                            RoomNumber = room2.RoomNumber,
+                            RoomName = room2.RoomName,
+                            ChangeType = "Unplaced",
+                            Changes = new List<string> { $"Room deleted from plan (Area was {room1.Area:F2}, now unplaced)" }
+                        });
+                    }
+                    else
+                    {
+                        // Check for parameter changes
+                        var changes = GetSnapshotChanges(room1, room2);
+                        if (changes.Any())
+                        {
+                            result.ModifiedRooms.Add(new RoomChange
+                            {
+                                TrackId = room2.TrackId,
+                                RoomNumber = room2.RoomNumber,
+                                RoomName = room2.RoomName,
+                                ChangeType = "Modified",
+                                Changes = changes
+                            });
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private List<string> GetSnapshotChanges(RoomSnapshot snapshot1, RoomSnapshot snapshot2)
+        {
+            var changes = new List<string>();
+
+            // Build parameter dictionaries from both snapshots
+            var params1 = BuildSnapshotParams(snapshot1);
+            var params2 = BuildSnapshotParams(snapshot2);
+
+            // Find all changed parameters
+            foreach (var param2 in params2)
+            {
+                if (params1.TryGetValue(param2.Key, out var value1))
+                {
+                    bool isDifferent = false;
+
+                    if (param2.Value is double double2 && value1 is double double1)
+                    {
+                        isDifferent = Math.Abs(double2 - double1) > 0.001;
+                    }
+                    else if (param2.Value is long long2 && value1 is int int1)
+                    {
+                        isDifferent = (long2 != int1);
+                    }
+                    else if (param2.Value is int int2 && value1 is long long1)
+                    {
+                        isDifferent = (int2 != long1);
+                    }
+                    else
+                    {
+                        var str1 = value1?.ToString() ?? "";
+                        var str2 = param2.Value?.ToString() ?? "";
+                        isDifferent = (str1 != str2);
+                    }
+
+                    if (isDifferent)
+                    {
+                        changes.Add($"{param2.Key}: '{value1}' → '{param2.Value}'");
+                    }
+                }
+                else
+                {
+                    changes.Add($"{param2.Key}: (new) '{param2.Value}'");
+                }
+            }
+
+            // Find removed parameters
+            foreach (var param1 in params1)
+            {
+                if (!params2.ContainsKey(param1.Key))
+                {
+                    changes.Add($"{param1.Key}: '{param1.Value}' → (removed)");
+                }
+            }
+
+            return changes;
+        }
+
+        private Dictionary<string, object> BuildSnapshotParams(RoomSnapshot snapshot)
+        {
+            var parameters = new Dictionary<string, object>();
+
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var kvp in snapshot.AllParameters)
+                {
+                    parameters[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Add dedicated columns
+            if (!string.IsNullOrEmpty(snapshot.RoomNumber))
+                parameters["Room Number"] = snapshot.RoomNumber;
+            if (!string.IsNullOrEmpty(snapshot.RoomName))
+                parameters["Room Name"] = snapshot.RoomName;
+            // Skip Level - it's read-only and causes false positives for unplaced rooms
+            // if (!string.IsNullOrEmpty(snapshot.Level))
+            //     parameters["Level"] = snapshot.Level;
+            if (snapshot.Area.HasValue)
+                parameters["Area"] = snapshot.Area.Value;
+            if (snapshot.Perimeter.HasValue)
+                parameters["Perimeter"] = snapshot.Perimeter.Value;
+            if (snapshot.Volume.HasValue)
+                parameters["Volume"] = snapshot.Volume.Value;
+            if (snapshot.UnboundHeight.HasValue)
+                parameters["Unbounded Height"] = snapshot.UnboundHeight.Value;
+            if (!string.IsNullOrEmpty(snapshot.Occupancy))
+                parameters["Occupancy"] = snapshot.Occupancy;
+            if (!string.IsNullOrEmpty(snapshot.Department))
+                parameters["Department"] = snapshot.Department;
+            if (!string.IsNullOrEmpty(snapshot.Phase))
+                parameters["Phase"] = snapshot.Phase;
+            if (!string.IsNullOrEmpty(snapshot.BaseFinish))
+                parameters["Base Finish"] = snapshot.BaseFinish;
+            if (!string.IsNullOrEmpty(snapshot.CeilingFinish))
+                parameters["Ceiling Finish"] = snapshot.CeilingFinish;
+            if (!string.IsNullOrEmpty(snapshot.WallFinish))
+                parameters["Wall Finish"] = snapshot.WallFinish;
+            if (!string.IsNullOrEmpty(snapshot.FloorFinish))
+                parameters["Floor Finish"] = snapshot.FloorFinish;
+            if (!string.IsNullOrEmpty(snapshot.Comments))
+                parameters["Comments"] = snapshot.Comments;
+            if (!string.IsNullOrEmpty(snapshot.Occupant))
+                parameters["Occupant"] = snapshot.Occupant;
+
+            return parameters;
         }
 
         private ComparisonResult CompareRooms(List<Room> currentRooms, List<RoomSnapshot> snapshotRooms, Document doc)
@@ -197,23 +511,43 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Find modified rooms
+            // Find modified rooms and unplaced rooms
             foreach (var room in currentRooms)
             {
                 var trackId = room.LookupParameter("trackID").AsString();
                 if (snapshotDict.TryGetValue(trackId, out var snapshot))
                 {
-                    var changes = GetParameterChanges(room, snapshot, doc);
-                    if (changes.Any())
+                    // Check if room became unplaced (was placed in snapshot, now unplaced in current)
+                    bool wasPlaced = snapshot.Area.HasValue && snapshot.Area.Value > 0.001;
+                    bool isNowUnplaced = room.Location == null;
+
+                    if (wasPlaced && isNowUnplaced)
                     {
-                        result.ModifiedRooms.Add(new RoomChange
+                        // Room was deleted from plan but still in schedule
+                        result.UnplacedRooms.Add(new RoomChange
                         {
                             TrackId = trackId,
                             RoomNumber = room.Number,
                             RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
-                            ChangeType = "Modified",
-                            Changes = changes
+                            ChangeType = "Unplaced",
+                            Changes = new List<string> { $"Room deleted from plan (Area was {snapshot.Area:F2}, now unplaced)" }
                         });
+                    }
+                    else
+                    {
+                        // Check for parameter changes
+                        var changes = GetParameterChanges(room, snapshot, doc);
+                        if (changes.Any())
+                        {
+                            result.ModifiedRooms.Add(new RoomChange
+                            {
+                                TrackId = trackId,
+                                RoomNumber = room.Number,
+                                RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
+                                ChangeType = "Modified",
+                                Changes = changes
+                            });
+                        }
                     }
                 }
             }
@@ -225,13 +559,19 @@ namespace ViewTracker.Commands
         {
             var changes = new List<string>();
 
-            // Get all current room parameters
+            // Get all current room parameters (user-visible only)
             var currentParams = new Dictionary<string, object>();
             var currentParamsDisplay = new Dictionary<string, string>(); // For display with units
 
-            foreach (Parameter param in currentRoom.Parameters)
+            var orderedParams = currentRoom.GetOrderedParameters();
+            foreach (Parameter param in orderedParams)
             {
                 string paramName = param.Definition.Name;
+
+                // Skip Level/Niveau - read-only and causes false positives for unplaced rooms
+                if (paramName == "Niveau" || paramName == "Level")
+                    continue;
+
                 object paramValue = null;
                 string displayValue = null;
                 bool shouldAdd = false;
@@ -343,7 +683,8 @@ namespace ViewTracker.Commands
                 // Room identification
                 ["room_number"] = (snapshot.RoomNumber, !string.IsNullOrEmpty(snapshot.RoomNumber)),
                 ["room_name"] = (snapshot.RoomName, !string.IsNullOrEmpty(snapshot.RoomName)),
-                ["level"] = (snapshot.Level, !string.IsNullOrEmpty(snapshot.Level)),
+                // Skip Level - it's read-only and causes false positives for unplaced rooms
+                // ["level"] = (snapshot.Level, !string.IsNullOrEmpty(snapshot.Level)),
 
                 // Measurements
                 ["area"] = (snapshot.Area, snapshot.Area.HasValue),
@@ -367,8 +708,8 @@ namespace ViewTracker.Commands
                 ["occupant"] = (snapshot.Occupant, !string.IsNullOrEmpty(snapshot.Occupant))
             };
 
-            // Now map these to actual parameter names found in the current room
-            foreach (Parameter param in currentRoom.Parameters)
+            // Now map these to actual parameter names found in the current room (user-visible only)
+            foreach (Parameter param in orderedParams)
             {
                 var paramName = param.Definition.Name;
                 string columnKey = null;
@@ -387,8 +728,8 @@ namespace ViewTracker.Commands
                         break;
                     case "Niveau":
                     case "Level":
-                        columnKey = "level";
-                        break;
+                        // Skip level - it's read-only and causes false positives for unplaced rooms
+                        continue;
                     case "Surface":
                     case "Area":
                         columnKey = "area";
@@ -592,7 +933,7 @@ namespace ViewTracker.Commands
 
         private void ShowComparisonResults(ComparisonResult result, string versionName, UIApplication uiApp)
         {
-            int totalChanges = result.NewRooms.Count + result.DeletedRooms.Count + result.ModifiedRooms.Count;
+            int totalChanges = result.NewRooms.Count + result.DeletedRooms.Count + result.ModifiedRooms.Count + result.UnplacedRooms.Count;
 
             if (totalChanges == 0)
             {
@@ -607,7 +948,8 @@ namespace ViewTracker.Commands
                 VersionInfo = $"Comparing current state with version: {versionName} | Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
                 NewRoomsCount = result.NewRooms.Count,
                 ModifiedRoomsCount = result.ModifiedRooms.Count,
-                DeletedRoomsCount = result.DeletedRooms.Count
+                DeletedRoomsCount = result.DeletedRooms.Count,
+                UnplacedRoomsCount = result.UnplacedRooms.Count
             };
 
             // Convert to display models
@@ -649,6 +991,18 @@ namespace ViewTracker.Commands
                 });
             }
 
+            foreach (var room in result.UnplacedRooms)
+            {
+                displayItems.Add(new RoomChangeDisplay
+                {
+                    ChangeType = "Unplaced",
+                    TrackId = room.TrackId,
+                    RoomNumber = room.RoomNumber,
+                    RoomName = room.RoomName,
+                    Changes = room.Changes
+                });
+            }
+
             viewModel.AllResults = new ObservableCollection<RoomChangeDisplay>(displayItems);
             viewModel.FilteredResults = new ObservableCollection<RoomChangeDisplay>(displayItems);
 
@@ -664,6 +1018,7 @@ namespace ViewTracker.Commands
         public List<RoomChange> NewRooms { get; set; } = new List<RoomChange>();
         public List<RoomChange> DeletedRooms { get; set; } = new List<RoomChange>();
         public List<RoomChange> ModifiedRooms { get; set; } = new List<RoomChange>();
+        public List<RoomChange> UnplacedRooms { get; set; } = new List<RoomChange>();
     }
 
     public class RoomChange

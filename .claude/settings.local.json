@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mv:*)",
       "Bash(dotnet build)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/2025/dataTracker/**)"
     ],
     "deny": [],
     "ask": []
