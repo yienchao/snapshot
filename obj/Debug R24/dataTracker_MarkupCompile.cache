@@ -10,11 +10,11 @@ none
 false
 ;DEBUG;TRACE;DEBUG_R24;NETFRAMEWORK;NET48;
 
-3-1680184508
+91442808859
 
-45-902907462
+57-599436765
 67-58101529
-Views\ComparisonResultWindow.xaml;Views\VersionSelectionWindow.xaml;Views\ViewTrackerView.xaml;
+Views\ComparisonModeWindow.xaml;Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\VersionSelectionWindow.xaml;Views\ViewTrackerView.xaml;
 
 False
 

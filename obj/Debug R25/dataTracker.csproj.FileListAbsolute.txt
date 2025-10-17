@@ -74,3 +74,7 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestoreResultWi
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RoomRestoreWindow.g.cs
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ComparisonModeWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ComparisonModeWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ExcelMappingWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\FilledRegionToRoomMappingWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ExcelMappingWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\FilledRegionToRoomMappingWindow.g.cs

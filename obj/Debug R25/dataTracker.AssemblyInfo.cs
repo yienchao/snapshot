@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © 2025 Yien Chao")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Room tracking and snapshot management for Revit")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+354b43f3235c4665563f39b24ed64a441d5fe112")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3072d3622a0f1bbcd4c20d22ceb2e557ec6ee8c3")]
 [assembly: System.Reflection.AssemblyProductAttribute("dataTracker - Room Snapshot Manager")]
 [assembly: System.Reflection.AssemblyTitleAttribute("dataTracker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

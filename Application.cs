@@ -50,6 +50,39 @@ namespace ViewTracker
                 exportBtn.ToolTip = "Export Supabase view_activations for this project's projectID to CSV";
                 viewPanel.AddItem(exportBtn);
 
+                // ===== ROOM TOOLS PANEL =====
+                var roomToolsPanel = application.CreateRibbonPanel(tabName, "Room Tools");
+
+                // Download Template
+                var downloadTemplateBtn = new PushButtonData(
+                    "DownloadTemplate",
+                    "Download\nTemplate",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.DownloadTemplateCommand"
+                );
+                downloadTemplateBtn.ToolTip = "Download Excel template for space program";
+                roomToolsPanel.AddItem(downloadTemplateBtn);
+
+                // Import Program
+                var importProgramBtn = new PushButtonData(
+                    "ImportProgram",
+                    "Import\nProgram",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ImportProgramCommand"
+                );
+                importProgramBtn.ToolTip = "Import space program from Excel (creates filled regions)";
+                roomToolsPanel.AddItem(importProgramBtn);
+
+                // Convert to Rooms
+                var convertToRoomsBtn = new PushButtonData(
+                    "ConvertToRooms",
+                    "Convert to\nRooms",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.ConvertToRoomsCommand"
+                );
+                convertToRoomsBtn.ToolTip = "Convert selected filled regions to rooms";
+                roomToolsPanel.AddItem(convertToRoomsBtn);
+
                 // ===== UNIFIED TRACKER PANEL =====
                 var trackerPanel = application.CreateRibbonPanel(tabName, "Tracker");
 
