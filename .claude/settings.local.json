@@ -1,14 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mv:*)",
-      "Bash(dotnet build)",
-      "Bash(dotnet build:*)",
-      "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/2025/dataTracker/**)",
-      "Bash(Select-String -Pattern \"error|warning|succeeded\")",
-      "Bash(Select-Object -Last 5)",
-      "Bash(Select-String -Pattern \"Build succeeded|Build FAILED|error\")",
-      "Bash(Select-Object -First 10)"
+      "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/2025/Snapshot/**)",
+      "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/**)"
     ],
     "deny": [],
     "ask": []

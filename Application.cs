@@ -24,11 +24,11 @@ namespace ViewTracker
         {
             try
             {
-                string tabName = "Data Tracker";
+                string tabName = "Snapshot";
                 try { application.CreateRibbonTab(tabName); } catch { }
 
-                // ===== VIEW TRACKER PANEL =====
-                var viewPanel = application.CreateRibbonPanel(tabName, "View Tracker");
+                // ===== VIEW ANALYTICS PANEL =====
+                var viewPanel = application.CreateRibbonPanel(tabName, "View Analytics");
 
                 // Initialize Views
                 var initializeBtn = new PushButtonData(
@@ -50,18 +50,18 @@ namespace ViewTracker
                 exportBtn.ToolTip = "Export Supabase view_activations for this project's projectID to CSV";
                 viewPanel.AddItem(exportBtn);
 
-                // ===== ROOM TOOLS PANEL =====
-                var roomToolsPanel = application.CreateRibbonPanel(tabName, "Room Tools");
+                // ===== PROGRAM PANEL =====
+                var programPanel = application.CreateRibbonPanel(tabName, "Program");
 
-                // Download Template
+                // Template
                 var downloadTemplateBtn = new PushButtonData(
-                    "DownloadTemplate",
-                    "Download\nTemplate",
+                    "Template",
+                    "Template",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.DownloadTemplateCommand"
                 );
                 downloadTemplateBtn.ToolTip = "Download Excel template for space program";
-                roomToolsPanel.AddItem(downloadTemplateBtn);
+                programPanel.AddItem(downloadTemplateBtn);
 
                 // Import Program
                 var importProgramBtn = new PushButtonData(
@@ -71,7 +71,7 @@ namespace ViewTracker
                     "ViewTracker.Commands.ImportProgramCommand"
                 );
                 importProgramBtn.ToolTip = "Import space program from Excel (creates filled regions)";
-                roomToolsPanel.AddItem(importProgramBtn);
+                programPanel.AddItem(importProgramBtn);
 
                 // Convert to Rooms
                 var convertToRoomsBtn = new PushButtonData(
@@ -81,10 +81,10 @@ namespace ViewTracker
                     "ViewTracker.Commands.ConvertToRoomsCommand"
                 );
                 convertToRoomsBtn.ToolTip = "Convert selected filled regions to rooms";
-                roomToolsPanel.AddItem(convertToRoomsBtn);
+                programPanel.AddItem(convertToRoomsBtn);
 
-                // ===== UNIFIED TRACKER PANEL =====
-                var trackerPanel = application.CreateRibbonPanel(tabName, "Tracker");
+                // ===== VERSIONS PANEL =====
+                var trackerPanel = application.CreateRibbonPanel(tabName, "Versions");
 
                 // Entity Type ComboBox
                 var comboBoxData = new ComboBoxData("EntityTypeCombo");

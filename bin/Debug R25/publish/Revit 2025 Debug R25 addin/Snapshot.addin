@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Snapshot</Name>
+    <Assembly>Snapshot\Snapshot.dll</Assembly>
+    <AddInId>80D6BC89-9286-4325-89D3-A0A8A40B9C66</AddInId>
+    <FullClassName>ViewTracker.Application</FullClassName>
+    <VendorId>MSDL</VendorId>
+    <VendorDescription>MSDL architects</VendorDescription>
+    <VendorEmail></VendorEmail>
+  </AddIn>
+</RevitAddIns>

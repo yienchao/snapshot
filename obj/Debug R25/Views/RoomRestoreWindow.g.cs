@@ -147,7 +147,7 @@ namespace ViewTracker.Views {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/dataTracker;component/views/roomrestorewindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Snapshot;component/views/roomrestorewindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\Views\RoomRestoreWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

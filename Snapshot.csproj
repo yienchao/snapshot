@@ -14,11 +14,12 @@
         <!-- Assembly Information -->
         <Company>MSDL architects</Company>
         <Authors>Yien Chao</Authors>
-        <Product>dataTracker - Room Snapshot Manager</Product>
-        <Description>Room tracking and snapshot management for Revit</Description>
+        <Product>Snapshot - Version Control for Revit</Product>
+        <Description>Version control and snapshot management for Revit elements</Description>
         <Copyright>Copyright © 2025 Yien Chao</Copyright>
         <Version>1.0.0</Version>
-        <AssemblyTitle>dataTracker</AssemblyTitle>
+        <AssemblyTitle>Snapshot</AssemblyTitle>
+        <AssemblyName>Snapshot</AssemblyName>
     </PropertyGroup>
 
     <!-- Revit configuration -->

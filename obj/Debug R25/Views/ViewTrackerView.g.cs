@@ -52,7 +52,7 @@ namespace ViewTracker.Views {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/dataTracker;component/views/viewtrackerview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/Snapshot;component/views/viewtrackerview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\Views\ViewTrackerView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
