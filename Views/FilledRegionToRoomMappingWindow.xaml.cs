@@ -144,7 +144,7 @@ namespace ViewTracker.Views
 
                 string appDataPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "dataTracker", "MappingPresets");
+                    "Snapshot", "MappingPresets");
 
                 Directory.CreateDirectory(appDataPath);
 
@@ -167,7 +167,7 @@ namespace ViewTracker.Views
             {
                 string appDataPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "dataTracker", "MappingPresets");
+                    "Snapshot", "MappingPresets");
 
                 if (!Directory.Exists(appDataPath) || !Directory.GetFiles(appDataPath, "*.json").Any())
                 {
