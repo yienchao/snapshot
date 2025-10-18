@@ -336,13 +336,15 @@ namespace ViewTracker.Commands
                     if (wasPlaced && isNowUnplaced)
                     {
                         // Room was deleted from plan but still in schedule
+                        // Convert area from internal units (sq ft) to square meters
+                        double areaInM2 = room1.Area.Value * 0.09290304; // 1 sq ft = 0.09290304 m²
                         result.UnplacedRooms.Add(new RoomChange
                         {
                             TrackId = room2.TrackId,
                             RoomNumber = room2.RoomNumber,
                             RoomName = room2.RoomName,
                             ChangeType = "Unplaced",
-                            Changes = new List<string> { $"Room deleted from plan (Area was {room1.Area:F2}, now unplaced)" }
+                            Changes = new List<string> { $"Room deleted from plan (Area was {areaInM2:F3} m², now unplaced)" }
                         });
                     }
                     else
@@ -586,13 +588,15 @@ namespace ViewTracker.Commands
                     if (wasPlaced && isNowUnplaced)
                     {
                         // Room was deleted from plan but still in schedule
+                        // Convert area from internal units (sq ft) to square meters
+                        double areaInM2 = snapshot.Area.Value * 0.09290304; // 1 sq ft = 0.09290304 m²
                         result.UnplacedRooms.Add(new RoomChange
                         {
                             TrackId = trackIdNormalized,
                             RoomNumber = room.Number,
                             RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
                             ChangeType = "Unplaced",
-                            Changes = new List<string> { $"Room deleted from plan (Area was {snapshot.Area:F2}, now unplaced)" }
+                            Changes = new List<string> { $"Room deleted from plan (Area was {areaInM2:F3} m², now unplaced)" }
                         });
                     }
                     else

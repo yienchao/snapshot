@@ -92,11 +92,12 @@ namespace ViewTracker.Commands
                     .ToList();
             }
 
-            if (!currentRooms.Any())
-            {
-                TaskDialog.Show("No Rooms", "No rooms with trackID parameter found in the model.");
-                return Result.Cancelled;
-            }
+            // Allow restore even if no current rooms exist (for restoring deleted rooms)
+            // if (!currentRooms.Any())
+            // {
+            //     TaskDialog.Show("No Rooms", "No rooms with trackID parameter found in the model.");
+            //     return Result.Cancelled;
+            // }
 
             // 4. Prepare version list
             var versionInfos = versionSnapshots

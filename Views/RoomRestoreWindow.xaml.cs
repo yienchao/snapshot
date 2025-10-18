@@ -53,11 +53,6 @@ namespace ViewTracker.Views
                 SelectedRoomsRadio.IsChecked = true;
                 AllRoomsRadio.IsEnabled = true;
                 ScopeInfoText.Text = $"{_totalRoomCount} rooms pre-selected";
-
-                // Update checkbox label to clarify it won't affect pre-selected rooms
-                ChkRecreateDeleted.Content = "Recreate deleted rooms (only applies when restoring all rooms)";
-                ChkRecreateDeleted.IsEnabled = false;
-                ChkRecreateDeleted.IsChecked = false;
             }
             else
             {
@@ -169,6 +164,7 @@ namespace ViewTracker.Views
 
             // ALSO add parameters from current rooms that might not be in snapshot
             // (e.g., shared parameters that currently have empty values)
+            // If there are no current rooms, we'll rely solely on snapshot parameters
             if (_currentRooms != null && _currentRooms.Any())
             {
                 var sampleRoom = _currentRooms.First();
@@ -205,6 +201,7 @@ namespace ViewTracker.Views
                     }
                 }
             }
+            // Note: If no current rooms exist, parameters are still populated from snapshots above
 
             // Create checkboxes grouped by category
             var sortedParams = allParameters.OrderBy(p => p.Split('|')[0]).ToList();
@@ -224,8 +221,16 @@ namespace ViewTracker.Views
                     FontSize = 13
                 };
 
-                checkbox.Checked += (s, e) => UpdateStatus();
-                checkbox.Unchecked += (s, e) => UpdateStatus();
+                checkbox.Checked += (s, e) =>
+                {
+                    UpdateStatus();
+                    UpdateDeletedRoomsParameterPreview();
+                };
+                checkbox.Unchecked += (s, e) =>
+                {
+                    UpdateStatus();
+                    UpdateDeletedRoomsParameterPreview();
+                };
 
                 ParameterCheckboxPanel.Children.Add(checkbox);
             }
@@ -233,21 +238,83 @@ namespace ViewTracker.Views
 
         private void ScopeRadio_Changed(object sender, RoutedEventArgs e)
         {
+            // Show/hide the third panel based on scope selection
+            if (DeletedRoomsGroupBox != null)
+            {
+                if (DeletedRoomsRadio?.IsChecked == true)
+                {
+                    // Show deleted rooms
+                    DeletedRoomsGroupBox.Header = "Deleted Rooms to Recreate";
+                    DeletedRoomsGroupBox.Visibility = System.Windows.Visibility.Visible;
+                    PopulateDeletedRoomsList();
+                }
+                else if (UnplacedRoomsRadio?.IsChecked == true)
+                {
+                    // Show unplaced rooms
+                    DeletedRoomsGroupBox.Header = "Unplaced Rooms to Restore";
+                    DeletedRoomsGroupBox.Visibility = System.Windows.Visibility.Visible;
+                    PopulateUnplacedRoomsList();
+                }
+                else
+                {
+                    DeletedRoomsGroupBox.Visibility = System.Windows.Visibility.Collapsed;
+                }
+            }
+
             UpdateStatus();
         }
 
-        private void RecreateDeleted_Changed(object sender, RoutedEventArgs e)
+        private void PopulateUnplacedRoomsList()
         {
-            // Enable/disable placement checkbox based on recreate checkbox
-            if (ChkRestorePlacement != null)
+            if (_selectedVersionSnapshots == null || !_selectedVersionSnapshots.Any())
+                return;
+            if (_currentRooms == null || !_currentRooms.Any())
+                return;
+
+            // Get current room trackIDs mapped to rooms
+            var currentRoomsDict = _currentRooms
+                .Where(r => r.LookupParameter("trackID") != null)
+                .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+
+            // Find unplaced rooms: exist in current model, exist in snapshot as placed, but are now unplaced
+            var unplacedItems = new List<DeletedRoomItem>();
+            foreach (var snapshot in _selectedVersionSnapshots)
             {
-                ChkRestorePlacement.IsEnabled = ChkRecreateDeleted.IsChecked == true;
-                if (ChkRecreateDeleted.IsChecked != true)
+                // Check if room exists in current model
+                if (!currentRoomsDict.TryGetValue(snapshot.TrackId, out Room currentRoom))
+                    continue;
+
+                // Check if room is currently unplaced (Location == null)
+                bool roomIsUnplaced = currentRoom.Location == null;
+
+                // Check if snapshot shows it was placed (has position data and area > 0)
+                bool snapshotWasPlaced = snapshot.Area.HasValue && snapshot.Area.Value > 0 &&
+                                        snapshot.PositionX.HasValue && snapshot.PositionY.HasValue;
+
+                // If room is unplaced now but was placed in snapshot, add to list
+                if (roomIsUnplaced && snapshotWasPlaced)
                 {
-                    ChkRestorePlacement.IsChecked = false;
+                    bool hasValidCoordinates = snapshot.PositionX.HasValue && snapshot.PositionY.HasValue &&
+                                              (snapshot.PositionX.Value != 0 || snapshot.PositionY.Value != 0);
+
+                    var item = new DeletedRoomItem
+                    {
+                        Snapshot = snapshot,
+                        RoomDisplayName = $"{snapshot.RoomNumber} - {snapshot.RoomName}",
+                        LevelAreaDisplay = $"Level: {snapshot.Level ?? "N/A"} | Area was: {(snapshot.Area.HasValue ? $"{snapshot.Area.Value * 0.09290304:F3} m²" : "N/A")}",
+                        IsSelected = true,
+                        HasValidCoordinates = hasValidCoordinates,
+                        PlaceAtLocation = hasValidCoordinates,
+                        CreateUnplaced = !hasValidCoordinates,
+                        GroupName = $"Room_{snapshot.TrackId}",
+                        ParameterPreview = new System.Collections.ObjectModel.ObservableCollection<ParameterPreviewItem>()
+                    };
+                    unplacedItems.Add(item);
                 }
             }
-            UpdateStatus();
+
+            DeletedRoomsItemsControl.ItemsSource = unplacedItems;
+            UpdateDeletedRoomsParameterPreview();
         }
 
         private void UpdateStatus()
@@ -259,17 +326,31 @@ namespace ViewTracker.Views
                 return;
             }
 
-            // Get current room trackIDs
-            var currentTrackIds = _currentRooms
-                .Select(r => r.LookupParameter("trackID")?.AsString())
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .ToHashSet();
+            // Get current room trackIDs mapped to rooms
+            var currentRoomsDict = (_currentRooms != null && _currentRooms.Any())
+                ? _currentRooms
+                    .Where(r => r.LookupParameter("trackID") != null)
+                    .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r)
+                : new Dictionary<string, Room>();
 
+            var currentTrackIds = currentRoomsDict.Keys.ToHashSet();
             var snapshotTrackIds = _selectedVersionSnapshots.Select(s => s.TrackId).ToHashSet();
 
             // Calculate counts based on scope selection
             var existingCount = currentTrackIds.Intersect(snapshotTrackIds).Count();
             var deletedCount = snapshotTrackIds.Except(currentTrackIds).Count();
+
+            // Count unplaced rooms (exist in model but currently unplaced, were placed in snapshot)
+            var unplacedCount = _selectedVersionSnapshots.Count(s =>
+            {
+                if (!currentRoomsDict.TryGetValue(s.TrackId, out Room currentRoom))
+                    return false;
+
+                bool roomIsUnplaced = currentRoom.Location == null;
+                bool snapshotWasPlaced = s.PositionX.HasValue && s.PositionY.HasValue;
+
+                return roomIsUnplaced && snapshotWasPlaced;
+            });
 
             // Filter based on selected scope
             List<RoomSnapshot> relevantSnapshots = null;
@@ -277,6 +358,21 @@ namespace ViewTracker.Views
             {
                 relevantSnapshots = _selectedVersionSnapshots
                     .Where(s => !currentTrackIds.Contains(s.TrackId))
+                    .ToList();
+            }
+            else if (UnplacedRoomsRadio?.IsChecked == true)
+            {
+                relevantSnapshots = _selectedVersionSnapshots
+                    .Where(s =>
+                    {
+                        if (!currentRoomsDict.TryGetValue(s.TrackId, out Room currentRoom))
+                            return false;
+
+                        bool roomIsUnplaced = currentRoom.Location == null;
+                        bool snapshotWasPlaced = s.PositionX.HasValue && s.PositionY.HasValue;
+
+                        return roomIsUnplaced && snapshotWasPlaced;
+                    })
                     .ToList();
             }
             else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
@@ -298,6 +394,11 @@ namespace ViewTracker.Views
                 sb.AppendLine($"• {deletedCount} deleted rooms will be recreated");
                 sb.AppendLine($"  (Rooms in snapshot but not in current model)");
             }
+            else if (UnplacedRoomsRadio?.IsChecked == true)
+            {
+                sb.AppendLine($"• {unplacedCount} unplaced rooms will have placement restored");
+                sb.AppendLine($"  (Rooms that exist but are unplaced, were placed in snapshot)");
+            }
             else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
             {
                 sb.AppendLine($"• {relevantSnapshots.Count} pre-selected rooms will be updated");
@@ -305,15 +406,15 @@ namespace ViewTracker.Views
             else
             {
                 sb.AppendLine($"• {existingCount} existing rooms will be updated");
-
-                // Only show deleted rooms message if the checkbox is checked
-                if (deletedCount > 0 && ChkRecreateDeleted != null && ChkRecreateDeleted.IsChecked == true)
-                {
-                    sb.AppendLine($"• {deletedCount} deleted rooms will be created");
-                }
-                else if (deletedCount > 0)
+                if (deletedCount > 0)
                 {
                     sb.AppendLine($"• {deletedCount} deleted rooms will be ignored");
+                    sb.AppendLine($"  (Use 'Deleted rooms only' scope to recreate them)");
+                }
+                if (unplacedCount > 0)
+                {
+                    sb.AppendLine($"• {unplacedCount} unplaced rooms will be ignored");
+                    sb.AppendLine($"  (Use 'Unplaced rooms only' scope to restore placement)");
                 }
             }
 
@@ -442,11 +543,12 @@ namespace ViewTracker.Views
             if (_selectedVersionSnapshots == null)
                 return _selectedVersionSnapshots;
 
-            // Get current room trackIDs for filtering
-            var currentTrackIds = _currentRooms
-                .Select(r => r.LookupParameter("trackID")?.AsString())
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .ToHashSet();
+            // Get current room trackIDs mapped to rooms for filtering
+            var currentRoomsDict = _currentRooms
+                .Where(r => r.LookupParameter("trackID") != null)
+                .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+
+            var currentTrackIds = currentRoomsDict.Keys.ToHashSet();
 
             // Filter based on scope selection
             if (DeletedRoomsRadio?.IsChecked == true)
@@ -454,6 +556,26 @@ namespace ViewTracker.Views
                 // Deleted rooms only: snapshots that DON'T exist in current model
                 return _selectedVersionSnapshots
                     .Where(s => !currentTrackIds.Contains(s.TrackId))
+                    .ToList();
+            }
+            else if (UnplacedRoomsRadio?.IsChecked == true)
+            {
+                // Unplaced rooms only: snapshots for rooms that exist but are currently unplaced
+                return _selectedVersionSnapshots
+                    .Where(s =>
+                    {
+                        // Room must exist in current model
+                        if (!currentRoomsDict.TryGetValue(s.TrackId, out Room currentRoom))
+                            return false;
+
+                        // Room must be currently unplaced
+                        bool roomIsUnplaced = currentRoom.Location == null;
+
+                        // Snapshot must show it was placed
+                        bool snapshotWasPlaced = s.PositionX.HasValue && s.PositionY.HasValue;
+
+                        return roomIsUnplaced && snapshotWasPlaced;
+                    })
                     .ToList();
             }
             else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
@@ -475,9 +597,9 @@ namespace ViewTracker.Views
             string versionName = (VersionComboBox.SelectedItem as VersionInfo).VersionName;
             bool createBackup = ChkCreateBackup.IsChecked == true;
 
-            // If "Deleted Rooms Only" scope is selected, force recreate mode
-            bool recreateDeleted = (DeletedRoomsRadio?.IsChecked == true) || (ChkRecreateDeleted.IsChecked == true);
-            bool restorePlacement = ChkRestorePlacement.IsChecked == true;
+            // Only recreate deleted rooms if "Deleted Rooms Only" scope is selected
+            bool recreateDeleted = (DeletedRoomsRadio?.IsChecked == true);
+            bool restorePlacement = false; // Placement is controlled per-room in the third panel
 
             // Step 1: Create backup snapshot if requested
             if (createBackup)
@@ -565,8 +687,19 @@ namespace ViewTracker.Views
         {
             var result = new RestoreResult();
 
+            // Get selected rooms from third panel UI (for deleted or unplaced scopes)
+            Dictionary<string, DeletedRoomItem> selectedRoomsFromPanel = null;
+            bool isUnplacedScope = UnplacedRoomsRadio?.IsChecked == true;
+            bool isDeletedScope = DeletedRoomsRadio?.IsChecked == true;
+
+            if ((isDeletedScope || isUnplacedScope) && DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> panelItems)
+            {
+                selectedRoomsFromPanel = panelItems
+                    .Where(item => item.IsSelected)
+                    .ToDictionary(item => item.Snapshot.TrackId);
+            }
+
             // Performance optimization: Build complete room dictionary ONCE before loop
-            // This includes ALL rooms in the document (not just _currentRooms)
             var allRoomsDict = new FilteredElementCollector(_doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType()
@@ -584,32 +717,112 @@ namespace ViewTracker.Views
 
                 foreach (var snapshot in snapshotsToRestore)
                 {
-                    // Check if room exists anywhere in document (O(1) dictionary lookup)
-                    if (allRoomsDict.TryGetValue(snapshot.TrackId, out Room existingRoom))
-                    {
-                        // Room exists - update parameters
-                        UpdateRoomParameters(existingRoom, snapshot, selectedParams);
-                        result.UpdatedRooms++;
-                    }
-                    else if (recreateDeleted)
-                    {
-                        // Room doesn't exist - create room (unplaced or placed depending on option)
-                        var newRoom = CreateRoomWithPlacement(snapshot, selectedParams, restorePlacement);
-                        if (newRoom != null)
-                        {
-                            result.CreatedRooms++;
-                            result.UnplacedRoomInfo.Add(new UnplacedRoomInfo
-                            {
-                                RoomNumber = snapshot.RoomNumber,
-                                RoomName = snapshot.RoomName,
-                                TrackId = snapshot.TrackId
-                            });
+                    // Determine snapshot placement state
+                    bool snapshotWasPlaced = snapshot.PositionX.HasValue && snapshot.PositionY.HasValue;
 
-                            // Add newly created room to dictionary to prevent duplicates in same transaction
-                            allRoomsDict[snapshot.TrackId] = newRoom;
+                    // Check if room exists in current model
+                    bool roomExists = allRoomsDict.TryGetValue(snapshot.TrackId, out Room existingRoom);
+
+                    if (roomExists)
+                    {
+                        // Determine current room placement state
+                        bool roomIsPlaced = existingRoom.Location != null;
+
+                        // === SCENARIO MATRIX FOR EXISTING ROOMS ===
+
+                        if (isUnplacedScope)
+                        {
+                            // Unplaced scope: Only process rooms that are currently unplaced but were placed in snapshot
+                            if (!roomIsPlaced && snapshotWasPlaced)
+                            {
+                                // Check if this room was selected by user in the panel
+                                if (selectedRoomsFromPanel != null && !selectedRoomsFromPanel.ContainsKey(snapshot.TrackId))
+                                {
+                                    continue; // Skip unselected rooms
+                                }
+
+                                // Get user preference for placement
+                                bool shouldPlaceAtLocation = selectedRoomsFromPanel != null &&
+                                                            selectedRoomsFromPanel.TryGetValue(snapshot.TrackId, out var item) &&
+                                                            item.PlaceAtLocation;
+
+                                // Strategy: Delete the unplaced room and recreate it
+                                _doc.Delete(existingRoom.Id);
+                                allRoomsDict.Remove(snapshot.TrackId);
+
+                                // Recreate room with placement option
+                                var newRoom = CreateRoomWithPlacement(snapshot, selectedParams, shouldPlaceAtLocation);
+                                if (newRoom != null)
+                                {
+                                    result.CreatedRooms++;
+
+                                    // If created as unplaced, add to warning list
+                                    if (newRoom.Location == null)
+                                    {
+                                        result.UnplacedRoomInfo.Add(new UnplacedRoomInfo
+                                        {
+                                            RoomNumber = snapshot.RoomNumber,
+                                            RoomName = snapshot.RoomName,
+                                            TrackId = snapshot.TrackId
+                                        });
+                                    }
+
+                                    // Add to dictionary to prevent duplicates
+                                    allRoomsDict[snapshot.TrackId] = newRoom;
+                                }
+                            }
+                            // else: Skip rooms that don't match unplaced criteria
+                        }
+                        else
+                        {
+                            // All Rooms or Selected Rooms scope: Just update parameters
+                            // We don't care about placement state - just sync parameters
+                            UpdateRoomParameters(existingRoom, snapshot, selectedParams);
+                            result.UpdatedRooms++;
                         }
                     }
-                    // else: room doesn't exist and recreateDeleted is false, skip it
+                    else
+                    {
+                        // Room doesn't exist in current model (deleted room)
+
+                        if (isDeletedScope)
+                        {
+                            // Deleted scope: Recreate deleted rooms
+
+                            // Check if this deleted room was selected by user
+                            if (selectedRoomsFromPanel != null && !selectedRoomsFromPanel.ContainsKey(snapshot.TrackId))
+                            {
+                                continue; // Skip unselected rooms
+                            }
+
+                            // Get user preference for placement
+                            bool shouldPlaceAtLocation = selectedRoomsFromPanel != null &&
+                                                        selectedRoomsFromPanel.TryGetValue(snapshot.TrackId, out var item) &&
+                                                        item.PlaceAtLocation;
+
+                            // Create room with placement option
+                            var newRoom = CreateRoomWithPlacement(snapshot, selectedParams, shouldPlaceAtLocation);
+                            if (newRoom != null)
+                            {
+                                result.CreatedRooms++;
+
+                                // If created as unplaced, add to warning list
+                                if (newRoom.Location == null)
+                                {
+                                    result.UnplacedRoomInfo.Add(new UnplacedRoomInfo
+                                    {
+                                        RoomNumber = snapshot.RoomNumber,
+                                        RoomName = snapshot.RoomName,
+                                        TrackId = snapshot.TrackId
+                                    });
+                                }
+
+                                // Add to dictionary to prevent duplicates
+                                allRoomsDict[snapshot.TrackId] = newRoom;
+                            }
+                        }
+                        // else: Room doesn't exist and we're not in deleted scope - skip it
+                    }
                 }
 
                 trans.Commit();
@@ -907,8 +1120,198 @@ namespace ViewTracker.Views
 
         private void ShowRestoreResult(RestoreResult result, string versionName)
         {
-            var resultWindow = new RestoreResultWindow(result, versionName);
-            resultWindow.ShowDialog();
+            // Only show detailed window if there are unplaced rooms that need attention
+            if (result.UnplacedRoomInfo != null && result.UnplacedRoomInfo.Any())
+            {
+                var resultWindow = new RestoreResultWindow(result, versionName);
+                resultWindow.ShowDialog();
+            }
+            else
+            {
+                // Simple success message for normal cases
+                string message = $"✓ Restore Complete\n\n" +
+                                $"• {result.UpdatedRooms} room(s) updated\n" +
+                                $"• {result.CreatedRooms} room(s) created\n\n" +
+                                $"Restored from snapshot: {versionName}";
+
+                TaskDialog.Show("Restore Complete", message, TaskDialogCommonButtons.Ok);
+            }
+        }
+
+        private void SelectAllDeleted_Click(object sender, RoutedEventArgs e)
+        {
+            if (DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> items)
+            {
+                foreach (var item in items)
+                {
+                    item.IsSelected = true;
+                }
+                DeletedRoomsItemsControl.Items.Refresh();
+            }
+        }
+
+        private void SelectNoneDeleted_Click(object sender, RoutedEventArgs e)
+        {
+            if (DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> items)
+            {
+                foreach (var item in items)
+                {
+                    item.IsSelected = false;
+                }
+                DeletedRoomsItemsControl.Items.Refresh();
+            }
+        }
+
+        private void PlacedAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> items)
+            {
+                foreach (var item in items)
+                {
+                    if (item.HasValidCoordinates)
+                    {
+                        item.PlaceAtLocation = true;
+                        item.CreateUnplaced = false;
+                    }
+                }
+                DeletedRoomsItemsControl.Items.Refresh();
+            }
+        }
+
+        private void UnplacedAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> items)
+            {
+                foreach (var item in items)
+                {
+                    item.PlaceAtLocation = false;
+                    item.CreateUnplaced = true;
+                }
+                DeletedRoomsItemsControl.Items.Refresh();
+            }
+        }
+
+        private void PopulateDeletedRoomsList()
+        {
+            if (_selectedVersionSnapshots == null || !_selectedVersionSnapshots.Any())
+                return;
+
+            // Get current room trackIDs (empty set if no current rooms)
+            var currentTrackIds = (_currentRooms != null && _currentRooms.Any())
+                ? _currentRooms
+                    .Select(r => r.LookupParameter("trackID")?.AsString())
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .ToHashSet()
+                : new HashSet<string>();
+
+            // Find deleted rooms (in snapshot but not in current model)
+            var deletedSnapshots = _selectedVersionSnapshots
+                .Where(s => !currentTrackIds.Contains(s.TrackId))
+                .ToList();
+
+            // Create DeletedRoomItem objects
+            var deletedItems = new List<DeletedRoomItem>();
+            foreach (var snapshot in deletedSnapshots)
+            {
+                bool hasValidCoordinates = snapshot.PositionX.HasValue && snapshot.PositionY.HasValue &&
+                                          (snapshot.PositionX.Value != 0 || snapshot.PositionY.Value != 0);
+
+                var item = new DeletedRoomItem
+                {
+                    Snapshot = snapshot,
+                    RoomDisplayName = $"{snapshot.RoomNumber} - {snapshot.RoomName}",
+                    LevelAreaDisplay = $"Level: {snapshot.Level ?? "N/A"} | Area: {(snapshot.Area.HasValue ? $"{snapshot.Area.Value * 0.09290304:F3} m²" : "N/A")}",
+                    IsSelected = true,
+                    HasValidCoordinates = hasValidCoordinates,
+                    PlaceAtLocation = hasValidCoordinates,
+                    CreateUnplaced = !hasValidCoordinates,
+                    GroupName = $"Room_{snapshot.TrackId}",
+                    ParameterPreview = new System.Collections.ObjectModel.ObservableCollection<ParameterPreviewItem>()
+                };
+                deletedItems.Add(item);
+            }
+
+            DeletedRoomsItemsControl.ItemsSource = deletedItems;
+            UpdateDeletedRoomsParameterPreview();
+        }
+
+        private void UpdateDeletedRoomsParameterPreview()
+        {
+            if (DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> items)
+            {
+                var selectedParams = GetSelectedParameters();
+
+                foreach (var item in items)
+                {
+                    item.ParameterPreview.Clear();
+
+                    foreach (var paramKey in selectedParams)
+                    {
+                        string paramValue = GetParameterValueFromSnapshot(item.Snapshot, paramKey);
+                        if (!string.IsNullOrEmpty(paramValue))
+                        {
+                            string displayName = paramKey.StartsWith("AllParam_")
+                                ? paramKey.Substring("AllParam_".Length)
+                                : GetParameterDisplayName(paramKey);
+
+                            item.ParameterPreview.Add(new ParameterPreviewItem
+                            {
+                                Name = displayName,
+                                Value = paramValue
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        private string GetParameterValueFromSnapshot(RoomSnapshot snapshot, string paramKey)
+        {
+            if (paramKey.StartsWith("AllParam_"))
+            {
+                string actualParamName = paramKey.Substring("AllParam_".Length);
+                if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(actualParamName, out object value))
+                {
+                    return value?.ToString() ?? "";
+                }
+            }
+            else
+            {
+                switch (paramKey)
+                {
+                    case "RoomNumber": return snapshot.RoomNumber;
+                    case "RoomName": return snapshot.RoomName;
+                    case "Department": return snapshot.Department;
+                    case "Occupancy": return snapshot.Occupancy;
+                    case "BaseFinish": return snapshot.BaseFinish;
+                    case "CeilingFinish": return snapshot.CeilingFinish;
+                    case "WallFinish": return snapshot.WallFinish;
+                    case "FloorFinish": return snapshot.FloorFinish;
+                    case "Comments": return snapshot.Comments;
+                    case "Occupant": return snapshot.Occupant;
+                    case "Phase": return snapshot.Phase;
+                }
+            }
+            return "";
+        }
+
+        private string GetParameterDisplayName(string paramKey)
+        {
+            switch (paramKey)
+            {
+                case "RoomNumber": return "Room Number";
+                case "RoomName": return "Room Name";
+                case "Department": return "Department";
+                case "Occupancy": return "Occupancy";
+                case "BaseFinish": return "Base Finish";
+                case "CeilingFinish": return "Ceiling Finish";
+                case "WallFinish": return "Wall Finish";
+                case "FloorFinish": return "Floor Finish";
+                case "Comments": return "Comments";
+                case "Occupant": return "Occupant";
+                case "Phase": return "Phase";
+                default: return paramKey;
+            }
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -930,5 +1333,75 @@ namespace ViewTracker.Views
         public string RoomNumber { get; set; }
         public string RoomName { get; set; }
         public string TrackId { get; set; }
+    }
+
+    public class DeletedRoomItem : System.ComponentModel.INotifyPropertyChanged
+    {
+        private bool _isSelected;
+        private bool _placeAtLocation;
+        private bool _createUnplaced;
+
+        public RoomSnapshot Snapshot { get; set; }
+        public string RoomDisplayName { get; set; }
+        public string LevelAreaDisplay { get; set; }
+        public string GroupName { get; set; }
+        public bool HasValidCoordinates { get; set; }
+
+        public System.Collections.ObjectModel.ObservableCollection<ParameterPreviewItem> ParameterPreview { get; set; }
+
+        public System.Windows.Visibility HasParametersVisibility => (ParameterPreview != null && ParameterPreview.Count > 0)
+            ? System.Windows.Visibility.Visible
+            : System.Windows.Visibility.Collapsed;
+
+        public System.Windows.Visibility HasNoParameters => (ParameterPreview == null || ParameterPreview.Count == 0)
+            ? System.Windows.Visibility.Visible
+            : System.Windows.Visibility.Collapsed;
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                _isSelected = value;
+                OnPropertyChanged(nameof(IsSelected));
+            }
+        }
+
+        public bool PlaceAtLocation
+        {
+            get => _placeAtLocation;
+            set
+            {
+                _placeAtLocation = value;
+                if (value) _createUnplaced = false;
+                OnPropertyChanged(nameof(PlaceAtLocation));
+                OnPropertyChanged(nameof(CreateUnplaced));
+            }
+        }
+
+        public bool CreateUnplaced
+        {
+            get => _createUnplaced;
+            set
+            {
+                _createUnplaced = value;
+                if (value) _placeAtLocation = false;
+                OnPropertyChanged(nameof(CreateUnplaced));
+                OnPropertyChanged(nameof(PlaceAtLocation));
+            }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class ParameterPreviewItem
+    {
+        public string Name { get; set; }
+        public string Value { get; set; }
     }
 }

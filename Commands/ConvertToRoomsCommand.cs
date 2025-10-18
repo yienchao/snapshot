@@ -132,6 +132,22 @@ namespace ViewTracker.Commands
                 bool deleteFilledRegions = mappingWindow.DeleteFilledRegions;
                 bool addTrackID = mappingWindow.AddTrackID;
 
+                // Check if projectID is valid when trackID is being added
+                if (addTrackID)
+                {
+                    var projectInfo = doc.ProjectInformation;
+                    var projectIdParam = projectInfo.LookupParameter("projectID");
+
+                    if (projectIdParam == null || string.IsNullOrWhiteSpace(projectIdParam.AsString()))
+                    {
+                        TaskDialog.Show("Error",
+                            "Convert to Rooms with trackID requires a valid projectID.\n\n" +
+                            "Please set the projectID parameter in Project Information before converting.\n\n" +
+                            "This ensures rooms will have proper tracking IDs for snapshots and restore.");
+                        return Result.Failed;
+                    }
+                }
+
                 // 5. Get active phase
                 var activePhase = doc.GetElement(doc.ActiveView.get_Parameter(BuiltInParameter.VIEW_PHASE).AsElementId()) as Phase;
                 if (activePhase == null)

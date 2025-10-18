@@ -62,10 +62,7 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestorePreviewW
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RestoreResultWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\RoomRestoreWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\VersionSelectionWindow.g.cs
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ViewTrackerView.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot_MarkupCompile.cache
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot_MarkupCompile.lref
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\ViewTrackerView.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot.g.resources
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot.AssemblyInfoInputs.cache
