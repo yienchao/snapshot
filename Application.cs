@@ -175,11 +175,11 @@ namespace ViewTracker
 
                 var historyBtn = new PushButtonData(
                     "UnifiedHistory",
-                    "History",
+                    "Single\nHistory",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedHistoryCommand"
                 );
-                historyBtn.ToolTip = "View history of a selected element across all versions";
+                historyBtn.ToolTip = "View history of a single selected element across all versions";
                 try
                 {
                     string assemblyPath = typeof(Application).Assembly.Location;
@@ -202,11 +202,11 @@ namespace ViewTracker
                 // Export History button
                 var exportHistoryBtn = new PushButtonData(
                     "UnifiedExportHistory",
-                    "Export\nHistory",
+                    "All\nHistory",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedExportHistoryCommand"
                 );
-                exportHistoryBtn.ToolTip = "Export all snapshot history to Excel or CSV";
+                exportHistoryBtn.ToolTip = "Export all elements' snapshot history to Excel or CSV";
                 trackerPanel.AddItem(exportHistoryBtn);
 
                 // Restore button
@@ -279,6 +279,9 @@ namespace ViewTracker
                 string creatorName = info?.Creator ?? "";
                 string lastChangedBy = info?.LastChangedBy ?? "";
 
+                // TEMPORARILY DISABLED: Supabase view tracking to improve performance
+                // Re-enable when Supabase connection is stable
+                /*
                 System.Threading.Tasks.Task.Run(async () =>
                 {
                     var supabaseService = new SupabaseService();
@@ -307,6 +310,7 @@ namespace ViewTracker
 
                     await supabaseService.UpsertViewActivationAsync(record);
                 });
+                */
             }
             catch (Exception ex)
             {

@@ -14,6 +14,20 @@ namespace ViewTracker.Commands
         {
             try
             {
+                // Check if projectID is valid
+                var doc = commandData.Application.ActiveUIDocument.Document;
+                var projectInfo = doc.ProjectInformation;
+                var projectIdParam = projectInfo.LookupParameter("projectID");
+
+                if (projectIdParam == null || string.IsNullOrWhiteSpace(projectIdParam.AsString()))
+                {
+                    TaskDialog.Show("Error",
+                        "Download Template requires a valid projectID.\n\n" +
+                        "Please set the projectID parameter in Project Information before proceeding.\n\n" +
+                        "This ensures that the workflow (Template → Import → Convert to Rooms) will work properly with tracking IDs.");
+                    return Result.Failed;
+                }
+
                 // Set EPPlus license context
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 

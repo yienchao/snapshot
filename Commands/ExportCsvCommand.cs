@@ -25,11 +25,18 @@ namespace ViewTracker.Commands
                 return;
             }
 
+            // Use project filename instead of projectID for privacy
+            var fileName = System.IO.Path.GetFileNameWithoutExtension(doc.PathName);
+            if (string.IsNullOrEmpty(fileName))
+                fileName = doc.Title;
+            if (string.IsNullOrEmpty(fileName))
+                fileName = "Snapshot";
+
             var dlg = new Microsoft.Win32.SaveFileDialog
             {
-                Title = "Export ViewTracker CSV",
+                Title = "Export Snapshot CSV",
                 Filter = "CSV files (*.csv)|*.csv",
-                FileName = $"ViewTracker_{projectId}.csv"
+                FileName = $"Snapshot_{fileName}_{DateTime.Now:yyyyMMdd}.csv"
             };
             if (dlg.ShowDialog() != true) return;
             string path = dlg.FileName;
