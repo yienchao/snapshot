@@ -1086,33 +1086,22 @@ namespace ViewTracker.Commands
                     else
                         return value.ToString();
 
-                    // Get the conversion factor from the current parameter
-                    // by comparing its raw value (internal units) to display value (file units)
-                    var currentRawValue = param.AsDouble();
-                    var currentDisplayString = param.AsValueString();
-
-                    if (!string.IsNullOrEmpty(currentDisplayString) && Math.Abs(currentRawValue) > 0.0001)
+                    // Convert from internal units to display units using document's unit settings
+                    try
                     {
-                        // Parse the numeric part from the display string
-                        // Handle formats like "32.8", "32.8 m", "32,8", etc.
-                        string numericPart = currentDisplayString.Split(' ')[0].Replace(",", ".");
+                        var spec = param.Definition.GetDataType();
+                        var formatOptions = doc.GetUnits().GetFormatOptions(spec);
+                        var displayUnitType = formatOptions.GetUnitTypeId();
+                        double convertedValue = UnitUtils.ConvertFromInternalUnits(doubleValue, displayUnitType);
 
-                        if (double.TryParse(numericPart, System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double currentDisplayValue))
-                        {
-                            // Calculate conversion factor (display units / internal units)
-                            double conversionFactor = currentDisplayValue / currentRawValue;
-
-                            // Apply the same conversion to the snapshot value
-                            double convertedValue = doubleValue * conversionFactor;
-
-                            // Format with appropriate precision
-                            return convertedValue.ToString("F2");
-                        }
+                        // Format with 2 decimal places (no unit label)
+                        return convertedValue.ToString("0.##");
                     }
-
-                    // If we can't determine conversion, return as-is with precision
-                    return doubleValue.ToString("F2");
+                    catch
+                    {
+                        // Fallback: If UnitUtils fails, return the raw value
+                        return doubleValue.ToString("F2");
+                    }
                 }
 
                 return value.ToString();

@@ -209,14 +209,16 @@ namespace ViewTracker
                 exportHistoryBtn.ToolTip = "Export all elements' snapshot history to Excel or CSV";
                 trackerPanel.AddItem(exportHistoryBtn);
 
-                // Restore button
+                // Unified Restore button (context-aware: Rooms/Doors/Elements)
                 var restoreBtn = new PushButtonData(
-                    "RoomRestore",
-                    "Restore\nRooms",
+                    "UnifiedRestore",
+                    "Restore",
                     typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.RoomRestoreCommand"
+                    "ViewTracker.Commands.UnifiedRestoreCommand"
                 );
-                restoreBtn.ToolTip = "Restore room parameters from a snapshot version";
+                restoreBtn.ToolTip = "Restore parameters from a snapshot version (Rooms: full restore, Doors/Elements: parameters only)";
+                restoreBtn.LongDescription = "Rooms: Restore all parameters and recreate deleted rooms\n" +
+                                            "Doors/Elements: Restore instance parameters only (existing elements)";
                 trackerPanel.AddItem(restoreBtn);
 
             }

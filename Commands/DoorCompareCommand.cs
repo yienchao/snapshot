@@ -231,24 +231,16 @@ namespace ViewTracker.Commands
             var currentParams = new Dictionary<string, object>();
             var currentParamsDisplay = new Dictionary<string, string>();
 
-            // Get instance parameters using GetOrderedParameters
-            var orderedInstanceParams = currentDoor.GetOrderedParameters();
-            foreach (Parameter param in orderedInstanceParams)
+            // Get ONLY instance parameters using GetOrderedParameters
+            // Do NOT include type parameters in comparison (they should not be in snapshots)
+            var orderedParams = currentDoor.GetOrderedParameters();
+            foreach (Parameter param in orderedParams)
             {
-                AddParameterToDict(param, currentParams, currentParamsDisplay);
-            }
+                // Skip type parameters - only compare instance parameters
+                if (param.Element is ElementType)
+                    continue;
 
-            // Get type parameters using GetOrderedParameters
-            if (currentDoor.Symbol != null)
-            {
-                var orderedTypeParams = currentDoor.Symbol.GetOrderedParameters();
-                foreach (Parameter param in orderedTypeParams)
-                {
-                    if (!currentParams.ContainsKey(param.Definition.Name))
-                    {
-                        AddParameterToDict(param, currentParams, currentParamsDisplay);
-                    }
-                }
+                AddParameterToDict(param, currentParams, currentParamsDisplay);
             }
 
             // Add location information (same as in snapshot)
@@ -257,13 +249,13 @@ namespace ViewTracker.Commands
             {
                 var point = locationPoint.Point;
                 currentParams["location_x"] = point.X;
-                currentParamsDisplay["location_x"] = point.X.ToString("F6");
+                currentParamsDisplay["location_x"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.X, false);
                 currentParams["location_y"] = point.Y;
-                currentParamsDisplay["location_y"] = point.Y.ToString("F6");
+                currentParamsDisplay["location_y"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Y, false);
                 currentParams["location_z"] = point.Z;
-                currentParamsDisplay["location_z"] = point.Z.ToString("F6");
+                currentParamsDisplay["location_z"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Z, false);
                 currentParams["rotation"] = locationPoint.Rotation;
-                currentParamsDisplay["rotation"] = locationPoint.Rotation.ToString("F6");
+                currentParamsDisplay["rotation"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Angle, locationPoint.Rotation, false);
             }
 
             // Add facing and hand orientation (important for flip detection)
@@ -293,7 +285,7 @@ namespace ViewTracker.Commands
             // Parameters that should NOT be in all_parameters (they're in dedicated columns)
             var excludedFromJson = new HashSet<string>
             {
-                "Mark", "Marque",
+                "Mark", "Marque", "Identifiant",  // Mark parameter (various languages)
                 "Level", "Niveau",
                 "Fire Rating", "Cote de résistance au feu",
                 "Width", "Largeur",
@@ -310,18 +302,157 @@ namespace ViewTracker.Commands
             {
                 foreach (var kvp in snapshot.AllParameters)
                 {
+                    // Skip IFC-related parameters (auto-generated)
+                    if (kvp.Key.StartsWith("IFC", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.StartsWith("Ifc", StringComparison.Ordinal))
+                        continue;
+
                     // Skip parameters that should be in dedicated columns
                     if (!excludedFromJson.Contains(kvp.Key))
                     {
                         snapshotParams[kvp.Key] = kvp.Value;
-                        snapshotParamsDisplay[kvp.Key] = kvp.Value?.ToString() ?? "";
+
+                        // Format the display value properly
+                        // For doubles, we need to get the formatted value from the current parameter
+                        string displayValue;
+                        if (kvp.Value is double doubleVal)
+                        {
+                            // Special handling for location/rotation parameters (they're in feet/radians)
+                            if (kvp.Key.StartsWith("location_") || kvp.Key == "rotation" ||
+                                kvp.Key.StartsWith("facing_") || kvp.Key.StartsWith("hand_"))
+                            {
+                                // For location: convert feet to project units (mm, inches, etc.)
+                                if (kvp.Key.StartsWith("location_"))
+                                {
+                                    displayValue = UnitFormatUtils.Format(
+                                        currentDoor.Document.GetUnits(),
+                                        SpecTypeId.Length,
+                                        doubleVal,
+                                        false);
+                                }
+                                // For rotation: show in degrees or project angle units
+                                else if (kvp.Key == "rotation")
+                                {
+                                    displayValue = UnitFormatUtils.Format(
+                                        currentDoor.Document.GetUnits(),
+                                        SpecTypeId.Angle,
+                                        doubleVal,
+                                        false);
+                                }
+                                // For facing/hand orientation: just show the vector component
+                                else
+                                {
+                                    displayValue = doubleVal.ToString("F6");
+                                }
+                            }
+                            else
+                            {
+                                // Try to get the current parameter to format it properly
+                                var currentParam = currentDoor.LookupParameter(kvp.Key);
+                                if (currentParam != null && currentParam.StorageType == StorageType.Double)
+                                {
+                                    displayValue = UnitFormatUtils.Format(
+                                        currentDoor.Document.GetUnits(),
+                                        currentParam.Definition.GetDataType(),
+                                        doubleVal,
+                                        false);
+                                }
+                                else
+                                {
+                                    // Fallback: just show the number
+                                    displayValue = doubleVal.ToString("F6");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            displayValue = kvp.Value?.ToString() ?? "";
+                        }
+
+                        snapshotParamsDisplay[kvp.Key] = displayValue;
                     }
                 }
             }
 
-            // DO NOT add dedicated columns back for comparison
-            // These parameters (Family, Type, Mark, Level, Width, Height, etc.) are excluded from both
-            // current door parameters and snapshot parameters to avoid false change detection
+            // Add dedicated column values from snapshot to snapshotParams for comparison
+            // These are not in AllParameters JSON, but we still want to compare them
+            // IMPORTANT: Use the actual parameter name from the current door (language-independent)
+            // not hardcoded English names, to avoid false "(new)" and "(removed)" changes
+
+            // Mark parameter - include even if empty
+            var markParam = currentDoor.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
+            if (markParam != null)
+            {
+                string markParamName = markParam.Definition.Name;
+                snapshotParams[markParamName] = snapshot.Mark ?? "";
+                snapshotParamsDisplay[markParamName] = snapshot.Mark ?? "";
+            }
+
+            // Level parameter - include even if empty
+            var levelParam = currentDoor.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
+            if (levelParam != null)
+            {
+                string levelParamName = levelParam.Definition.Name;
+                snapshotParams[levelParamName] = snapshot.Level ?? "";
+                snapshotParamsDisplay[levelParamName] = snapshot.Level ?? "";
+            }
+
+            // Fire Rating parameter - include even if empty
+            var fireRatingParam = currentDoor.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING);
+            if (fireRatingParam != null)
+            {
+                string fireRatingParamName = fireRatingParam.Definition.Name;
+                snapshotParams[fireRatingParamName] = snapshot.FireRating ?? "";
+                snapshotParamsDisplay[fireRatingParamName] = snapshot.FireRating ?? "";
+            }
+
+            // Comments parameter - include even if empty
+            var commentsParam = currentDoor.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+            if (commentsParam != null)
+            {
+                string commentsParamName = commentsParam.Definition.Name;
+                snapshotParams[commentsParamName] = snapshot.Comments ?? "";
+                snapshotParamsDisplay[commentsParamName] = snapshot.Comments ?? "";
+            }
+
+            // Phase Created parameter - include even if empty
+            var phaseCreatedParam = currentDoor.get_Parameter(BuiltInParameter.PHASE_CREATED);
+            if (phaseCreatedParam != null)
+            {
+                string phaseCreatedParamName = phaseCreatedParam.Definition.Name;
+                snapshotParams[phaseCreatedParamName] = snapshot.PhaseCreated ?? "";
+                snapshotParamsDisplay[phaseCreatedParamName] = snapshot.PhaseCreated ?? "";
+            }
+
+            // Phase Demolished parameter - include even if empty
+            var phaseDemolishedParam = currentDoor.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+            if (phaseDemolishedParam != null)
+            {
+                string phaseDemolishedParamName = phaseDemolishedParam.Definition.Name;
+                snapshotParams[phaseDemolishedParamName] = snapshot.PhaseDemolished ?? "";
+                snapshotParamsDisplay[phaseDemolishedParamName] = snapshot.PhaseDemolished ?? "";
+            }
+
+            // Note: Family and Type are NOT in AllParameters, but we need to compare them
+            // to detect when a door changes to a different type
+
+            // Compare Family
+            string currentFamily = currentDoor.Symbol?.Family?.Name ?? "";
+            string snapshotFamily = snapshot.FamilyName ?? "";
+            if (currentFamily != snapshotFamily)
+            {
+                changes.Add($"Family: '{snapshotFamily}' → '{currentFamily}'");
+            }
+
+            // Compare Type
+            string currentType = currentDoor.Symbol?.Name ?? "";
+            string snapshotType = snapshot.TypeName ?? "";
+            if (currentType != snapshotType)
+            {
+                changes.Add($"Type: '{snapshotType}' → '{currentType}'");
+            }
+
+            // Note: Width and Height are type parameters, not instance parameters
 
             // Compare parameters
             foreach (var snapshotParam in snapshotParams)
@@ -364,24 +495,13 @@ namespace ViewTracker.Commands
         {
             string paramName = param.Definition.Name;
 
-            // Parameters that are stored in dedicated columns - exclude from comparison
-            var excludedParams = new HashSet<string>
-            {
-                "Mark", "Marque",
-                "Level", "Niveau",
-                "Fire Rating", "Cote de résistance au feu",
-                "Width", "Largeur",
-                "Height", "Hauteur",
-                "Phase Created", "Phase de création",
-                "Phase Demolished", "Phase de démolition",
-                "Comments", "Commentaires",
-                "Family", "Famille",
-                "Type"
-            };
-
-            // Skip parameters that are already in dedicated columns
-            if (excludedParams.Contains(paramName))
+            // Exclude IFC-related parameters from comparison (they're auto-generated)
+            if (paramName.StartsWith("IFC", StringComparison.OrdinalIgnoreCase) ||
+                paramName.StartsWith("Ifc", StringComparison.Ordinal))
                 return;
+
+            // DO NOT exclude parameters with dedicated columns - they should still be compared!
+            // We want to compare ALL instance parameters that GetOrderedParameters() returns
 
             object paramValue = null;
             string displayValue = null;
@@ -391,29 +511,39 @@ namespace ViewTracker.Commands
             {
                 case StorageType.Double:
                     paramValue = param.AsDouble();
-                    displayValue = param.AsValueString()?.Split(' ')[0]?.Replace(",", ".") ?? paramValue.ToString();
+                    // Use AsValueString for display, keep full value (don't truncate)
+                    displayValue = param.AsValueString() ?? paramValue.ToString();
                     shouldAdd = true;
                     break;
                 case StorageType.Integer:
-                    paramValue = param.AsInteger();
-                    displayValue = param.AsValueString()?.Split(' ')[0]?.Replace(",", ".") ?? paramValue.ToString();
-                    shouldAdd = true;
-                    break;
-                case StorageType.String:
-                    var stringValue = param.AsString();
-                    if (!string.IsNullOrEmpty(stringValue))
+                    // Use AsValueString to get enum text (e.g., "Par type" instead of "0")
+                    var intValueString = param.AsValueString();
+                    if (!string.IsNullOrEmpty(intValueString))
                     {
-                        paramValue = stringValue;
-                        displayValue = stringValue;
+                        paramValue = intValueString; // Store the display text for comparison
+                        displayValue = intValueString;
                         shouldAdd = true;
                     }
+                    else
+                    {
+                        paramValue = param.AsInteger();
+                        displayValue = paramValue.ToString();
+                        shouldAdd = true;
+                    }
+                    break;
+                case StorageType.String:
+                    // Include all string parameters, even empty ones (to match snapshot behavior)
+                    var stringValue = param.AsString();
+                    paramValue = (stringValue ?? "").Trim(); // Trim whitespace for accurate comparison
+                    displayValue = (stringValue ?? "").Trim();
+                    shouldAdd = true;
                     break;
                 case StorageType.ElementId:
                     var valueString = param.AsValueString();
                     if (!string.IsNullOrEmpty(valueString))
                     {
-                        paramValue = valueString;
-                        displayValue = valueString;
+                        paramValue = valueString.Trim(); // Trim whitespace for accurate comparison
+                        displayValue = valueString.Trim();
                         shouldAdd = true;
                     }
                     break;
@@ -428,17 +558,22 @@ namespace ViewTracker.Commands
 
         private bool CompareValues(object snapValue, object currentValue)
         {
+            // Handle numeric comparisons with tolerance
             if (snapValue is double snapDouble && currentValue is double currDouble)
                 return Math.Abs(snapDouble - currDouble) > 0.001;
 
+            // Handle mixed integer/long comparisons
             if (snapValue is long snapLong && currentValue is int currInt)
                 return snapLong != currInt;
 
             if (snapValue is int snapInt && currentValue is long currLong)
                 return snapInt != currLong;
 
-            var snapStr = snapValue?.ToString() ?? "";
-            var currStr = currentValue?.ToString() ?? "";
+            // String comparison: trim whitespace and normalize
+            var snapStr = snapValue?.ToString()?.Trim() ?? "";
+            var currStr = currentValue?.ToString()?.Trim() ?? "";
+
+            // Return true if different (changed)
             return snapStr != currStr;
         }
 

@@ -324,6 +324,21 @@ namespace ViewTracker.Commands
             // These parameters (Category, Family, Type, Mark, Level, Comments, etc.) are excluded from both
             // current element parameters and snapshot parameters to avoid false change detection
 
+            // Compare Family and Type to detect type changes
+            string currentFamily = currentElement.Symbol?.Family?.Name ?? "";
+            string snapshotFamily = snapshot.FamilyName ?? "";
+            if (currentFamily != snapshotFamily)
+            {
+                changes.Add($"Family: '{snapshotFamily}' → '{currentFamily}'");
+            }
+
+            string currentType = currentElement.Symbol?.Name ?? "";
+            string snapshotType = snapshot.TypeName ?? "";
+            if (currentType != snapshotType)
+            {
+                changes.Add($"Type: '{snapshotType}' → '{currentType}'");
+            }
+
             // Compare parameters
             foreach (var snapshotParam in snapshotParams)
             {
@@ -399,13 +414,12 @@ namespace ViewTracker.Commands
                     shouldAdd = true;
                     break;
                 case StorageType.String:
+                    // Include ALL string parameters, even empty ones
+                    // Users may want to compare empty values or detect when values are cleared
                     var stringValue = param.AsString();
-                    if (!string.IsNullOrEmpty(stringValue))
-                    {
-                        paramValue = stringValue;
-                        displayValue = stringValue;
-                        shouldAdd = true;
-                    }
+                    paramValue = stringValue ?? "";
+                    displayValue = stringValue ?? "";
+                    shouldAdd = true;
                     break;
                 case StorageType.ElementId:
                     var valueString = param.AsValueString();

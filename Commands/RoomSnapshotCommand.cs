@@ -194,7 +194,7 @@ namespace ViewTracker.Commands
 
                 string typeLabel = isOfficial ? "Official" : "Draft";
                 TaskDialog.Show("Success",
-                    $"Captured {snapshots.Count} room(s) to Supabase.\n\nVersion: {versionName} ({typeLabel})\nCreated by: {currentUser}\nDate: {now:yyyy-MM-dd HH:mm:ss} UTC");
+                    $"Captured {snapshots.Count} room(s) to database.\n\nVersion: {versionName} ({typeLabel})\nCreated by: {currentUser}\nDate: {now.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             }
             catch (Exception ex)
             {

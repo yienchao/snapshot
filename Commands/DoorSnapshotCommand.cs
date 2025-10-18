@@ -174,7 +174,7 @@ namespace ViewTracker.Commands
 
                 string typeLabel = isOfficial ? "Official" : "Draft";
                 TaskDialog.Show("Success",
-                    $"Captured {snapshots.Count} door(s) to Supabase.\n\nVersion: {versionName} ({typeLabel})\nCreated by: {currentUser}\nDate: {now:yyyy-MM-dd HH:mm:ss} UTC");
+                    $"Captured {snapshots.Count} door(s) to database.\n\nVersion: {versionName} ({typeLabel})\nCreated by: {currentUser}\nDate: {now.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             }
             catch (Exception ex)
             {
@@ -189,38 +189,57 @@ namespace ViewTracker.Commands
         {
             var parameters = new Dictionary<string, object>();
 
-            // Parameters that are stored in dedicated columns - exclude from JSON
-            var excludedParams = new HashSet<string>
+            // Built-in parameters that are stored in dedicated columns - exclude from JSON
+            // Using BuiltInParameter enum IDs for language-independence (same approach as rooms)
+            var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                "Family", "Famille",
-                "Type",
-                "Mark", "Marque",
-                "Level", "Niveau",
-                "Fire Rating", "Cote de résistance au feu",
-                "Width", "Largeur",
-                "Height", "Hauteur",
-                "From Room", "De la pièce",
-                "To Room", "À la pièce",
-                "Phase Created", "Phase de création",
-                "Phase Demolished", "Phase de démolition",
-                "Comments", "Commentaires"
+                BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
+                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
+                BuiltInParameter.ALL_MODEL_MARK,                 // mark column
+                BuiltInParameter.FAMILY_LEVEL_PARAM,             // level column
+                BuiltInParameter.DOOR_FIRE_RATING,               // fire_rating column
+                BuiltInParameter.DOOR_WIDTH,                     // door_width column (from type)
+                BuiltInParameter.DOOR_HEIGHT,                    // door_height column (from type)
+                BuiltInParameter.PHASE_CREATED,                  // phase_created column
+                BuiltInParameter.PHASE_DEMOLISHED,               // phase_demolished column
+                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS     // comments column
             };
 
-            // Capture instance parameters using GetOrderedParameters (user-visible only)
-            var orderedInstanceParams = door.GetOrderedParameters();
-            foreach (Parameter param in orderedInstanceParams)
+            // Shared/string parameters to exclude (by name, for non-built-in parameters)
+            var excludedSharedParams = new HashSet<string>
             {
-                AddParameterToDictionary(param, parameters, excludedParams);
-            }
+                "From Room", "De la pièce",     // From Room
+                "To Room", "À la pièce"          // To Room
+            };
 
-            // Capture type parameters using GetOrderedParameters (user-visible only)
-            if (door.Symbol != null)
+            // Use GetOrderedParameters to get only user-visible parameters
+            var orderedParams = door.GetOrderedParameters();
+            foreach (Parameter param in orderedParams)
             {
-                var orderedTypeParams = door.Symbol.GetOrderedParameters();
-                foreach (Parameter param in orderedTypeParams)
+                string paramName = param.Definition.Name;
+
+                // Skip TYPE parameters - only capture INSTANCE parameters
+                // Type parameters belong to the ElementType, not the instance
+                if (param.Element is ElementType)
+                    continue;
+
+                // Skip built-in parameters that are already in dedicated columns
+                if (param.Definition is InternalDefinition internalDef)
                 {
-                    AddParameterToDictionary(param, parameters, excludedParams);
+                    var builtInParam = internalDef.BuiltInParameter;
+                    if (builtInParam != BuiltInParameter.INVALID && excludedBuiltInParams.Contains(builtInParam))
+                        continue;
                 }
+
+                // Skip shared parameters that are already in dedicated columns
+                if (excludedSharedParams.Contains(paramName))
+                    continue;
+
+                // Skip if this parameter name already exists (prefer instance over type)
+                if (parameters.ContainsKey(paramName))
+                    continue;
+
+                AddParameterValue(param, parameters);
             }
 
             // Add location information
@@ -251,24 +270,16 @@ namespace ViewTracker.Commands
             return parameters;
         }
 
-        private void AddParameterToDictionary(Parameter param, Dictionary<string, object> parameters, HashSet<string> excludedParams)
+        private void AddParameterValue(Parameter param, Dictionary<string, object> parameters)
         {
             string paramName = param.Definition.Name;
-
-            // Skip parameters that are already in dedicated columns
-            if (excludedParams.Contains(paramName))
-                return;
-
-            // Skip if this parameter name already exists (prefer instance over type)
-            if (parameters.ContainsKey(paramName))
-                return;
-
             object paramValue = null;
             bool shouldAdd = false;
 
             switch (param.StorageType)
             {
                 case StorageType.Double:
+                    // Always add double values, even if 0
                     paramValue = param.AsDouble();
                     shouldAdd = true;
                     break;
@@ -288,14 +299,14 @@ namespace ViewTracker.Commands
                     }
                     break;
                 case StorageType.String:
+                    // Save ALL string parameters, even empty ones
+                    // Users may want to restore empty values or set values from empty
                     var stringValue = param.AsString();
-                    if (!string.IsNullOrEmpty(stringValue))
-                    {
-                        paramValue = stringValue;
-                        shouldAdd = true;
-                    }
+                    paramValue = stringValue ?? "";  // Use empty string if null
+                    shouldAdd = true;
                     break;
                 case StorageType.ElementId:
+                    // Use AsValueString() to get the display value instead of the ID
                     var valueString = param.AsValueString();
                     if (!string.IsNullOrEmpty(valueString))
                     {
