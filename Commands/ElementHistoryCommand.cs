@@ -165,12 +165,16 @@ namespace ViewTracker.Commands
 
                     if (isDifferent)
                     {
-                        changes.Add($"{currParam.Key}: {prevValue} → {currParam.Value}");
+                        // Format values for display (convert units if numeric)
+                        string prevDisplay = FormatValueForDisplay(currParam.Key, prevValue, current.Category, doc);
+                        string currDisplay = FormatValueForDisplay(currParam.Key, currParam.Value, current.Category, doc);
+                        changes.Add($"{currParam.Key}: {prevDisplay} → {currDisplay}");
                     }
                 }
                 else
                 {
-                    changes.Add($"{currParam.Key}: (new) {currParam.Value}");
+                    string currDisplay = FormatValueForDisplay(currParam.Key, currParam.Value, current.Category, doc);
+                    changes.Add($"{currParam.Key}: (new) {currDisplay}");
                 }
             }
 
@@ -179,7 +183,8 @@ namespace ViewTracker.Commands
             {
                 if (!currParams.ContainsKey(prevParam.Key))
                 {
-                    changes.Add($"{prevParam.Key}: {prevParam.Value} → (removed)");
+                    string prevDisplay = FormatValueForDisplay(prevParam.Key, prevParam.Value, previous.Category, doc);
+                    changes.Add($"{prevParam.Key}: {prevDisplay} → (removed)");
                 }
             }
 
@@ -217,6 +222,59 @@ namespace ViewTracker.Commands
                 parameters["Comments"] = snapshot.Comments;
 
             return parameters;
+        }
+
+        private string FormatValueForDisplay(string paramName, object value, string categoryName, Document doc)
+        {
+            if (value == null)
+                return "";
+
+            // For double values, try to convert from internal units to display units
+            if (value is double doubleVal)
+            {
+                try
+                {
+                    // Try to find matching parameter definition from an element of the same category to get unit type
+                    var elements = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilyInstance))
+                        .Cast<FamilyInstance>()
+                        .Where(fi => fi.Category?.Name == categoryName)
+                        .FirstOrDefault();
+
+                    if (elements != null)
+                    {
+                        Parameter param = null;
+
+                        // Try different ways to get the parameter
+                        foreach (Parameter p in elements.Parameters)
+                        {
+                            if (p.Definition.Name == paramName)
+                            {
+                                param = p;
+                                break;
+                            }
+                        }
+
+                        if (param != null && param.StorageType == StorageType.Double)
+                        {
+                            var spec = param.Definition.GetDataType();
+                            var formatOptions = doc.GetUnits().GetFormatOptions(spec);
+                            var displayUnitType = formatOptions.GetUnitTypeId();
+                            double convertedValue = UnitUtils.ConvertFromInternalUnits(doubleVal, displayUnitType);
+                            return convertedValue.ToString("0.##");
+                        }
+                    }
+                }
+                catch
+                {
+                    // If conversion fails, fall through to default formatting
+                }
+
+                // Default: just show the number with 2 decimal places
+                return doubleVal.ToString("0.##");
+            }
+
+            return value.ToString();
         }
 
         private void ShowHistory(string trackId, string category, string mark, string familyName, string typeName, List<HistoryEntry> timeline)
