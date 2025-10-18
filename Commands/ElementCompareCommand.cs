@@ -315,7 +315,17 @@ namespace ViewTracker.Commands
                     if (!excludedFromJson.Contains(kvp.Key))
                     {
                         snapshotParams[kvp.Key] = kvp.Value;
-                        snapshotParamsDisplay[kvp.Key] = kvp.Value?.ToString() ?? "";
+
+                        // For display, convert snapshot values from internal units to display units if possible
+                        var currentParam = currentElement.LookupParameter(kvp.Key);
+                        if (currentParam != null && kvp.Value is double)
+                        {
+                            snapshotParamsDisplay[kvp.Key] = FormatParameterValue(currentParam, kvp.Value, doc);
+                        }
+                        else
+                        {
+                            snapshotParamsDisplay[kvp.Key] = kvp.Value?.ToString() ?? "";
+                        }
                     }
                 }
             }
@@ -453,6 +463,60 @@ namespace ViewTracker.Commands
             var snapStr = snapValue?.ToString() ?? "";
             var currStr = currentValue?.ToString() ?? "";
             return snapStr != currStr;
+        }
+
+        // Helper method to convert parameter values from internal units to display units (no unit symbols)
+        private string FormatParameterValue(Parameter param, object value, Document doc)
+        {
+            if (value == null)
+                return "";
+
+            try
+            {
+                // For numeric values, convert from internal units to display units
+                if (param.StorageType == StorageType.Double)
+                {
+                    // Convert value to double (handles int, long, double from JSON)
+                    double doubleValue = 0;
+
+                    if (value is double d)
+                        doubleValue = d;
+                    else if (value is float f)
+                        doubleValue = f;
+                    else if (value is int i)
+                        doubleValue = i;
+                    else if (value is long l)
+                        doubleValue = l;
+                    else if (double.TryParse(value.ToString(), out double parsed))
+                        doubleValue = parsed;
+                    else
+                        return value.ToString();
+
+                    // Convert from internal units to display units using document's unit settings
+                    try
+                    {
+                        var spec = param.Definition.GetDataType();
+                        var formatOptions = doc.GetUnits().GetFormatOptions(spec);
+                        var displayUnitType = formatOptions.GetUnitTypeId();
+                        double convertedValue = UnitUtils.ConvertFromInternalUnits(doubleValue, displayUnitType);
+
+                        // Format with 2 decimal places (no unit label)
+                        return convertedValue.ToString("0.##");
+                    }
+                    catch
+                    {
+                        // Fallback: If UnitUtils fails, return the raw value
+                        return doubleValue.ToString("F2");
+                    }
+                }
+
+                return value.ToString();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"FormatParameterValue failed: {ex.Message}, param: {param?.Definition?.Name}");
+                return value.ToString();
+            }
         }
 
         private void ShowComparisonResults(ElementComparisonResult result, string versionName, UIApplication uiApp)

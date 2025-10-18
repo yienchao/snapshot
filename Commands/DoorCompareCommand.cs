@@ -351,16 +351,19 @@ namespace ViewTracker.Commands
                                 var currentParam = currentDoor.LookupParameter(kvp.Key);
                                 if (currentParam != null && currentParam.StorageType == StorageType.Double)
                                 {
-                                    displayValue = UnitFormatUtils.Format(
+                                    // Format with units, then strip the unit label
+                                    string formatted = UnitFormatUtils.Format(
                                         currentDoor.Document.GetUnits(),
                                         currentParam.Definition.GetDataType(),
                                         doubleVal,
                                         false);
+                                    // Strip unit label (e.g., "2438.4 mm" → "2438.4")
+                                    displayValue = formatted?.Split(' ')[0]?.Replace(",", ".") ?? doubleVal.ToString("F2");
                                 }
                                 else
                                 {
                                     // Fallback: just show the number
-                                    displayValue = doubleVal.ToString("F6");
+                                    displayValue = doubleVal.ToString("F2");
                                 }
                             }
                         }
