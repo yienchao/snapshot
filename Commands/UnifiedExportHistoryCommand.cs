@@ -180,10 +180,10 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = snapshot.RoomNumber;
                     worksheet.Cells[row, col++].Value = snapshot.RoomName;
                     worksheet.Cells[row, col++].Value = snapshot.Level;
-                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport("Area", snapshot.Area, doc);
-                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport("Perimeter", snapshot.Perimeter, doc);
-                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport("Volume", snapshot.Volume, doc);
-                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport("UnboundHeight", snapshot.UnboundHeight, doc);
+                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_AREA, snapshot.Area, doc);
+                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_PERIMETER, snapshot.Perimeter, doc);
+                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_VOLUME, snapshot.Volume, doc);
+                    worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_UPPER_LEVEL, snapshot.UnboundHeight, doc);
                     worksheet.Cells[row, col++].Value = snapshot.Occupancy;
                     worksheet.Cells[row, col++].Value = snapshot.Department;
                     worksheet.Cells[row, col++].Value = snapshot.Phase;
@@ -260,10 +260,10 @@ namespace ViewTracker.Commands
                         CsvEscape(snapshot.RoomNumber),
                         CsvEscape(snapshot.RoomName),
                         CsvEscape(snapshot.Level),
-                        CsvEscape(FormatRoomValueForExport("Area", snapshot.Area, doc)),
-                        CsvEscape(FormatRoomValueForExport("Perimeter", snapshot.Perimeter, doc)),
-                        CsvEscape(FormatRoomValueForExport("Volume", snapshot.Volume, doc)),
-                        CsvEscape(FormatRoomValueForExport("UnboundHeight", snapshot.UnboundHeight, doc)),
+                        CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_AREA, snapshot.Area, doc)),
+                        CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_PERIMETER, snapshot.Perimeter, doc)),
+                        CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_VOLUME, snapshot.Volume, doc)),
+                        CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_UPPER_LEVEL, snapshot.UnboundHeight, doc)),
                         CsvEscape(snapshot.Occupancy),
                         CsvEscape(snapshot.Department),
                         CsvEscape(snapshot.Phase),
@@ -287,6 +287,49 @@ namespace ViewTracker.Commands
                     writer.WriteLine(string.Join(",", values));
                 }
             }
+        }
+
+        private string FormatRoomValueForExport(BuiltInParameter builtInParam, object value, Document doc)
+        {
+            if (value == null)
+                return "";
+
+            // For double values, try to convert from internal units to display units
+            if (value is double doubleVal)
+            {
+                try
+                {
+                    // Try to find a room element to get the parameter unit specification
+                    var room = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .OfClass(typeof(SpatialElement))
+                        .Cast<Autodesk.Revit.DB.Architecture.Room>()
+                        .FirstOrDefault();
+
+                    if (room != null)
+                    {
+                        Parameter param = room.get_Parameter(builtInParam);
+
+                        if (param != null && param.StorageType == StorageType.Double)
+                        {
+                            var spec = param.Definition.GetDataType();
+                            var formatOptions = doc.GetUnits().GetFormatOptions(spec);
+                            var displayUnitType = formatOptions.GetUnitTypeId();
+                            double convertedValue = UnitUtils.ConvertFromInternalUnits(doubleVal, displayUnitType);
+                            return convertedValue.ToString("0.##");
+                        }
+                    }
+                }
+                catch
+                {
+                    // If conversion fails, fall through to default formatting
+                }
+
+                // Default: just show the number with 2 decimal places
+                return doubleVal.ToString("0.##");
+            }
+
+            return value.ToString();
         }
 
         private string FormatRoomValueForExport(string paramName, object value, Document doc)
@@ -480,8 +523,8 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = snapshot.Mark;
                     worksheet.Cells[row, col++].Value = snapshot.Level;
                     worksheet.Cells[row, col++].Value = snapshot.FireRating;
-                    worksheet.Cells[row, col++].Value = FormatDoorValueForExport("Width", snapshot.DoorWidth, doc);
-                    worksheet.Cells[row, col++].Value = FormatDoorValueForExport("Height", snapshot.DoorHeight, doc);
+                    worksheet.Cells[row, col++].Value = FormatDoorValueForExport(BuiltInParameter.DOOR_WIDTH, snapshot.DoorWidth, doc);
+                    worksheet.Cells[row, col++].Value = FormatDoorValueForExport(BuiltInParameter.DOOR_HEIGHT, snapshot.DoorHeight, doc);
                     worksheet.Cells[row, col++].Value = snapshot.PhaseCreated;
                     worksheet.Cells[row, col++].Value = snapshot.PhaseDemolished;
                     worksheet.Cells[row, col++].Value = snapshot.Comments;
@@ -547,8 +590,8 @@ namespace ViewTracker.Commands
                         CsvEscape(snapshot.Mark),
                         CsvEscape(snapshot.Level),
                         CsvEscape(snapshot.FireRating),
-                        CsvEscape(FormatDoorValueForExport("Width", snapshot.DoorWidth, doc)),
-                        CsvEscape(FormatDoorValueForExport("Height", snapshot.DoorHeight, doc)),
+                        CsvEscape(FormatDoorValueForExport(BuiltInParameter.DOOR_WIDTH, snapshot.DoorWidth, doc)),
+                        CsvEscape(FormatDoorValueForExport(BuiltInParameter.DOOR_HEIGHT, snapshot.DoorHeight, doc)),
                         CsvEscape(snapshot.PhaseCreated),
                         CsvEscape(snapshot.PhaseDemolished),
                         CsvEscape(snapshot.Comments)
@@ -565,6 +608,56 @@ namespace ViewTracker.Commands
                     writer.WriteLine(string.Join(",", values));
                 }
             }
+        }
+
+        private string FormatDoorValueForExport(BuiltInParameter builtInParam, object value, Document doc)
+        {
+            if (value == null)
+                return "";
+
+            // For double values, try to convert from internal units to display units
+            if (value is double doubleVal)
+            {
+                try
+                {
+                    // Try to find a door element to get the parameter unit specification
+                    var door = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Doors)
+                        .OfClass(typeof(FamilyInstance))
+                        .Cast<FamilyInstance>()
+                        .FirstOrDefault();
+
+                    if (door != null)
+                    {
+                        // For type parameters like Width and Height, get from Symbol
+                        Parameter param = door.Symbol?.get_Parameter(builtInParam);
+
+                        if (param == null)
+                        {
+                            // Try instance parameter
+                            param = door.get_Parameter(builtInParam);
+                        }
+
+                        if (param != null && param.StorageType == StorageType.Double)
+                        {
+                            var spec = param.Definition.GetDataType();
+                            var formatOptions = doc.GetUnits().GetFormatOptions(spec);
+                            var displayUnitType = formatOptions.GetUnitTypeId();
+                            double convertedValue = UnitUtils.ConvertFromInternalUnits(doubleVal, displayUnitType);
+                            return convertedValue.ToString("0.##");
+                        }
+                    }
+                }
+                catch
+                {
+                    // If conversion fails, fall through to default formatting
+                }
+
+                // Default: just show the number with 2 decimal places
+                return doubleVal.ToString("0.##");
+            }
+
+            return value.ToString();
         }
 
         private string FormatDoorValueForExport(string paramName, object value, Document doc)
