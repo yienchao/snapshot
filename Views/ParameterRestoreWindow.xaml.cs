@@ -892,21 +892,39 @@ namespace ViewTracker.Views
 
                 dynamic snapshot = snapshotMap[trackId];
 
-                // Get element info
+                // Get element info and current type
                 string elementName = "";
                 string elementInfo = "";
+                string currentTypeName = "";
+                string snapshotTypeName = "";
 
                 if (_entityType == "Door")
                 {
                     var doorSnapshot = (DoorSnapshot)snapshot;
+                    var door = element as FamilyInstance;
                     elementName = $"{doorSnapshot.Mark ?? "No Mark"}";
-                    elementInfo = $"{doorSnapshot.FamilyName}: {doorSnapshot.TypeName} | Level: {doorSnapshot.Level}";
+                    currentTypeName = door?.Symbol?.Name ?? "Unknown";
+                    snapshotTypeName = doorSnapshot.TypeName ?? "Unknown";
+
+                    // Show type mismatch indicator if types differ
+                    string typeInfo = currentTypeName == snapshotTypeName
+                        ? $"{doorSnapshot.FamilyName}: {doorSnapshot.TypeName}"
+                        : $"{doorSnapshot.FamilyName}: {currentTypeName} ⚠️ (was: {snapshotTypeName})";
+                    elementInfo = $"{typeInfo} | Level: {doorSnapshot.Level}";
                 }
                 else // Element
                 {
                     var elemSnapshot = (ElementSnapshot)snapshot;
+                    var familyInstance = element as FamilyInstance;
                     elementName = $"{elemSnapshot.Mark ?? "No Mark"}";
-                    elementInfo = $"{elemSnapshot.Category} | {elemSnapshot.FamilyName}: {elemSnapshot.TypeName}";
+                    currentTypeName = familyInstance?.Symbol?.Name ?? element.GetTypeId()?.ToString() ?? "Unknown";
+                    snapshotTypeName = elemSnapshot.TypeName ?? "Unknown";
+
+                    // Show type mismatch indicator if types differ
+                    string typeInfo = currentTypeName == snapshotTypeName
+                        ? $"{elemSnapshot.FamilyName}: {elemSnapshot.TypeName}"
+                        : $"{elemSnapshot.FamilyName}: {currentTypeName} ⚠️ (was: {snapshotTypeName})";
+                    elementInfo = $"{elemSnapshot.Category} | {typeInfo}";
                 }
 
                 // Get parameter preview - build unified dictionary from AllParameters JSON and dedicated columns
@@ -1046,7 +1064,10 @@ namespace ViewTracker.Views
                     ElementDisplayName = elementName,
                     ElementInfo = elementInfo,
                     ParameterPreview = parameterPreview,
-                    IsSelected = true
+                    IsSelected = true,
+                    CurrentTypeName = currentTypeName,
+                    SnapshotTypeName = snapshotTypeName,
+                    HasTypeMismatch = currentTypeName != snapshotTypeName
                 };
 
                 _elementRestoreItems.Add(restoreItem);
@@ -1168,6 +1189,9 @@ namespace ViewTracker.Views
         public string ElementDisplayName { get; set; }
         public string ElementInfo { get; set; }
         public List<ElementParameterPreview> ParameterPreview { get; set; } = new List<ElementParameterPreview>();
+        public string CurrentTypeName { get; set; }
+        public string SnapshotTypeName { get; set; }
+        public bool HasTypeMismatch { get; set; }
 
         public bool IsSelected
         {
@@ -1181,6 +1205,8 @@ namespace ViewTracker.Views
 
         public string HasParametersVisibility => ParameterPreview.Any() ? "Visible" : "Collapsed";
         public string HasNoParameters => !ParameterPreview.Any() ? "Visible" : "Collapsed";
+        public string TypeMismatchVisibility => HasTypeMismatch ? "Visible" : "Collapsed";
+        public string TypeMismatchText => $"⚠️ Type changed: {SnapshotTypeName} → {CurrentTypeName}";
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)

@@ -3,6 +3,8 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -20,6 +22,7 @@ namespace ViewTracker.Views
         private Guid _projectId;
         private List<Room> _currentRooms;
         private List<RoomSnapshot> _selectedVersionSnapshots;
+        private ObservableCollection<RoomRestoreItem> _roomRestoreItems = new ObservableCollection<RoomRestoreItem>();
 
         public RoomRestoreWindow(
             List<VersionInfo> versions,
@@ -88,6 +91,7 @@ namespace ViewTracker.Views
                 }).Wait();
 
                 PopulateParameterCheckboxes();
+                PopulateRoomList();
                 UpdateStatus();
             }
             catch (Exception ex)
@@ -225,11 +229,13 @@ namespace ViewTracker.Views
                 {
                     UpdateStatus();
                     UpdateDeletedRoomsParameterPreview();
+                    UpdateRoomListParameterPreview();
                 };
                 checkbox.Unchecked += (s, e) =>
                 {
                     UpdateStatus();
                     UpdateDeletedRoomsParameterPreview();
+                    UpdateRoomListParameterPreview();
                 };
 
                 ParameterCheckboxPanel.Children.Add(checkbox);
@@ -239,25 +245,30 @@ namespace ViewTracker.Views
         private void ScopeRadio_Changed(object sender, RoutedEventArgs e)
         {
             // Show/hide the third panel based on scope selection
-            if (DeletedRoomsGroupBox != null)
+            if (DeletedRoomsGroupBox != null && RoomListGroupBox != null)
             {
                 if (DeletedRoomsRadio?.IsChecked == true)
                 {
-                    // Show deleted rooms
+                    // Show deleted rooms panel
+                    RoomListGroupBox.Visibility = System.Windows.Visibility.Collapsed;
                     DeletedRoomsGroupBox.Header = "Deleted Rooms to Recreate";
                     DeletedRoomsGroupBox.Visibility = System.Windows.Visibility.Visible;
                     PopulateDeletedRoomsList();
                 }
                 else if (UnplacedRoomsRadio?.IsChecked == true)
                 {
-                    // Show unplaced rooms
+                    // Show unplaced rooms panel
+                    RoomListGroupBox.Visibility = System.Windows.Visibility.Collapsed;
                     DeletedRoomsGroupBox.Header = "Unplaced Rooms to Restore";
                     DeletedRoomsGroupBox.Visibility = System.Windows.Visibility.Visible;
                     PopulateUnplacedRoomsList();
                 }
                 else
                 {
+                    // Show normal room list panel for All/Pre-selected scopes
                     DeletedRoomsGroupBox.Visibility = System.Windows.Visibility.Collapsed;
+                    RoomListGroupBox.Visibility = System.Windows.Visibility.Visible;
+                    PopulateRoomList();
                 }
             }
 
@@ -687,16 +698,32 @@ namespace ViewTracker.Views
         {
             var result = new RestoreResult();
 
-            // Get selected rooms from third panel UI (for deleted or unplaced scopes)
+            // Get selected rooms from third panel UI
             Dictionary<string, DeletedRoomItem> selectedRoomsFromPanel = null;
+            HashSet<string> selectedRoomTrackIds = null;
             bool isUnplacedScope = UnplacedRoomsRadio?.IsChecked == true;
             bool isDeletedScope = DeletedRoomsRadio?.IsChecked == true;
+            bool isAllOrPreselectedScope = AllRoomsRadio?.IsChecked == true || SelectedRoomsRadio?.IsChecked == true;
 
             if ((isDeletedScope || isUnplacedScope) && DeletedRoomsItemsControl.ItemsSource is List<DeletedRoomItem> panelItems)
             {
                 selectedRoomsFromPanel = panelItems
                     .Where(item => item.IsSelected)
                     .ToDictionary(item => item.Snapshot.TrackId);
+            }
+            else if (isAllOrPreselectedScope && _roomRestoreItems != null && _roomRestoreItems.Any())
+            {
+                // For All/Pre-selected scopes, get selected rooms from RoomListGroupBox
+                selectedRoomTrackIds = _roomRestoreItems
+                    .Where(item => item.IsSelected)
+                    .Select(item => item.TrackId)
+                    .ToHashSet();
+
+                // If no rooms selected, show warning
+                if (!selectedRoomTrackIds.Any())
+                {
+                    throw new Exception("No rooms selected for restore. Please select at least one room from the list.");
+                }
             }
 
             // Performance optimization: Build complete room dictionary ONCE before loop
@@ -776,6 +803,12 @@ namespace ViewTracker.Views
                         else
                         {
                             // All Rooms or Selected Rooms scope: Just update parameters
+                            // But only if this room is selected in the UI
+                            if (isAllOrPreselectedScope && selectedRoomTrackIds != null && !selectedRoomTrackIds.Contains(snapshot.TrackId))
+                            {
+                                continue; // Skip unselected rooms
+                            }
+
                             // We don't care about placement state - just sync parameters
                             UpdateRoomParameters(existingRoom, snapshot, selectedParams);
                             result.UpdatedRooms++;
@@ -1319,6 +1352,134 @@ namespace ViewTracker.Views
             DialogResult = false;
             Close();
         }
+
+        private void SelectAllRooms_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var item in _roomRestoreItems)
+            {
+                item.IsSelected = true;
+            }
+        }
+
+        private void SelectNoneRooms_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var item in _roomRestoreItems)
+            {
+                item.IsSelected = false;
+            }
+        }
+
+        private void PopulateRoomList()
+        {
+            _roomRestoreItems.Clear();
+
+            if (_selectedVersionSnapshots == null || !_currentRooms.Any())
+                return;
+
+            // Build trackID to snapshot mapping
+            var snapshotMap = _selectedVersionSnapshots.ToDictionary(s => s.TrackId);
+
+            // Get selected parameters
+            var selectedParams = GetSelectedParameters();
+
+            // Get current room trackIDs
+            var currentRoomsDict = _currentRooms
+                .Where(r => r.LookupParameter("trackID") != null)
+                .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+
+            // Create restore items for each room
+            foreach (var room in _currentRooms)
+            {
+                var trackIdParam = room.LookupParameter("trackID");
+                if (trackIdParam == null || string.IsNullOrWhiteSpace(trackIdParam.AsString()))
+                    continue;
+
+                string trackId = trackIdParam.AsString();
+                if (!snapshotMap.ContainsKey(trackId))
+                    continue;
+
+                var snapshot = snapshotMap[trackId];
+
+                // Get room info
+                string roomDisplayName = $"{snapshot.RoomNumber} - {snapshot.RoomName}";
+                string roomInfo = $"Level: {snapshot.Level ?? "N/A"} | Area: {(snapshot.Area.HasValue ? $"{snapshot.Area.Value * 0.09290304:F3} m²" : "N/A")}";
+
+                // Get parameter preview
+                var parameterPreview = new ObservableCollection<RoomParameterPreview>();
+
+                if (selectedParams.Any())
+                {
+                    foreach (var paramKey in selectedParams)
+                    {
+                        string paramValue = GetParameterValueFromSnapshot(snapshot, paramKey);
+                        if (!string.IsNullOrEmpty(paramValue))
+                        {
+                            string displayName = paramKey.StartsWith("AllParam_")
+                                ? paramKey.Substring("AllParam_".Length)
+                                : GetParameterDisplayName(paramKey);
+
+                            parameterPreview.Add(new RoomParameterPreview
+                            {
+                                Name = displayName,
+                                Value = paramValue
+                            });
+                        }
+                    }
+                }
+
+                var restoreItem = new RoomRestoreItem
+                {
+                    Room = room,
+                    TrackId = trackId,
+                    RoomDisplayName = roomDisplayName,
+                    RoomInfo = roomInfo,
+                    ParameterPreview = parameterPreview,
+                    IsSelected = true
+                };
+
+                _roomRestoreItems.Add(restoreItem);
+            }
+
+            RoomsItemsControl.ItemsSource = _roomRestoreItems;
+        }
+
+        private void UpdateRoomListParameterPreview()
+        {
+            if (_roomRestoreItems == null || !_roomRestoreItems.Any())
+                return;
+
+            var selectedParams = GetSelectedParameters();
+
+            // Build snapshot map
+            var snapshotMap = _selectedVersionSnapshots?.ToDictionary(s => s.TrackId) ?? new Dictionary<string, RoomSnapshot>();
+
+            foreach (var item in _roomRestoreItems)
+            {
+                item.ParameterPreview.Clear();
+
+                if (!snapshotMap.ContainsKey(item.TrackId))
+                    continue;
+
+                var snapshot = snapshotMap[item.TrackId];
+
+                foreach (var paramKey in selectedParams)
+                {
+                    string paramValue = GetParameterValueFromSnapshot(snapshot, paramKey);
+                    if (!string.IsNullOrEmpty(paramValue))
+                    {
+                        string displayName = paramKey.StartsWith("AllParam_")
+                            ? paramKey.Substring("AllParam_".Length)
+                            : GetParameterDisplayName(paramKey);
+
+                        item.ParameterPreview.Add(new RoomParameterPreview
+                        {
+                            Name = displayName,
+                            Value = paramValue
+                        });
+                    }
+                }
+            }
+        }
     }
 
     public class RestoreResult
@@ -1400,6 +1561,49 @@ namespace ViewTracker.Views
     }
 
     public class ParameterPreviewItem
+    {
+        public string Name { get; set; }
+        public string Value { get; set; }
+    }
+
+    // Data model for room restore items (for All/Pre-selected scopes)
+    public class RoomRestoreItem : System.ComponentModel.INotifyPropertyChanged
+    {
+        private bool _isSelected;
+
+        public Room Room { get; set; }
+        public string TrackId { get; set; }
+        public string RoomDisplayName { get; set; }
+        public string RoomInfo { get; set; }
+        public ObservableCollection<RoomParameterPreview> ParameterPreview { get; set; } = new ObservableCollection<RoomParameterPreview>();
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                _isSelected = value;
+                OnPropertyChanged(nameof(IsSelected));
+            }
+        }
+
+        public System.Windows.Visibility HasParametersVisibility => (ParameterPreview != null && ParameterPreview.Count > 0)
+            ? System.Windows.Visibility.Visible
+            : System.Windows.Visibility.Collapsed;
+
+        public System.Windows.Visibility HasNoParameters => (ParameterPreview == null || ParameterPreview.Count == 0)
+            ? System.Windows.Visibility.Visible
+            : System.Windows.Visibility.Collapsed;
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class RoomParameterPreview
     {
         public string Name { get; set; }
         public string Value { get; set; }
