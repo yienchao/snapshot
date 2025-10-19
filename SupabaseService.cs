@@ -9,20 +9,52 @@ namespace ViewTracker
     public class SupabaseService
     {
         private Client _supabase;
-        private readonly string _url;
-        private readonly string _key;
+        private string _url;
+        private string _key;
+        private bool _initialized = false;
 
         public SupabaseService()
         {
-            _url = "https://agexakhxckfvkwnflwxp.supabase.co";
-            _key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZXhha2h4Y2tmdmt3bmZsd3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NDM2MjMsImV4cCI6MjA3NDQxOTYyM30.0LO5K2jehWHgm-Bj6tvIt0Qt8SwmHv39EKa9GBhyHEE";
+            // Credentials will be loaded from config file on first InitializeAsync() call
         }
 
         public async Task InitializeAsync()
         {
+            // Only load config if not already initialized
+            if (!_initialized)
+            {
+                try
+                {
+                    // Load credentials from config file stored in Supabase Storage
+                    var config = await ConfigService.GetConfigAsync();
+                    _url = config.SupabaseUrl;
+                    _key = config.SupabaseKey;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed to load Supabase configuration: {ex.Message}\n\n" +
+                        "Please ensure:\n" +
+                        "1. The config file exists in Supabase Storage at 'config/supabase-config.json'\n" +
+                        "2. You have internet connectivity\n" +
+                        "3. The config file is valid JSON with 'supabaseUrl' and 'supabaseKey' properties", ex);
+                }
+            }
+
+            // Initialize Supabase client
             var options = new SupabaseOptions { AutoConnectRealtime = false };
             _supabase = new Client(_url, _key, options);
             await _supabase.InitializeAsync();
+            _initialized = true;
+        }
+
+        /// <summary>
+        /// Forces a refresh of the configuration and reinitializes the client
+        /// </summary>
+        public async Task RefreshConfigAndReinitializeAsync()
+        {
+            _initialized = false;
+            await ConfigService.RefreshConfigAsync();
+            await InitializeAsync();
         }
 
         // Fetch activation count for one view
