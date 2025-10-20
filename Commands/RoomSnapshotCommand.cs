@@ -21,7 +21,7 @@ namespace ViewTracker.Commands
             var projectIdStr = doc.ProjectInformation.LookupParameter("projectID")?.AsString();
             if (!Guid.TryParse(projectIdStr, out Guid projectId))
             {
-                TaskDialog.Show("Error", "This file does not have a valid projectID parameter.");
+                TaskDialog.Show(Localization.Common.Error, Localization.Get("Validation.NoProjectID"));
                 return Result.Failed;
             }
 
@@ -43,7 +43,7 @@ namespace ViewTracker.Commands
 
             if (!roomsWithTrackId.Any())
             {
-                TaskDialog.Show("No Rooms", "No rooms found with trackID parameter.");
+                TaskDialog.Show(Localization.Get("RoomSnapshot.NoRooms"), Localization.Get("RoomSnapshot.NoRoomsMessage"));
                 return Result.Cancelled;
             }
 
@@ -55,20 +55,20 @@ namespace ViewTracker.Commands
 
             if (trackIdGroups.Any())
             {
-                var duplicates = string.Join("\n", trackIdGroups.Select(g => 
+                var duplicates = string.Join("\n", trackIdGroups.Select(g =>
                     $"trackID '{g.Key}': {string.Join(", ", g.Select(r => $"Room {r.Number}"))}"));
-                
-                TaskDialog.Show("Duplicate trackIDs", 
-                    $"Found duplicate trackIDs in this file:\n\n{duplicates}\n\nPlease fix before creating snapshot.");
+
+                TaskDialog.Show(Localization.Get("RoomSnapshot.DuplicateTrackIDs"),
+                    $"{Localization.Get("Validation.DuplicateTrackIDs")}\n\n{duplicates}\n\n{Localization.Get("Validation.FixBeforeSnapshot")}");
                 return Result.Failed;
             }
 
             // 4. Get version name and type
-            var versionDialog = new TaskDialog("Create Room Snapshot");
-            versionDialog.MainInstruction = "Select snapshot type:";
-            versionDialog.MainContent = "Official versions should be created by BIM Manager for milestones.\nDraft versions are for work-in-progress tracking.";
-            versionDialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Draft Version", "For testing and work-in-progress");
-            versionDialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Official Version", "For milestones and deliverables (BIM Manager)");
+            var versionDialog = new TaskDialog(Localization.Get("RoomSnapshot.Title"));
+            versionDialog.MainInstruction = Localization.Get("Version.SelectSnapshotType");
+            versionDialog.MainContent = Localization.Get("Version.OfficialDescription");
+            versionDialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, Localization.Get("Version.DraftVersion"), Localization.Get("Version.DraftDescription"));
+            versionDialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, Localization.Get("Version.OfficialVersion"), Localization.Get("Version.OfficialDescription2"));
             versionDialog.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             var result = versionDialog.Show();
@@ -80,8 +80,8 @@ namespace ViewTracker.Commands
             // Get version name
             string defaultName = isOfficial ? $"official_{DateTime.Now:yyyyMMdd}" : $"draft_{DateTime.Now:yyyyMMdd}";
             string versionName = Microsoft.VisualBasic.Interaction.InputBox(
-                isOfficial ? "Enter official version name:\n(e.g., permit_set, design_v2)" : "Enter draft version name:\n(e.g., wip_jan15, test_v1)",
-                "Room Snapshot Version",
+                isOfficial ? Localization.Get("RoomSnapshot.EnterOfficialName") : Localization.Get("RoomSnapshot.EnterDraftName"),
+                Localization.Get("RoomSnapshot.VersionTitle"),
                 defaultName,
                 -1, -1);
 
@@ -91,7 +91,7 @@ namespace ViewTracker.Commands
             // Validate version name (alphanumeric, underscore, dash only)
             if (!System.Text.RegularExpressions.Regex.IsMatch(versionName, @"^[a-zA-Z0-9_-]+$"))
             {
-                TaskDialog.Show("Invalid Version Name", "Version name must contain only letters, numbers, underscores, and dashes.");
+                TaskDialog.Show(Localization.Get("Version.InvalidVersionName"), Localization.Get("Validation.InvalidVersionName"));
                 return Result.Failed;
             }
 
@@ -114,19 +114,16 @@ namespace ViewTracker.Commands
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Error", $"Failed to check existing versions:\n{SanitizeErrorMessage(ex)}");
+                TaskDialog.Show(Localization.Common.Error, $"{Localization.Get("RoomSnapshot.FailedCheckVersions")}\n{SanitizeErrorMessage(ex)}");
                 return Result.Failed;
             }
 
             if (versionExists && existingVersion != null)
             {
-                string existingType = existingVersion.IsOfficial ? "Official" : "Draft";
-                TaskDialog.Show("Version Already Exists",
-                    $"Version '{versionName}' already exists:\n\n" +
-                    $"Type: {existingType}\n" +
-                    $"Created by: {existingVersion.CreatedBy}\n" +
-                    $"Date: {existingVersion.SnapshotDate:yyyy-MM-dd HH:mm}\n\n" +
-                    $"Please choose a different version name.");
+                string existingType = existingVersion.IsOfficial ? Localization.Get("Type.Official") : Localization.Get("Type.Draft");
+                TaskDialog.Show(Localization.Get("Version.AlreadyExists"),
+                    string.Format(Localization.Get("Version.ExistsMessage"),
+                        versionName, existingType, existingVersion.CreatedBy, existingVersion.SnapshotDate));
                 return Result.Failed;
             }
 
@@ -192,13 +189,14 @@ namespace ViewTracker.Commands
                     await supabaseService.BulkUpsertRoomSnapshotsAsync(snapshots);
                 }).Wait();
 
-                string typeLabel = isOfficial ? "Official" : "Draft";
-                TaskDialog.Show("Success",
-                    $"Captured {snapshots.Count} room(s) to database.\n\nVersion: {versionName} ({typeLabel})\nCreated by: {currentUser}\nDate: {now.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+                string typeLabel = isOfficial ? Localization.Get("Type.Official") : Localization.Get("Type.Draft");
+                TaskDialog.Show(Localization.Common.Success,
+                    string.Format(Localization.Get("RoomSnapshot.SuccessMessage"),
+                        snapshots.Count, versionName, typeLabel, currentUser, now.ToLocalTime()));
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Error", $"Failed to upload snapshots:\n\n{SanitizeErrorMessage(ex)}");
+                TaskDialog.Show(Localization.Common.Error, $"{Localization.Get("RoomSnapshot.FailedUpload")}\n\n{SanitizeErrorMessage(ex)}");
                 return Result.Failed;
             }
 

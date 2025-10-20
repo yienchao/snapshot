@@ -9,6 +9,10 @@ namespace ViewTracker
     {
         public Result OnStartup(UIControlledApplication application)
         {
+            // Initialize localization based on Revit language
+            string revitLanguage = application.ControlledApplication.Language.ToString();
+            Localization.Initialize(revitLanguage);
+
             application.ViewActivated += OnViewActivated;
             CreateRibbonButton(application);
             return Result.Succeeded;
@@ -28,63 +32,63 @@ namespace ViewTracker
                 try { application.CreateRibbonTab(tabName); } catch { }
 
                 // ===== VIEW ANALYTICS PANEL =====
-                var viewPanel = application.CreateRibbonPanel(tabName, "View Analytics");
+                var viewPanel = application.CreateRibbonPanel(tabName, Localization.Get("Panel.ViewAnalytics"));
 
                 // Initialize Views
                 var initializeBtn = new PushButtonData(
                     "InitializeViews",
-                    "Initialize\nViews",
+                    Localization.Get("Ribbon.InitializeViews"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.InitializeViewsCommand"
                 );
-                initializeBtn.ToolTip = "Initialize all views in the project database";
+                initializeBtn.ToolTip = Localization.Get("Ribbon.InitializeViewsTooltip");
                 viewPanel.AddItem(initializeBtn);
 
                 // Export CSV
                 var exportBtn = new PushButtonData(
                     "ExportCsv",
-                    "Export Views\nCSV",
+                    Localization.Get("Ribbon.ExportCSV"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.ExportCsvCommand"
                 );
-                exportBtn.ToolTip = "Export Supabase view_activations for this project's projectID to CSV";
+                exportBtn.ToolTip = Localization.Get("Ribbon.ExportCSVTooltip");
                 viewPanel.AddItem(exportBtn);
 
                 // ===== PROGRAM PANEL =====
-                var programPanel = application.CreateRibbonPanel(tabName, "Program");
+                var programPanel = application.CreateRibbonPanel(tabName, Localization.Get("Panel.Program"));
 
                 // Template
                 var downloadTemplateBtn = new PushButtonData(
                     "Template",
-                    "Template",
+                    Localization.Get("Ribbon.Template"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.DownloadTemplateCommand"
                 );
-                downloadTemplateBtn.ToolTip = "Download Excel template for space program";
+                downloadTemplateBtn.ToolTip = Localization.Get("Ribbon.TemplateTooltip");
                 programPanel.AddItem(downloadTemplateBtn);
 
                 // Import Program
                 var importProgramBtn = new PushButtonData(
                     "ImportProgram",
-                    "Import\nProgram",
+                    Localization.Get("Ribbon.ImportProgram"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.ImportProgramCommand"
                 );
-                importProgramBtn.ToolTip = "Import space program from Excel (creates filled regions)";
+                importProgramBtn.ToolTip = Localization.Get("Ribbon.ImportProgramTooltip");
                 programPanel.AddItem(importProgramBtn);
 
                 // Convert to Rooms
                 var convertToRoomsBtn = new PushButtonData(
                     "ConvertToRooms",
-                    "Convert to\nRooms",
+                    Localization.Get("Ribbon.ConvertToRooms"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.ConvertToRoomsCommand"
                 );
-                convertToRoomsBtn.ToolTip = "Convert selected filled regions to rooms";
+                convertToRoomsBtn.ToolTip = Localization.Get("Ribbon.ConvertToRoomsTooltip");
                 programPanel.AddItem(convertToRoomsBtn);
 
                 // ===== VERSIONS PANEL =====
-                var trackerPanel = application.CreateRibbonPanel(tabName, "Versions");
+                var trackerPanel = application.CreateRibbonPanel(tabName, Localization.Get("Panel.Versions"));
 
                 // Entity Type ComboBox
                 var comboBoxData = new ComboBoxData("EntityTypeCombo");
@@ -92,15 +96,15 @@ namespace ViewTracker
                 comboBox.ToolTip = "Select entity type to track (Rooms, Doors, or Elements)";
                 comboBox.LongDescription = "Choose which type of elements you want to snapshot, compare, or view history for.";
 
-                var roomItemData = new ComboBoxMemberData("Room", "Rooms");
+                var roomItemData = new ComboBoxMemberData("Room", Localization.Get("EntityType.Rooms"));
                 roomItemData.GroupName = "Entity Type";
                 var roomItem = comboBox.AddItem(roomItemData);
 
-                var doorItemData = new ComboBoxMemberData("Door", "Doors");
+                var doorItemData = new ComboBoxMemberData("Door", Localization.Get("EntityType.Doors"));
                 doorItemData.GroupName = "Entity Type";
                 var doorItem = comboBox.AddItem(doorItemData);
 
-                var elementItemData = new ComboBoxMemberData("Element", "Elements");
+                var elementItemData = new ComboBoxMemberData("Element", Localization.Get("EntityType.Elements"));
                 elementItemData.GroupName = "Entity Type";
                 var elementItem = comboBox.AddItem(elementItemData);
 
@@ -127,11 +131,11 @@ namespace ViewTracker
                 // Create regular buttons with 16x16 icons
                 var snapshotBtn = new PushButtonData(
                     "UnifiedSnapshot",
-                    "Snapshot",
+                    Localization.Get("Ribbon.Snapshot"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedSnapshotCommand"
                 );
-                snapshotBtn.ToolTip = "Create snapshot with trackID (draft or official)";
+                snapshotBtn.ToolTip = Localization.Get("Ribbon.SnapshotTooltip");
                 try
                 {
                     string assemblyPath = typeof(Application).Assembly.Location;
@@ -151,11 +155,11 @@ namespace ViewTracker
 
                 var compareBtn = new PushButtonData(
                     "UnifiedCompare",
-                    "Compare",
+                    Localization.Get("Ribbon.Compare"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedCompareCommand"
                 );
-                compareBtn.ToolTip = "Compare current state with a snapshot version";
+                compareBtn.ToolTip = Localization.Get("Ribbon.CompareTooltip");
                 try
                 {
                     string assemblyPath = typeof(Application).Assembly.Location;
@@ -175,11 +179,11 @@ namespace ViewTracker
 
                 var historyBtn = new PushButtonData(
                     "UnifiedHistory",
-                    "History",
+                    Localization.Get("Ribbon.History"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedHistoryCommand"
                 );
-                historyBtn.ToolTip = "View history - select one element for single history, or select nothing for all history";
+                historyBtn.ToolTip = Localization.Get("Ribbon.HistoryTooltip");
                 try
                 {
                     string assemblyPath = typeof(Application).Assembly.Location;
@@ -202,11 +206,11 @@ namespace ViewTracker
                 // Unified Restore button (context-aware: Rooms/Doors/Elements)
                 var restoreBtn = new PushButtonData(
                     "UnifiedRestore",
-                    "Restore",
+                    Localization.Get("Ribbon.Restore"),
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedRestoreCommand"
                 );
-                restoreBtn.ToolTip = "Restore parameters from a snapshot version (Rooms: full restore, Doors/Elements: parameters only)";
+                restoreBtn.ToolTip = Localization.Get("Ribbon.RestoreTooltip");
                 restoreBtn.LongDescription = "Rooms: Restore all parameters and recreate deleted rooms\n" +
                                             "Doors/Elements: Restore instance parameters only (existing elements)";
                 try
