@@ -28,8 +28,16 @@ namespace ViewTracker.Commands
 
             // 2. Check if user selected an element
             var selectedIds = uiDoc.Selection.GetElementIds();
-            FamilyInstance selectedElement = null;
 
+            // If nothing selected, route to "All History" command
+            if (selectedIds.Count == 0)
+            {
+                var exportHistoryCommand = new UnifiedExportHistoryCommand();
+                return exportHistoryCommand.Execute(commandData, ref message, elements);
+            }
+
+            // If exactly one element selected, show single history
+            FamilyInstance selectedElement = null;
             if (selectedIds.Count == 1)
             {
                 var element = doc.GetElement(selectedIds.First());
@@ -43,8 +51,9 @@ namespace ViewTracker.Commands
             if (selectedElement == null || selectedElement.LookupParameter("trackID") == null ||
                 string.IsNullOrWhiteSpace(selectedElement.LookupParameter("trackID").AsString()))
             {
-                TaskDialog.Show("No Element Selected",
-                    "Please select exactly one element (not a door) with a trackID parameter to view its history.");
+                TaskDialog.Show("Invalid Selection",
+                    "For single element history: Select exactly one element (not door) with trackID.\n" +
+                    "For all history: Select nothing and click History again.");
                 return Result.Cancelled;
             }
 

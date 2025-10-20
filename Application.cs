@@ -175,11 +175,11 @@ namespace ViewTracker
 
                 var historyBtn = new PushButtonData(
                     "UnifiedHistory",
-                    "Single\nHistory",
+                    "History",
                     typeof(Application).Assembly.Location,
                     "ViewTracker.Commands.UnifiedHistoryCommand"
                 );
-                historyBtn.ToolTip = "View history of a single selected element across all versions";
+                historyBtn.ToolTip = "View history - select one element for single history, or select nothing for all history";
                 try
                 {
                     string assemblyPath = typeof(Application).Assembly.Location;
@@ -199,16 +199,6 @@ namespace ViewTracker
 
                 trackerPanel.AddSeparator();
 
-                // Export History button
-                var exportHistoryBtn = new PushButtonData(
-                    "UnifiedExportHistory",
-                    "All\nHistory",
-                    typeof(Application).Assembly.Location,
-                    "ViewTracker.Commands.UnifiedExportHistoryCommand"
-                );
-                exportHistoryBtn.ToolTip = "Export all elements' snapshot history to Excel or CSV";
-                trackerPanel.AddItem(exportHistoryBtn);
-
                 // Unified Restore button (context-aware: Rooms/Doors/Elements)
                 var restoreBtn = new PushButtonData(
                     "UnifiedRestore",
@@ -219,6 +209,21 @@ namespace ViewTracker
                 restoreBtn.ToolTip = "Restore parameters from a snapshot version (Rooms: full restore, Doors/Elements: parameters only)";
                 restoreBtn.LongDescription = "Rooms: Restore all parameters and recreate deleted rooms\n" +
                                             "Doors/Elements: Restore instance parameters only (existing elements)";
+                try
+                {
+                    string assemblyPath = typeof(Application).Assembly.Location;
+                    string iconPath16 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "restore16.png");
+                    string iconPath32 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "restore32.png");
+                    if (System.IO.File.Exists(iconPath16))
+                    {
+                        restoreBtn.Image = new BitmapImage(new Uri(iconPath16, UriKind.Absolute));
+                    }
+                    if (System.IO.File.Exists(iconPath32))
+                    {
+                        restoreBtn.LargeImage = new BitmapImage(new Uri(iconPath32, UriKind.Absolute));
+                    }
+                }
+                catch { }
                 trackerPanel.AddItem(restoreBtn);
 
             }

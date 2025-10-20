@@ -67,7 +67,19 @@ namespace ViewTracker.Commands
                 {
                     if (!param.IsReadOnly && param.Definition is Definition def && param.StorageType != StorageType.ElementId)
                     {
-                        filledRegionParams.Add(def.Name);
+                        var paramName = def.Name;
+
+                        // Skip IFC parameters (they're not useful for room mapping)
+                        if (paramName.Contains("IFC") ||
+                            paramName.Contains("prédéfini d'IFC") ||
+                            paramName == "Exporter au format IFC" ||
+                            paramName == "Export to IFC" ||
+                            paramName == "Exporter au format IFC sous" ||
+                            paramName == "Export to IFC as" ||
+                            paramName == "Type prédéfini d'IFC")
+                            continue;
+
+                        filledRegionParams.Add(paramName);
                     }
                 }
 
@@ -112,7 +124,15 @@ namespace ViewTracker.Commands
                             if (!roomParameters.Contains(paramName) &&
                                 !paramName.StartsWith("Phase") &&
                                 !paramName.StartsWith("Level") &&
-                                param.StorageType != StorageType.ElementId)
+                                param.StorageType != StorageType.ElementId &&
+                                // Skip IFC parameters
+                                !paramName.Contains("IFC") &&
+                                !paramName.Contains("prédéfini d'IFC") &&
+                                paramName != "Exporter au format IFC" &&
+                                paramName != "Export to IFC" &&
+                                paramName != "Exporter au format IFC sous" &&
+                                paramName != "Export to IFC as" &&
+                                paramName != "Type prédéfini d'IFC")
                             {
                                 roomParameters.Add(paramName);
                             }

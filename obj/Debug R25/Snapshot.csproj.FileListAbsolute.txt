@@ -77,3 +77,5 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\refint\Snapshot.dll
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot.pdb
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot.genruntimeconfig.cache
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\ref\Snapshot.dll
+C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\restore16.png
+C:\Users\yichao\Documents\VsCode\viewtracker\bin\Debug R25\Resources\Icons\restore32.png
