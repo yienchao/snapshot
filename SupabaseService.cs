@@ -490,13 +490,31 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         {
             try
             {
-                var results = await _supabase
-                    .From<DoorSnapshot>()
-                    .Where(x => x.ProjectId == projectId)
-                    .Get();
+                var allSnapshots = new List<DoorSnapshot>();
+                const int batchSize = 1000;
+                int offset = 0;
+
+                // Load all snapshots with pagination
+                while (true)
+                {
+                    var resp = await _supabase
+                        .From<DoorSnapshot>()
+                        .Where(x => x.ProjectId == projectId)
+                        // Add ordering for deterministic pagination
+                        .Order(x => x.VersionName, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Order(x => x.TrackId, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Range(offset, offset + batchSize - 1)
+                        .Get();
+
+                    var batch = resp.Models.ToList();
+                    allSnapshots.AddRange(batch);
+
+                    if (batch.Count < batchSize) break;
+                    offset += batchSize;
+                }
 
                 // Return one snapshot per version (with metadata)
-                return results.Models
+                return allSnapshots
                     .GroupBy(r => r.VersionName)
                     .Select(g => g.First())
                     .OrderByDescending(r => r.SnapshotDate)
@@ -638,13 +656,31 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         {
             try
             {
-                var results = await _supabase
-                    .From<ElementSnapshot>()
-                    .Where(x => x.ProjectId == projectId)
-                    .Get();
+                var allSnapshots = new List<ElementSnapshot>();
+                const int batchSize = 1000;
+                int offset = 0;
+
+                // Load all snapshots with pagination
+                while (true)
+                {
+                    var resp = await _supabase
+                        .From<ElementSnapshot>()
+                        .Where(x => x.ProjectId == projectId)
+                        // Add ordering for deterministic pagination
+                        .Order(x => x.VersionName, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Order(x => x.TrackId, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Range(offset, offset + batchSize - 1)
+                        .Get();
+
+                    var batch = resp.Models.ToList();
+                    allSnapshots.AddRange(batch);
+
+                    if (batch.Count < batchSize) break;
+                    offset += batchSize;
+                }
 
                 // Return one snapshot per version (with metadata)
-                return results.Models
+                return allSnapshots
                     .GroupBy(r => r.VersionName)
                     .Select(g => g.First())
                     .OrderByDescending(r => r.SnapshotDate)

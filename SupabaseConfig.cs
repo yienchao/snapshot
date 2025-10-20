@@ -43,6 +43,12 @@ namespace ViewTracker
         private static DateTime _cacheTimestamp;
         private static readonly object _lock = new object();
 
+        // Reusable HttpClient - creating new instances causes socket exhaustion
+        private static readonly HttpClient _httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
         /// <summary>
         /// Gets Supabase configuration, using cache if available and valid
         /// </summary>
@@ -101,43 +107,78 @@ namespace ViewTracker
         }
 
         /// <summary>
-        /// Downloads config file from Supabase Storage
+        /// Downloads config file from Supabase Storage with retry logic
         /// </summary>
         private static async Task<SupabaseConfig> DownloadConfigAsync()
         {
-            try
+            const int maxRetries = 3;
+            const int delayMs = 1000; // 1 second base delay
+
+            Exception lastException = null;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                using var httpClient = new HttpClient();
-
-                // Construct URL to public config file in Supabase Storage
-                // Format: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
-                var configUrl = $"{BOOTSTRAP_URL}/storage/v1/object/public/{CONFIG_BUCKET}/{CONFIG_FILE_PATH}";
-
-                // Public buckets don't need authorization headers
-                var response = await httpClient.GetAsync(configUrl);
-
-                if (!response.IsSuccessStatusCode)
+                try
                 {
-                    throw new Exception($"Failed to download config: {response.StatusCode} - {response.ReasonPhrase}");
+                    // Construct URL to public config file in Supabase Storage
+                    // Format: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
+                    var configUrl = $"{BOOTSTRAP_URL}/storage/v1/object/public/{CONFIG_BUCKET}/{CONFIG_FILE_PATH}";
+
+                    // Public buckets don't need authorization headers
+                    var response = await _httpClient.GetAsync(configUrl);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        throw new Exception($"Failed to download config: {response.StatusCode} - {response.ReasonPhrase}");
+                    }
+
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    var config = JsonSerializer.Deserialize<SupabaseConfig>(jsonContent, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (config == null || string.IsNullOrWhiteSpace(config.SupabaseUrl) || string.IsNullOrWhiteSpace(config.SupabaseKey))
+                    {
+                        throw new Exception("Downloaded config is invalid or incomplete");
+                    }
+
+                    // Success!
+                    if (attempt > 1)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Config download succeeded on attempt {attempt}");
+                    }
+                    return config;
                 }
-
-                var jsonContent = await response.Content.ReadAsStringAsync();
-                var config = JsonSerializer.Deserialize<SupabaseConfig>(jsonContent, new JsonSerializerOptions
+                catch (HttpRequestException ex)
                 {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (config == null || string.IsNullOrWhiteSpace(config.SupabaseUrl) || string.IsNullOrWhiteSpace(config.SupabaseKey))
-                {
-                    throw new Exception("Downloaded config is invalid or incomplete");
+                    lastException = ex;
+                    if (attempt < maxRetries)
+                    {
+                        var delay = delayMs * attempt; // Exponential backoff: 1s, 2s, 3s
+                        System.Diagnostics.Debug.WriteLine($"Config download attempt {attempt} failed: {ex.Message}. Retrying in {delay}ms...");
+                        await Task.Delay(delay);
+                    }
                 }
+                catch (TaskCanceledException ex)
+                {
+                    lastException = ex;
+                    if (attempt < maxRetries)
+                    {
+                        var delay = delayMs * attempt;
+                        System.Diagnostics.Debug.WriteLine($"Config download attempt {attempt} timed out. Retrying in {delay}ms...");
+                        await Task.Delay(delay);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Non-retryable exceptions (invalid JSON, etc.) - fail immediately
+                    throw new Exception($"Failed to download Supabase configuration: {ex.Message}", ex);
+                }
+            }
 
-                return config;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Failed to download Supabase configuration: {ex.Message}", ex);
-            }
+            // All retries exhausted
+            throw new Exception($"Failed to download Supabase configuration after {maxRetries} attempts: {lastException?.Message}", lastException);
         }
 
         /// <summary>
