@@ -740,9 +740,11 @@ namespace ViewTracker.Views
 
             using (Transaction trans = new Transaction(_doc, "Restore Rooms from Snapshot"))
             {
-                trans.Start();
+                try
+                {
+                    trans.Start();
 
-                foreach (var snapshot in snapshotsToRestore)
+                    foreach (var snapshot in snapshotsToRestore)
                 {
                     // Determine snapshot placement state
                     bool snapshotWasPlaced = snapshot.PositionX.HasValue && snapshot.PositionY.HasValue;
@@ -858,7 +860,17 @@ namespace ViewTracker.Views
                     }
                 }
 
-                trans.Commit();
+                    trans.Commit();
+                }
+                catch (Exception ex)
+                {
+                    // Rollback transaction if it was started but not committed
+                    if (trans.HasStarted() && !trans.HasEnded())
+                    {
+                        trans.RollBack();
+                    }
+                    throw new Exception($"Room restore failed and was rolled back: {ex.Message}", ex);
+                }
             }
 
             return result;

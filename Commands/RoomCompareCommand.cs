@@ -291,13 +291,25 @@ namespace ViewTracker.Commands
         private ComparisonResult CompareSnapshots(List<RoomSnapshot> snapshot1, List<RoomSnapshot> snapshot2, Document doc)
         {
             var result = new ComparisonResult();
-            var snapshot1Dict = snapshot1.ToDictionary(s => s.TrackId, s => s);
-            var snapshot2Dict = snapshot2.ToDictionary(s => s.TrackId, s => s);
+
+            // Use GroupBy to handle duplicate trackIDs safely (take first occurrence)
+            var snapshot1Dict = snapshot1
+                .Where(s => !string.IsNullOrWhiteSpace(s.TrackId))
+                .GroupBy(s => s.TrackId.Trim())
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var snapshot2Dict = snapshot2
+                .Where(s => !string.IsNullOrWhiteSpace(s.TrackId))
+                .GroupBy(s => s.TrackId.Trim())
+                .ToDictionary(g => g.Key, g => g.First());
 
             // Find new rooms (in snapshot2, not in snapshot1)
             foreach (var room in snapshot2)
             {
-                if (!snapshot1Dict.ContainsKey(room.TrackId))
+                if (string.IsNullOrWhiteSpace(room.TrackId)) continue;
+                var trackIdNormalized = room.TrackId.Trim();
+
+                if (!snapshot1Dict.ContainsKey(trackIdNormalized))
                 {
                     result.NewRooms.Add(new RoomChange
                     {
@@ -312,7 +324,10 @@ namespace ViewTracker.Commands
             // Find deleted rooms (in snapshot1, not in snapshot2)
             foreach (var room in snapshot1)
             {
-                if (!snapshot2Dict.ContainsKey(room.TrackId))
+                if (string.IsNullOrWhiteSpace(room.TrackId)) continue;
+                var trackIdNormalized = room.TrackId.Trim();
+
+                if (!snapshot2Dict.ContainsKey(trackIdNormalized))
                 {
                     result.DeletedRooms.Add(new RoomChange
                     {
@@ -327,7 +342,10 @@ namespace ViewTracker.Commands
             // Find modified rooms and unplaced rooms
             foreach (var room2 in snapshot2)
             {
-                if (snapshot1Dict.TryGetValue(room2.TrackId, out var room1))
+                if (string.IsNullOrWhiteSpace(room2.TrackId)) continue;
+                var trackIdNormalized = room2.TrackId.Trim();
+
+                if (snapshot1Dict.TryGetValue(trackIdNormalized, out var room1))
                 {
                     // Check if room became unplaced (was placed in snapshot1, now unplaced in snapshot2)
                     bool wasPlaced = room1.Area.HasValue && room1.Area.Value > 0.001;

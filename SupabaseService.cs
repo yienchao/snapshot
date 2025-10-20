@@ -178,19 +178,13 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
     try
     {
-        const int batchSize = 200;
-        for (int i = 0; i < orphanUniqueIds.Count; i += batchSize)
+        foreach (var orphanId in orphanUniqueIds)
         {
-            var batch = orphanUniqueIds.Skip(i).Take(batchSize).ToList();
-
-            foreach (var orphanId in batch)
+            await _supabase.From<ViewActivationRecord>().Delete(new ViewActivationRecord
             {
-                await _supabase.From<ViewActivationRecord>().Delete(new ViewActivationRecord
-                {
-                    ViewUniqueId = orphanId,
-                    FileName = fileName  // ← ADD THIS LINE!
-                });
-            }
+                ViewUniqueId = orphanId,
+                FileName = fileName
+            });
         }
     }
     catch (Exception ex)
