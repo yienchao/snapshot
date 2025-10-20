@@ -77,6 +77,16 @@ namespace ViewTracker
                 importProgramBtn.ToolTip = Localization.Get("Ribbon.ImportProgramTooltip");
                 programPanel.AddItem(importProgramBtn);
 
+                // Sync Real Area
+                var syncAreaBtn = new PushButtonData(
+                    "SyncRealArea",
+                    Localization.Get("Ribbon.SyncRealArea"),
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.SyncRealAreaCommand"
+                );
+                syncAreaBtn.ToolTip = Localization.Get("Ribbon.SyncRealAreaTooltip");
+                programPanel.AddItem(syncAreaBtn);
+
                 // Convert to Rooms
                 var convertToRoomsBtn = new PushButtonData(
                     "ConvertToRooms",

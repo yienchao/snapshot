@@ -70,13 +70,7 @@ namespace ViewTracker.Commands
                         var paramName = def.Name;
 
                         // Skip IFC parameters (they're not useful for room mapping)
-                        if (paramName.Contains("IFC") ||
-                            paramName.Contains("prédéfini d'IFC") ||
-                            paramName == "Exporter au format IFC" ||
-                            paramName == "Export to IFC" ||
-                            paramName == "Exporter au format IFC sous" ||
-                            paramName == "Export to IFC as" ||
-                            paramName == "Type prédéfini d'IFC")
+                        if (paramName.ToLower().Contains("ifc"))
                             continue;
 
                         filledRegionParams.Add(paramName);
@@ -126,13 +120,7 @@ namespace ViewTracker.Commands
                                 !paramName.StartsWith("Level") &&
                                 param.StorageType != StorageType.ElementId &&
                                 // Skip IFC parameters
-                                !paramName.Contains("IFC") &&
-                                !paramName.Contains("prédéfini d'IFC") &&
-                                paramName != "Exporter au format IFC" &&
-                                paramName != "Export to IFC" &&
-                                paramName != "Exporter au format IFC sous" &&
-                                paramName != "Export to IFC as" &&
-                                paramName != "Type prédéfini d'IFC")
+                                !paramName.ToLower().Contains("ifc"))
                             {
                                 roomParameters.Add(paramName);
                             }
@@ -176,7 +164,35 @@ namespace ViewTracker.Commands
                     return Result.Failed;
                 }
 
-                // 6. Convert filled regions to rooms
+                // 6. Get highest existing trackID number (for R-0001 format)
+                int nextTrackIdNumber = 1;
+                if (addTrackID)
+                {
+                    var allRooms = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType()
+                        .Cast<Room>()
+                        .ToList();
+
+                    foreach (var room in allRooms)
+                    {
+                        var trackIdParam = room.LookupParameter("trackID");
+                        if (trackIdParam != null)
+                        {
+                            var trackId = trackIdParam.AsString();
+                            if (!string.IsNullOrEmpty(trackId) && trackId.StartsWith("R-"))
+                            {
+                                var numberPart = trackId.Substring(2);
+                                if (int.TryParse(numberPart, out int number) && number >= nextTrackIdNumber)
+                                {
+                                    nextTrackIdNumber = number + 1;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 7. Convert filled regions to rooms
                 int createdCount = 0;
                 int failedCount = 0;
                 var elementsToDelete = new List<ElementId>();
@@ -255,13 +271,14 @@ namespace ViewTracker.Commands
                                 catch { }
                             }
 
-                            // Add trackID if requested
+                            // Add trackID if requested (R-0001 format)
                             if (addTrackID)
                             {
                                 var trackIdParam = newRoom.LookupParameter("trackID");
                                 if (trackIdParam != null && !trackIdParam.IsReadOnly)
                                 {
-                                    trackIdParam.Set(Guid.NewGuid().ToString());
+                                    trackIdParam.Set($"R-{nextTrackIdNumber:D4}");
+                                    nextTrackIdNumber++;
                                 }
                             }
 

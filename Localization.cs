@@ -174,6 +174,8 @@ namespace ViewTracker
             { "Ribbon.TemplateTooltip", "Download Excel template for space program" },
             { "Ribbon.ImportProgram", "Import\nProgram" },
             { "Ribbon.ImportProgramTooltip", "Import space program from Excel (creates filled regions)" },
+            { "Ribbon.SyncRealArea", "Sync Real\nArea" },
+            { "Ribbon.SyncRealAreaTooltip", "Sync calculated area to taggable parameter" },
             { "Ribbon.ConvertToRooms", "Convert to\nRooms" },
             { "Ribbon.ConvertToRoomsTooltip", "Convert selected filled regions to rooms" },
 
@@ -190,6 +192,17 @@ namespace ViewTracker
             { "Panel.ViewAnalytics", "View Analytics" },
             { "Panel.Program", "Program" },
             { "Panel.Versions", "Versions" },
+
+            // Sync Real Area
+            { "SyncArea.Title", "Sync Real Area" },
+            { "SyncArea.EnterTargetParam", "Enter the parameter name to sync the real area to:\n(e.g., Superficie_Nette_Reel)" },
+            { "SyncArea.NoFilledRegions", "No filled regions found.\n\nSelect filled regions or run on all filled regions in the project." },
+            { "SyncArea.NoRegionsWithParam", "No filled regions found with parameter '{0}'.\n\nMake sure the parameter exists on the filled regions." },
+            { "SyncArea.SuccessMessage", "Successfully synced {0} filled region(s).\n\nReal calculated area synced to parameter: {1}" },
+            { "SyncArea.ErrorCount", "{0} region(s) could not be synced (read-only or error)" },
+            { "SyncArea.FromSelection", "Processed: Selected regions only" },
+            { "SyncArea.ActiveView", "Processed: Active view only" },
+            { "SyncArea.EmptyParameter", "Please enter or select a parameter name." },
         };
         #endregion
 
@@ -306,6 +319,8 @@ namespace ViewTracker
             { "Ribbon.TemplateTooltip", "Télécharger le modèle Excel pour le programme d'espaces" },
             { "Ribbon.ImportProgram", "Importer\nProgramme" },
             { "Ribbon.ImportProgramTooltip", "Importer le programme d'espaces depuis Excel (crée des régions remplies)" },
+            { "Ribbon.SyncRealArea", "Synchro\nSurface" },
+            { "Ribbon.SyncRealAreaTooltip", "Synchroniser la surface calculée vers un paramètre identifiable" },
             { "Ribbon.ConvertToRooms", "Convertir en\nPièces" },
             { "Ribbon.ConvertToRoomsTooltip", "Convertir les régions remplies sélectionnées en pièces" },
 
@@ -322,6 +337,17 @@ namespace ViewTracker
             { "Panel.ViewAnalytics", "Analyse des vues" },
             { "Panel.Program", "Programme" },
             { "Panel.Versions", "Versions" },
+
+            // Sync Real Area
+            { "SyncArea.Title", "Synchroniser la surface réelle" },
+            { "SyncArea.EnterTargetParam", "Entrez le nom du paramètre où synchroniser la surface réelle :\n(ex : Superficie_Nette_Reel)" },
+            { "SyncArea.NoFilledRegions", "Aucune région remplie trouvée.\n\nSélectionnez des régions remplies ou exécutez sur toutes les régions du projet." },
+            { "SyncArea.NoRegionsWithParam", "Aucune région remplie trouvée avec le paramètre '{0}'.\n\nAssurez-vous que le paramètre existe sur les régions remplies." },
+            { "SyncArea.SuccessMessage", "{0} région(s) remplie(s) synchronisée(s) avec succès.\n\nSurface calculée réelle synchronisée vers le paramètre : {1}" },
+            { "SyncArea.ErrorCount", "{0} région(s) n'ont pas pu être synchronisée(s) (lecture seule ou erreur)" },
+            { "SyncArea.FromSelection", "Traité : Régions sélectionnées uniquement" },
+            { "SyncArea.ActiveView", "Traité : Vue active uniquement" },
+            { "SyncArea.EmptyParameter", "Veuillez entrer ou sélectionner un nom de paramètre." },
         };
         #endregion
     }

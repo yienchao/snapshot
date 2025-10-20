@@ -79,3 +79,5 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Snapshot.genruntimeco
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\ref\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R25\Resources\Icons\restore16.png
 C:\Users\yichao\Documents\VsCode\viewtracker\bin\Debug R25\Resources\Icons\restore32.png
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\SyncAreaWindow.baml
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R25\Views\SyncAreaWindow.g.cs
