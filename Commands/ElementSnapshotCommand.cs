@@ -113,7 +113,7 @@ namespace ViewTracker.Commands
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Error", $"Failed to check existing versions:\n{ex.InnerException?.Message ?? ex.Message}");
+                TaskDialog.Show("Error", $"Failed to check existing versions:\n{SanitizeErrorMessage(ex)}");
                 return Result.Failed;
             }
 
@@ -180,7 +180,7 @@ namespace ViewTracker.Commands
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Error", $"Failed to upload snapshots:\n\n{ex.InnerException?.Message ?? ex.Message}");
+                TaskDialog.Show("Error", $"Failed to upload snapshots:\n\n{SanitizeErrorMessage(ex)}");
                 return Result.Failed;
             }
 
@@ -337,6 +337,23 @@ namespace ViewTracker.Commands
             {
                 parameters[paramName] = paramValue;
             }
+        }
+
+        private string SanitizeErrorMessage(Exception ex)
+        {
+            var message = ex.InnerException?.Message ?? ex.Message;
+
+            // Remove URLs and hostnames to avoid exposing credentials
+            message = System.Text.RegularExpressions.Regex.Replace(message,
+                @"https?://[^\s\)]+",
+                "[server connection]");
+
+            // Remove anything that looks like a Supabase URL pattern
+            message = System.Text.RegularExpressions.Regex.Replace(message,
+                @"\([a-z0-9]+\.supabase\.co[^\)]*\)",
+                "(connection failed)");
+
+            return message;
         }
     }
 }

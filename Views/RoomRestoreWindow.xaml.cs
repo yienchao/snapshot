@@ -159,6 +159,10 @@ namespace ViewTracker.Views
             {
                 foreach (var param in sampleSnapshot.AllParameters.Keys)
                 {
+                    // Skip IFC parameters
+                    if (param.ToLower().Contains("ifc"))
+                        continue;
+
                     if (!excludedParamNames.Contains(param))
                     {
                         allParameters.Add($"{param}|AllParam_{param}");
@@ -175,6 +179,10 @@ namespace ViewTracker.Views
                 foreach (Parameter param in sampleRoom.GetOrderedParameters())
                 {
                     string paramName = param.Definition.Name;
+
+                    // Skip IFC parameters (they're not useful for room restore)
+                    if (paramName.ToLower().Contains("ifc"))
+                        continue;
 
                     // Skip built-in parameters using BuiltInParameter enum (language-independent)
                     if (param.Definition is InternalDefinition internalDef)
