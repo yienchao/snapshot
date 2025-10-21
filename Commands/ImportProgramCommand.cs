@@ -145,12 +145,13 @@ namespace ViewTracker.Commands
                             param.Definition is Definition def &&
                             param.StorageType != StorageType.ElementId)
                         {
-                            // Only include shared/project parameters, not built-in ones
-                            // Exclude Area (it's calculated from boundary, not settable)
                             var paramName = def.Name;
-                            if ((def is ExternalDefinition || param.IsShared) &&
-                                !paramName.Equals("Area", StringComparison.OrdinalIgnoreCase))
+
+                            // Exclude Area (calculated) and IFC parameters
+                            if (!paramName.Equals("Area", StringComparison.OrdinalIgnoreCase) &&
+                                !paramName.ToLower().Contains("ifc"))
                             {
+                                // Include both shared parameters and writable built-in parameters
                                 availableParameters.Add(paramName);
                             }
                         }
@@ -186,42 +187,63 @@ namespace ViewTracker.Commands
 
                 var mappings = mappingWindow.FinalMappings;
                 var groupByColumn = mappingWindow.GroupByColumn;
+                var colorByColumn = mappingWindow.ColorByColumn;
                 bool excelIsSquareFeet = mappingWindow.IsSquareFeet;
 
-                // 5. Get or create "space_layout" filled region type
-                FilledRegionType spaceLayoutType = filledRegionTypes.FirstOrDefault(t => t.Name == "space_layout");
+                // 5. Create colored filled region types based on colorByColumn
+                Dictionary<string, FilledRegionType> colorTypeMapping = null;
+                FilledRegionType defaultSpaceLayoutType = null;
 
-                if (spaceLayoutType == null)
+                if (!string.IsNullOrEmpty(colorByColumn))
                 {
-                    // Create new filled region type
-                    using (Transaction trans = new Transaction(doc, "Create space_layout Type"))
+                    // Get unique values for the color-by column
+                    var uniqueColorValues = excelData
+                        .Where(row => row.ContainsKey(colorByColumn))
+                        .Select(row => row[colorByColumn]?.ToString() ?? "Undefined")
+                        .Distinct()
+                        .OrderBy(v => v)
+                        .ToList();
+
+                    if (uniqueColorValues.Any())
                     {
-                        trans.Start();
+                        colorTypeMapping = CreateColoredFilledRegionTypes(doc, filledRegionTypes, uniqueColorValues);
+                    }
+                }
 
-                        // Duplicate an existing type or create from scratch
-                        if (filledRegionTypes.Any())
+                // If no colorization, create/get single default type
+                if (colorTypeMapping == null || !colorTypeMapping.Any())
+                {
+                    defaultSpaceLayoutType = filledRegionTypes.FirstOrDefault(t => t.Name == "space_layout");
+
+                    if (defaultSpaceLayoutType == null)
+                    {
+                        using (Transaction trans = new Transaction(doc, "Create space_layout Type"))
                         {
-                            spaceLayoutType = filledRegionTypes.First().Duplicate("space_layout") as FilledRegionType;
-                        }
-                        else
-                        {
-                            TaskDialog.Show("Error", "No filled region types found in project. Please create at least one filled region type first.");
-                            return Result.Failed;
-                        }
+                            trans.Start();
 
-                        // Set to light gray color
-                        var fillPatternElement = new FilteredElementCollector(doc)
-                            .OfClass(typeof(FillPatternElement))
-                            .Cast<FillPatternElement>()
-                            .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+                            if (filledRegionTypes.Any())
+                            {
+                                defaultSpaceLayoutType = filledRegionTypes.First().Duplicate("space_layout") as FilledRegionType;
+                            }
+                            else
+                            {
+                                TaskDialog.Show("Error", "No filled region types found in project. Please create at least one filled region type first.");
+                                return Result.Failed;
+                            }
 
-                        if (fillPatternElement != null)
-                        {
-                            spaceLayoutType.ForegroundPatternId = fillPatternElement.Id;
-                            spaceLayoutType.ForegroundPatternColor = new Color(200, 200, 200); // Light gray
+                            var fillPatternElement = new FilteredElementCollector(doc)
+                                .OfClass(typeof(FillPatternElement))
+                                .Cast<FillPatternElement>()
+                                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+
+                            if (fillPatternElement != null)
+                            {
+                                defaultSpaceLayoutType.ForegroundPatternId = fillPatternElement.Id;
+                                defaultSpaceLayoutType.ForegroundPatternColor = new Color(200, 200, 200);
+                            }
+
+                            trans.Commit();
                         }
-
-                        trans.Commit();
                     }
                 }
 
@@ -286,7 +308,7 @@ namespace ViewTracker.Commands
                     trans.Start();
 
                     // Pre-build curves list for all items (outside loop)
-                    var allCurvesData = new List<(List<CurveLoop> curves, Dictionary<string, object> data)>();
+                    var allCurvesData = new List<(List<CurveLoop> curves, Dictionary<string, object> data, string colorValue)>();
                     foreach (var item in layoutData)
                     {
                         var curveLoop = new CurveLoop();
@@ -300,7 +322,14 @@ namespace ViewTracker.Commands
                         curveLoop.Append(Line.CreateBound(p3, p4));
                         curveLoop.Append(Line.CreateBound(p4, p1));
 
-                        allCurvesData.Add((new List<CurveLoop> { curveLoop }, item.Data));
+                        // Get color value for this item
+                        string colorValue = null;
+                        if (!string.IsNullOrEmpty(colorByColumn) && item.Data.ContainsKey(colorByColumn))
+                        {
+                            colorValue = item.Data[colorByColumn]?.ToString() ?? "Undefined";
+                        }
+
+                        allCurvesData.Add((new List<CurveLoop> { curveLoop }, item.Data, colorValue));
                     }
 
                     // Create all filled regions first
@@ -309,7 +338,17 @@ namespace ViewTracker.Commands
                     {
                         try
                         {
-                            FilledRegion fr = FilledRegion.Create(doc, spaceLayoutType.Id, view.Id, curveData.curves);
+                            // Determine which type to use based on color value
+                            FilledRegionType typeToUse = defaultSpaceLayoutType;
+                            if (colorTypeMapping != null && !string.IsNullOrEmpty(curveData.colorValue))
+                            {
+                                if (colorTypeMapping.ContainsKey(curveData.colorValue))
+                                {
+                                    typeToUse = colorTypeMapping[curveData.colorValue];
+                                }
+                            }
+
+                            FilledRegion fr = FilledRegion.Create(doc, typeToUse.Id, view.Id, curveData.curves);
                             filledRegions.Add(fr);
                             createdCount++;
                         }
@@ -349,10 +388,16 @@ namespace ViewTracker.Commands
                     trans.Commit();
                 }
 
+                string colorMessage = "";
+                if (colorTypeMapping != null && colorTypeMapping.Any())
+                {
+                    colorMessage = $"\n\nColorized by: {colorByColumn} ({colorTypeMapping.Count} unique values)";
+                }
+
                 TaskDialog.Show("Success",
                     $"Imported {createdCount} space(s) from Excel.\n\n" +
-                    $"Type: space_layout\n" +
-                    $"View: {view.Name}\n\n" +
+                    $"View: {view.Name}" +
+                    colorMessage + "\n\n" +
                     $"Note: Area values from Excel are interpreted in project units.\n" +
                     $"Dimensions are calculated automatically (square root of area).\n\n" +
                     $"Adjust layout as needed, then use 'Convert to Rooms' when ready.");
@@ -569,6 +614,115 @@ namespace ViewTracker.Commands
             {
                 System.Diagnostics.Debug.WriteLine($"Error setting parameter {param.Definition.Name}: {ex.Message}");
             }
+        }
+
+        private Dictionary<string, FilledRegionType> CreateColoredFilledRegionTypes(
+            Document doc,
+            List<FilledRegionType> existingTypes,
+            List<string> uniqueValues)
+        {
+            var colorMapping = new Dictionary<string, FilledRegionType>();
+
+            // Define a vibrant, distinguishable color palette
+            var colorPalette = new List<Color>
+            {
+                new Color(231, 76, 60),   // Red
+                new Color(52, 152, 219),  // Blue
+                new Color(46, 204, 113),  // Green
+                new Color(241, 196, 15),  // Yellow
+                new Color(155, 89, 182),  // Purple
+                new Color(230, 126, 34),  // Orange
+                new Color(26, 188, 156),  // Turquoise
+                new Color(236, 112, 99),  // Pink
+                new Color(52, 73, 94),    // Dark Blue-Gray
+                new Color(127, 140, 141), // Gray
+                new Color(192, 57, 43),   // Dark Red
+                new Color(41, 128, 185),  // Ocean Blue
+                new Color(39, 174, 96),   // Emerald
+                new Color(243, 156, 18),  // Orange-Yellow
+                new Color(142, 68, 173),  // Dark Purple
+                new Color(211, 84, 0),    // Dark Orange
+                new Color(22, 160, 133),  // Dark Turquoise
+                new Color(189, 195, 199), // Light Gray
+                new Color(149, 165, 166), // Medium Gray
+                new Color(44, 62, 80)     // Very Dark Blue
+            };
+
+            using (Transaction trans = new Transaction(doc, "Create Colored Filled Region Types"))
+            {
+                trans.Start();
+
+                // Get solid fill pattern
+                var fillPatternElement = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+
+                if (fillPatternElement == null)
+                {
+                    trans.RollBack();
+                    return colorMapping;
+                }
+
+                if (!existingTypes.Any())
+                {
+                    trans.RollBack();
+                    return colorMapping;
+                }
+
+                // Create a colored type for each unique value
+                for (int i = 0; i < uniqueValues.Count; i++)
+                {
+                    string value = uniqueValues[i];
+                    string typeName = SanitizeTypeName(value);
+
+                    // Check if type already exists
+                    var existingType = existingTypes.FirstOrDefault(t => t.Name == typeName);
+                    if (existingType != null)
+                    {
+                        colorMapping[value] = existingType;
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Duplicate first available type
+                        var newType = existingTypes.First().Duplicate(typeName) as FilledRegionType;
+
+                        // Assign color from palette (cycle through if more values than colors)
+                        Color color = colorPalette[i % colorPalette.Count];
+
+                        newType.ForegroundPatternId = fillPatternElement.Id;
+                        newType.ForegroundPatternColor = color;
+
+                        colorMapping[value] = newType;
+                        System.Diagnostics.Debug.WriteLine($"Created type '{typeName}' with color RGB({color.Red},{color.Green},{color.Blue})");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to create type for value '{value}': {ex.Message}");
+                    }
+                }
+
+                trans.Commit();
+            }
+
+            return colorMapping;
+        }
+
+        private string SanitizeTypeName(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return "Undefined";
+
+            // Keep spaces but remove other invalid characters, limit length to 50
+            var sanitized = new string(input
+                .Where(c => char.IsLetterOrDigit(c) || c == ' ' || c == '_' || c == '-' || c == '(' || c == ')')
+                .Take(50)
+                .ToArray())
+                .Trim();
+
+            return string.IsNullOrWhiteSpace(sanitized) ? "Value" : sanitized;
         }
 
         private class LayoutItem

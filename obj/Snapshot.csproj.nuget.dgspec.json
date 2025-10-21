@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {}
+    "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {}
   },
   "projects": {
-    "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {
+    "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
+        "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
         "projectName": "Snapshot",
-        "projectPath": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
+        "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
         "packagesPath": "C:\\Users\\yichao\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
+        "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\yichao\\AppData\\Roaming\\NuGet\\NuGet.Config"

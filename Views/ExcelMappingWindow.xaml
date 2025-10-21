@@ -80,6 +80,20 @@
                 <TextBlock Text="Spaces with same value will be grouped together with extra spacing between groups"
                            FontSize="11" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
+                <!-- Color by -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Color spaces by:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <ComboBox Grid.Column="1" x:Name="ColorByComboBox">
+                        <ComboBoxItem Content="(No colors - default gray)" IsSelected="True"/>
+                    </ComboBox>
+                </Grid>
+                <TextBlock Text="Each unique value will get a different color using an automatic color palette"
+                           FontSize="11" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,10"/>
+
                 <!-- Area units -->
                 <Grid Margin="0,5,0,0">
                     <Grid.ColumnDefinitions>

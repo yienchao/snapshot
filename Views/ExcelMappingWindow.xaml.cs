@@ -41,6 +41,7 @@ namespace ViewTracker.Views
         private List<string> _excelColumns;
         public Dictionary<string, string> FinalMappings { get; private set; }
         public string GroupByColumn { get; private set; }
+        public string ColorByColumn { get; private set; }
         public bool IsSquareFeet { get; private set; } = false;
         public bool WasImported { get; private set; } = false;
 
@@ -72,6 +73,12 @@ namespace ViewTracker.Views
             foreach (var column in excelColumns)
             {
                 GroupByComboBox.Items.Add(new ComboBoxItem { Content = column });
+            }
+
+            // Populate ColorBy dropdown with Excel columns
+            foreach (var column in excelColumns)
+            {
+                ColorByComboBox.Items.Add(new ComboBoxItem { Content = column });
             }
         }
 
@@ -233,6 +240,16 @@ namespace ViewTracker.Views
                 if (content != "(No grouping)")
                 {
                     GroupByColumn = content;
+                }
+            }
+
+            // Get color-by column
+            if (ColorByComboBox.SelectedItem is ComboBoxItem selectedColorItem)
+            {
+                var content = selectedColorItem.Content?.ToString();
+                if (content != "(No colors - default gray)")
+                {
+                    ColorByColumn = content;
                 }
             }
 
