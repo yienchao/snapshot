@@ -122,11 +122,5 @@
         <Folder Include="Models" />
     </ItemGroup>
 
-    <!-- Include the config file in build output -->
-    <ItemGroup>
-        <None Include="Snapshot.dll.config">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
 
 </Project>

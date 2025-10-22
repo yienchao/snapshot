@@ -213,31 +213,6 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
         // Room Snapshot Methods
 
-        // Check if trackIDs already exist in the project (for validation before snapshot)
-        public async Task<List<string>> GetExistingTrackIdsInProjectAsync(List<string> trackIds, Guid projectId)
-        {
-            try
-            {
-                var existingSnapshots = await _supabase
-                    .From<RoomSnapshot>()
-                    .Where(x => x.ProjectId == projectId)
-                    .Get();
-
-                var existingTrackIds = existingSnapshots.Models
-                    .Select(s => s.TrackId)
-                    .Distinct()
-                    .Where(trackId => trackIds.Contains(trackId))
-                    .ToList();
-
-                return existingTrackIds;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error checking existing trackIDs: {ex.Message}");
-                return new List<string>();
-            }
-        }
-
         // Check if version name already exists
         public async Task<bool> VersionExistsAsync(string versionName, string fileName)
         {
@@ -421,31 +396,6 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
         // Door Snapshot Methods
 
-        // Check if door trackIDs already exist in the project (for validation before snapshot)
-        public async Task<List<string>> GetExistingDoorTrackIdsInProjectAsync(List<string> trackIds, Guid projectId)
-        {
-            try
-            {
-                var existingSnapshots = await _supabase
-                    .From<DoorSnapshot>()
-                    .Where(x => x.ProjectId == projectId)
-                    .Get();
-
-                var existingTrackIds = existingSnapshots.Models
-                    .Select(s => s.TrackId)
-                    .Distinct()
-                    .Where(trackId => trackIds.Contains(trackId))
-                    .ToList();
-
-                return existingTrackIds;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error checking existing door trackIDs: {ex.Message}");
-                return new List<string>();
-            }
-        }
-
         // Check if door version name already exists
         public async Task<bool> DoorVersionExistsAsync(string versionName, string fileName)
         {
@@ -611,31 +561,6 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Element Snapshot Methods
-
-        // Check if element trackIDs already exist in the project (for validation before snapshot)
-        public async Task<List<string>> GetExistingElementTrackIdsInProjectAsync(List<string> trackIds, Guid projectId)
-        {
-            try
-            {
-                var existingSnapshots = await _supabase
-                    .From<ElementSnapshot>()
-                    .Where(x => x.ProjectId == projectId)
-                    .Get();
-
-                var existingTrackIds = existingSnapshots.Models
-                    .Select(s => s.TrackId)
-                    .Distinct()
-                    .Where(trackId => trackIds.Contains(trackId))
-                    .ToList();
-
-                return existingTrackIds;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error checking existing element trackIDs: {ex.Message}");
-                return new List<string>();
-            }
-        }
 
         // Check if element version name already exists
         public async Task<bool> ElementVersionExistsAsync(string versionName, string fileName)

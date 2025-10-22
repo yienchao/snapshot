@@ -17,14 +17,14 @@
           "C:\\Users\\yichao\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net8.0-windows"
+          "net48"
         ],
         "sources": {
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net8.0-windows7.0": {
-            "targetAlias": "net8.0-windows",
+          "net48": {
+            "targetAlias": "net48",
             "projectReferences": {}
           }
         },
@@ -43,12 +43,12 @@
         }
       },
       "frameworks": {
-        "net8.0-windows7.0": {
-          "targetAlias": "net8.0-windows",
+        "net48": {
+          "targetAlias": "net48",
           "dependencies": {
             "CommunityToolkit.Mvvm": {
               "target": "Package",
-              "version": "[8.4.0, )"
+              "version": "[8.2.2, )"
             },
             "EPPlus": {
               "target": "Package",
@@ -56,11 +56,11 @@
             },
             "Nice3point.Revit.Api.RevitAPI": {
               "target": "Package",
-              "version": "[2025.0.0, )"
+              "version": "[2024.0.0, )"
             },
             "Nice3point.Revit.Api.RevitAPIUI": {
               "target": "Package",
-              "version": "[2025.0.0, )"
+              "version": "[2024.0.0, )"
             },
             "Nice3point.Revit.Build.Tasks": {
               "target": "Package",
@@ -68,37 +68,18 @@
             },
             "Nice3point.Revit.Extensions": {
               "target": "Package",
-              "version": "[2025.0.0, )"
+              "version": "[2024.0.0, )"
             },
             "Nice3point.Revit.Toolkit": {
               "target": "Package",
-              "version": "[2025.0.0, )"
+              "version": "[2024.0.0, )"
             },
             "Supabase": {
               "target": "Package",
-              "version": "[1.0.5, )"
+              "version": "[0.15.2, )"
             }
           },
-          "imports": [
-            "net461",
-            "net462",
-            "net47",
-            "net471",
-            "net472",
-            "net48",
-            "net481"
-          ],
-          "assetTargetFallback": true,
-          "warn": true,
-          "frameworkReferences": {
-            "Microsoft.NETCore.App": {
-              "privateAssets": "all"
-            },
-            "Microsoft.WindowsDesktop.App.WPF": {
-              "privateAssets": "none"
-            }
-          },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.415\\RuntimeIdentifierGraph.json"
         }
       }
     }

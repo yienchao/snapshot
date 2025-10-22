@@ -62,35 +62,8 @@ namespace ViewTracker.Commands
                 return Result.Failed;
             }
 
-            // 4. Check for trackIDs that already exist in other files in the project
-            var currentTrackIds = doorsWithTrackId.Select(d => d.LookupParameter("trackID").AsString()).ToList();
+            // 4. Get version name and type
             var supabaseService = new SupabaseService();
-            List<string> existingTrackIds = new List<string>();
-
-            try
-            {
-                System.Threading.Tasks.Task.Run(async () =>
-                {
-                    await supabaseService.InitializeAsync();
-                    existingTrackIds = await supabaseService.GetExistingDoorTrackIdsInProjectAsync(currentTrackIds, projectId);
-                }).Wait();
-            }
-            catch (Exception ex)
-            {
-                TaskDialog.Show("Error", $"Failed to check for existing trackIDs in project:\n{SanitizeErrorMessage(ex)}");
-                return Result.Failed;
-            }
-
-            if (existingTrackIds.Any())
-            {
-                var duplicateList = string.Join("\n", existingTrackIds.Select(id => $"  • {id}"));
-                TaskDialog.Show("trackIDs Already Exist in Project",
-                    $"The following trackIDs already exist in other files in this project:\n\n{duplicateList}\n\n" +
-                    $"trackIDs must be unique across the entire project. Please assign different trackIDs before creating a snapshot.");
-                return Result.Failed;
-            }
-
-            // 5. Get version name and type
             var versionDialog = new TaskDialog("Create Door Snapshot");
             versionDialog.MainInstruction = "Select snapshot type:";
             versionDialog.MainContent = "Official versions should be created by BIM Manager for milestones.\nDraft versions are for work-in-progress tracking.";
@@ -130,7 +103,7 @@ namespace ViewTracker.Commands
             {
                 System.Threading.Tasks.Task.Run(async () =>
                 {
-                    // supabaseService already initialized from trackID check
+                    await supabaseService.InitializeAsync();
                     versionExists = await supabaseService.DoorVersionExistsAsync(versionName, fileName);
                     if (versionExists)
                     {

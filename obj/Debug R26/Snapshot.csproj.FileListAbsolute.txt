@@ -6,7 +6,6 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Resources\Icons\Histo
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Resources\Icons\History32.png
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Resources\Icons\restore16.png
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Resources\Icons\restore32.png
-c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Snapshot.dll.config
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Snapshot.deps.json
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Snapshot.runtimeconfig.json
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R26\Snapshot.dll

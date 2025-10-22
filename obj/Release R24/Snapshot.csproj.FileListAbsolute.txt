@@ -34,7 +34,6 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Resources\Icons\His
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Resources\Icons\History32.png
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Resources\Icons\restore16.png
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Resources\Icons\restore32.png
-C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Snapshot.dll.config
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Snapshot.pdb
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\CommunityToolkit.Mvvm.dll
