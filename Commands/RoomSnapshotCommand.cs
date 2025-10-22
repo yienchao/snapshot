@@ -63,7 +63,35 @@ namespace ViewTracker.Commands
                 return Result.Failed;
             }
 
-            // 4. Get version name and type
+            // 4. Check for trackIDs that already exist in other files in the project
+            var currentTrackIds = roomsWithTrackId.Select(r => r.LookupParameter("trackID").AsString()).ToList();
+            var supabaseService = new SupabaseService();
+            List<string> existingTrackIds = new List<string>();
+
+            try
+            {
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await supabaseService.InitializeAsync();
+                    existingTrackIds = await supabaseService.GetExistingTrackIdsInProjectAsync(currentTrackIds, projectId);
+                }).Wait();
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show(Localization.Common.Error, $"Failed to check for existing trackIDs in project:\n{SanitizeErrorMessage(ex)}");
+                return Result.Failed;
+            }
+
+            if (existingTrackIds.Any())
+            {
+                var duplicateList = string.Join("\n", existingTrackIds.Select(id => $"  • {id}"));
+                TaskDialog.Show("trackIDs Already Exist in Project",
+                    $"The following trackIDs already exist in other files in this project:\n\n{duplicateList}\n\n" +
+                    $"trackIDs must be unique across the entire project. Please assign different trackIDs before creating a snapshot.");
+                return Result.Failed;
+            }
+
+            // 5. Get version name and type
             var versionDialog = new TaskDialog(Localization.Get("RoomSnapshot.Title"));
             versionDialog.MainInstruction = Localization.Get("Version.SelectSnapshotType");
             versionDialog.MainContent = Localization.Get("Version.OfficialDescription");
@@ -95,8 +123,7 @@ namespace ViewTracker.Commands
                 return Result.Failed;
             }
 
-            // Check if version already exists
-            var supabaseService = new SupabaseService();
+            // Check if version already exists (reuse supabaseService from trackID check)
             bool versionExists = false;
             RoomSnapshot existingVersion = null;
 
@@ -104,11 +131,11 @@ namespace ViewTracker.Commands
             {
                 System.Threading.Tasks.Task.Run(async () =>
                 {
-                    await supabaseService.InitializeAsync();
-                    versionExists = await supabaseService.VersionExistsAsync(versionName);
+                    // supabaseService already initialized from trackID check
+                    versionExists = await supabaseService.VersionExistsAsync(versionName, fileName);
                     if (versionExists)
                     {
-                        existingVersion = await supabaseService.GetVersionInfoAsync(versionName);
+                        existingVersion = await supabaseService.GetVersionInfoAsync(versionName, fileName);
                     }
                 }).Wait();
             }

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Snapshot for Revit 2024"
+           Language="1033"
+           Version="1.0.0.0"
+           Manufacturer="MSDL architects"
+           UpgradeCode="80D6BC89-9286-4325-89D3-A0A8A40B9C66">
+
+    <Package InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perUser"
+             Description="Snapshot - Version Control for Revit"
+             Comments="Copyright © 2025 MSDL architects" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Feature: Main Application -->
+    <Feature Id="ProductFeature"
+             Title="Snapshot for Revit 2024"
+             Level="1"
+             Description="Main application files">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="AddinManifest" />
+    </Feature>
+
+    <!-- Installation Directory -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="AppDataFolder">
+        <Directory Id="Autodesk" Name="Autodesk">
+          <Directory Id="Revit" Name="Revit">
+            <Directory Id="Addins" Name="Addins">
+              <Directory Id="Revit2024" Name="2024">
+                <Directory Id="INSTALLFOLDER" Name="Snapshot" />
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <!-- .addin manifest file -->
+    <DirectoryRef Id="Revit2024">
+      <Component Id="AddinManifest" Guid="A1B2C3D4-5678-90AB-CDEF-123456789012">
+        <File Id="SnapshotAddin"
+              Source="$(var.SourceDir)\Snapshot.addin"
+              KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Main application files -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="SnapshotDLL" Guid="B2C3D4E5-6789-01AB-CDEF-234567890123">
+        <File Id="SnapshotDLL" Source="$(var.SourceDir)\Snapshot.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="EPPlusDLL" Guid="C3D4E5F6-789A-12BC-DEF0-345678901234">
+        <File Id="EPPlusDLL" Source="$(var.SourceDir)\EPPlus.dll" />
+      </Component>
+      <Component Id="SupabaseDLL" Guid="D4E5F6A7-89AB-23CD-EF01-456789012345">
+        <File Id="SupabaseDLL" Source="$(var.SourceDir)\Supabase.dll" />
+      </Component>
+      <!-- Add more files here - or use heat.exe to harvest all DLLs automatically -->
+    </ComponentGroup>
+
+  </Product>
+</Wix>

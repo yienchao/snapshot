@@ -4,17 +4,17 @@
 library
 C#
 .cs
-C:\Users\yichao\Documents\VsCode\viewtracker\obj\Debug R24\
+c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\
 Snapshot
 none
 false
 ;DEBUG;TRACE;DEBUG_R24;NETFRAMEWORK;NET48;
 
-8-639222274
+101465643743
 
-42-214210967
+501258977483
 67-58101529
-Views\ComparisonModeWindow.xaml;Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\VersionSelectionWindow.xaml;
+Views\ComparisonModeWindow.xaml;Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\ParameterRestoreWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\SyncAreaWindow.xaml;Views\VersionSelectionWindow.xaml;
 
 False
 

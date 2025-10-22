@@ -5,7 +5,9 @@
       "Read(//c/Users/yichao/AppData/Roaming/Autodesk/Revit/Addins/**)",
       "Bash(dotnet build:*)",
       "Bash(\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" ViewTracker.sln /p:Configuration=Debug)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Read(//c/Users/yichao/AppData/Roaming/Snapshot/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

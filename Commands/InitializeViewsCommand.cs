@@ -36,8 +36,62 @@ namespace ViewTracker.Commands
                 if (string.IsNullOrEmpty(fileName))
                     fileName = document.Title;
 
-                Task.Run(async () => await OptimizedInitializeAndCleanViewsInDatabase(document, views, fileName, projectId));
-                TaskDialog.Show("ViewTracker", $"Started batch processing of {views.Count} views. Check Supabase for progress.");
+                // Run sync and wait for completion to show real result
+                TaskDialog.Show("ViewTracker", $"Initializing {views.Count} views...\nPlease wait...");
+
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await OptimizedInitializeAndCleanViewsInDatabase(document, views, fileName, projectId);
+                        System.Diagnostics.Debug.WriteLine($"✓ Successfully initialized {views.Count} views to Supabase");
+
+                        // Show success
+                        System.Windows.MessageBox.Show(
+                            $"Successfully synchronized {views.Count} views to Supabase!",
+                            "Success",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Information);
+                    }
+                    catch (Exception asyncEx)
+                    {
+                        // Log detailed error for debugging
+                        var errorLog = $"\n========== SUPABASE SYNC ERROR ==========\n" +
+                                      $"Time: {DateTime.Now}\n" +
+                                      $"Error: {asyncEx.Message}\n" +
+                                      $"Type: {asyncEx.GetType().Name}\n" +
+                                      $"Stack Trace:\n{asyncEx.StackTrace}\n";
+
+                        if (asyncEx.InnerException != null)
+                        {
+                            errorLog += $"Inner Exception: {asyncEx.InnerException.Message}\n";
+                        }
+
+                        errorLog += $"=========================================\n";
+
+                        System.Diagnostics.Debug.WriteLine(errorLog);
+
+                        // Write to log file
+                        try
+                        {
+                            var logPath = System.IO.Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                                "Snapshot", "error.log");
+                            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(logPath));
+                            System.IO.File.AppendAllText(logPath, errorLog);
+                        }
+                        catch { /* Ignore if can't write log */ }
+
+                        // Show error dialog to user
+                        System.Windows.MessageBox.Show(
+                            $"Failed to sync views to Supabase:\n\n" +
+                            $"{asyncEx.Message}\n\n" +
+                            $"Full error log saved to:\n%APPDATA%\\Snapshot\\error.log",
+                            "Initialization Error",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Error);
+                    }
+                });
             }
             catch (Exception ex)
             {

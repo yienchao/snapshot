@@ -300,38 +300,42 @@ namespace ViewTracker
                 string creatorName = info?.Creator ?? "";
                 string lastChangedBy = info?.LastChangedBy ?? "";
 
-                // TEMPORARILY DISABLED: Supabase view tracking to improve performance
-                // Re-enable when Supabase connection is stable
-                /*
+                // Automatic view activation tracking
                 System.Threading.Tasks.Task.Run(async () =>
                 {
-                    var supabaseService = new SupabaseService();
-                    await supabaseService.InitializeAsync();
-
-                    int previousCount = await supabaseService.GetActivationCountAsync(currentView.UniqueId);
-                    int activationCount = previousCount + 1;
-
-                    var record = new ViewActivationRecord
+                    try
                     {
-                        ViewUniqueId = currentView.UniqueId,
-                        FileName = fileName,
-                        ViewId = currentView.Id.Value.ToString(),
-                        ViewName = viewName,
-                        ViewType = viewType,
-                        LastViewer = Environment.UserName,
-                        LastActivationDate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                        ActivationCount = activationCount,
-                        LastInitialization = null,
-                        CreatorName = creatorName,
-                        LastChangedBy = lastChangedBy,
-                        SheetNumber = sheetNumber,
-                        ViewNumber = viewNumber,
-                        ProjectId = projectId
-                    };
+                        var supabaseService = new SupabaseService();
+                        await supabaseService.InitializeAsync();
 
-                    await supabaseService.UpsertViewActivationAsync(record);
+                        int previousCount = await supabaseService.GetActivationCountAsync(currentView.UniqueId);
+                        int activationCount = previousCount + 1;
+
+                        var record = new ViewActivationRecord
+                        {
+                            ViewUniqueId = currentView.UniqueId,
+                            FileName = fileName,
+                            ViewId = currentView.Id.Value.ToString(),
+                            ViewName = viewName,
+                            ViewType = viewType,
+                            LastViewer = Environment.UserName,
+                            LastActivationDate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            ActivationCount = activationCount,
+                            LastInitialization = null,
+                            CreatorName = creatorName,
+                            LastChangedBy = lastChangedBy,
+                            SheetNumber = sheetNumber,
+                            ViewNumber = viewNumber,
+                            ProjectId = projectId
+                        };
+
+                        await supabaseService.UpsertViewActivationAsync(record);
+                    }
+                    catch (Exception asyncEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"View activation tracking failed: {asyncEx.Message}");
+                    }
                 });
-                */
             }
             catch (Exception ex)
             {

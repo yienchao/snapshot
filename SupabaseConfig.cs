@@ -1,8 +1,8 @@
 using System;
 using System.IO;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace ViewTracker
 {
@@ -133,10 +133,7 @@ namespace ViewTracker
                     }
 
                     var jsonContent = await response.Content.ReadAsStringAsync();
-                    var config = JsonSerializer.Deserialize<SupabaseConfig>(jsonContent, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                    var config = JsonConvert.DeserializeObject<SupabaseConfig>(jsonContent);
 
                     if (config == null || string.IsNullOrWhiteSpace(config.SupabaseUrl) || string.IsNullOrWhiteSpace(config.SupabaseKey))
                     {
@@ -198,10 +195,7 @@ namespace ViewTracker
                     return null;
 
                 var jsonContent = File.ReadAllText(CachedConfigPath);
-                var config = JsonSerializer.Deserialize<SupabaseConfig>(jsonContent, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var config = JsonConvert.DeserializeObject<SupabaseConfig>(jsonContent);
 
                 return config;
             }
@@ -222,10 +216,7 @@ namespace ViewTracker
                 // Ensure directory exists
                 Directory.CreateDirectory(CacheDirectory);
 
-                var jsonContent = JsonSerializer.Serialize(config, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+                var jsonContent = JsonConvert.SerializeObject(config, Formatting.Indented);
 
                 File.WriteAllText(CachedConfigPath, jsonContent);
             }

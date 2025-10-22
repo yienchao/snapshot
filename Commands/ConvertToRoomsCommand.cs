@@ -90,41 +90,85 @@ namespace ViewTracker.Commands
                 // 3. Get available room parameters
                 var roomParameters = new List<string>();
 
-                // Built-in parameters
-                roomParameters.Add("Name");
-                roomParameters.Add("Number");
-                roomParameters.Add("Comments");
-                roomParameters.Add("Department");
-                roomParameters.Add("Occupancy");
-                roomParameters.Add("Base Finish");
-                roomParameters.Add("Ceiling Finish");
-                roomParameters.Add("Wall Finish");
-                roomParameters.Add("Floor Finish");
-
-                // Get shared parameters from project
-                var existingRooms = new FilteredElementCollector(doc)
+                // Get parameters from existing room (or create temporary one to get parameter names)
+                var existingRoom = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType()
                     .Cast<Room>()
                     .FirstOrDefault();
 
-                if (existingRooms != null)
+                Room tempRoom = null;
+                bool createdTempRoom = false;
+
+                if (existingRoom == null)
                 {
-                    foreach (Parameter param in existingRooms.Parameters)
+                    // Create temporary room to get parameter names
+                    using (Transaction tempTrans = new Transaction(doc, "Get Room Parameters"))
                     {
-                        if (!param.IsReadOnly && param.Definition is Definition def)
+                        tempTrans.Start();
+                        var tempPhase = doc.GetElement(doc.ActiveView.get_Parameter(BuiltInParameter.VIEW_PHASE).AsElementId()) as Phase;
+                        if (tempPhase != null)
+                        {
+                            tempRoom = doc.Create.NewRoom(tempPhase);
+                            createdTempRoom = true;
+                        }
+                        tempTrans.Commit();
+                    }
+                    existingRoom = tempRoom;
+                }
+
+                if (existingRoom != null)
+                {
+                    // Collect built-in writable parameters from the room
+                    var builtInParamIds = new[]
+                    {
+                        BuiltInParameter.ROOM_NAME,
+                        BuiltInParameter.ROOM_NUMBER,
+                        BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,
+                        BuiltInParameter.ROOM_DEPARTMENT,
+                        BuiltInParameter.ROOM_OCCUPANCY,
+                        BuiltInParameter.ROOM_FINISH_BASE,
+                        BuiltInParameter.ROOM_FINISH_CEILING,
+                        BuiltInParameter.ROOM_FINISH_WALL,
+                        BuiltInParameter.ROOM_FINISH_FLOOR
+                    };
+
+                    foreach (var paramId in builtInParamIds)
+                    {
+                        var param = existingRoom.get_Parameter(paramId);
+                        if (param != null && !param.IsReadOnly && param.Definition is Definition def)
+                        {
+                            roomParameters.Add(def.Name);
+                        }
+                    }
+
+                    // Add shared/project parameters and other built-in writable parameters
+                    foreach (Parameter param in existingRoom.Parameters)
+                    {
+                        if (!param.IsReadOnly &&
+                            param.Definition is Definition def &&
+                            param.StorageType != StorageType.ElementId)
                         {
                             var paramName = def.Name;
+
+                            // Skip IFC parameters and already-added parameters
                             if (!roomParameters.Contains(paramName) &&
-                                !paramName.StartsWith("Phase") &&
-                                !paramName.StartsWith("Level") &&
-                                param.StorageType != StorageType.ElementId &&
-                                // Skip IFC parameters
                                 !paramName.ToLower().Contains("ifc"))
                             {
                                 roomParameters.Add(paramName);
                             }
                         }
+                    }
+                }
+
+                // Delete temporary room if created
+                if (createdTempRoom && tempRoom != null)
+                {
+                    using (Transaction tempTrans = new Transaction(doc, "Delete Temp Room"))
+                    {
+                        tempTrans.Start();
+                        doc.Delete(tempRoom.Id);
+                        tempTrans.Commit();
                     }
                 }
 

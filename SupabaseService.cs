@@ -213,14 +213,39 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
         // Room Snapshot Methods
 
+        // Check if trackIDs already exist in the project (for validation before snapshot)
+        public async Task<List<string>> GetExistingTrackIdsInProjectAsync(List<string> trackIds, Guid projectId)
+        {
+            try
+            {
+                var existingSnapshots = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                var existingTrackIds = existingSnapshots.Models
+                    .Select(s => s.TrackId)
+                    .Distinct()
+                    .Where(trackId => trackIds.Contains(trackId))
+                    .ToList();
+
+                return existingTrackIds;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking existing trackIDs: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
         // Check if version name already exists
-        public async Task<bool> VersionExistsAsync(string versionName)
+        public async Task<bool> VersionExistsAsync(string versionName, string fileName)
         {
             try
             {
                 var results = await _supabase
                     .From<RoomSnapshot>()
-                    .Where(x => x.VersionName == versionName)
+                    .Where(x => x.VersionName == versionName && x.FileName == fileName)
                     .Limit(1)
                     .Get();
                 return results.Models.Any();
@@ -233,13 +258,13 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Get version info (for showing who created it)
-        public async Task<RoomSnapshot?> GetVersionInfoAsync(string versionName)
+        public async Task<RoomSnapshot?> GetVersionInfoAsync(string versionName, string fileName)
         {
             try
             {
                 var results = await _supabase
                     .From<RoomSnapshot>()
-                    .Where(x => x.VersionName == versionName)
+                    .Where(x => x.VersionName == versionName && x.FileName == fileName)
                     .Limit(1)
                     .Get();
                 return results.Models.FirstOrDefault();
@@ -396,14 +421,39 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
         // Door Snapshot Methods
 
+        // Check if door trackIDs already exist in the project (for validation before snapshot)
+        public async Task<List<string>> GetExistingDoorTrackIdsInProjectAsync(List<string> trackIds, Guid projectId)
+        {
+            try
+            {
+                var existingSnapshots = await _supabase
+                    .From<DoorSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                var existingTrackIds = existingSnapshots.Models
+                    .Select(s => s.TrackId)
+                    .Distinct()
+                    .Where(trackId => trackIds.Contains(trackId))
+                    .ToList();
+
+                return existingTrackIds;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking existing door trackIDs: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
         // Check if door version name already exists
-        public async Task<bool> DoorVersionExistsAsync(string versionName)
+        public async Task<bool> DoorVersionExistsAsync(string versionName, string fileName)
         {
             try
             {
                 var results = await _supabase
                     .From<DoorSnapshot>()
-                    .Where(x => x.VersionName == versionName)
+                    .Where(x => x.VersionName == versionName && x.FileName == fileName)
                     .Limit(1)
                     .Get();
                 return results.Models.Any();
@@ -416,13 +466,13 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Get door version info (for showing who created it)
-        public async Task<DoorSnapshot?> GetDoorVersionInfoAsync(string versionName)
+        public async Task<DoorSnapshot?> GetDoorVersionInfoAsync(string versionName, string fileName)
         {
             try
             {
                 var results = await _supabase
                     .From<DoorSnapshot>()
-                    .Where(x => x.VersionName == versionName)
+                    .Where(x => x.VersionName == versionName && x.FileName == fileName)
                     .Limit(1)
                     .Get();
                 return results.Models.FirstOrDefault();
@@ -562,14 +612,39 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
         // Element Snapshot Methods
 
+        // Check if element trackIDs already exist in the project (for validation before snapshot)
+        public async Task<List<string>> GetExistingElementTrackIdsInProjectAsync(List<string> trackIds, Guid projectId)
+        {
+            try
+            {
+                var existingSnapshots = await _supabase
+                    .From<ElementSnapshot>()
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                var existingTrackIds = existingSnapshots.Models
+                    .Select(s => s.TrackId)
+                    .Distinct()
+                    .Where(trackId => trackIds.Contains(trackId))
+                    .ToList();
+
+                return existingTrackIds;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking existing element trackIDs: {ex.Message}");
+                return new List<string>();
+            }
+        }
+
         // Check if element version name already exists
-        public async Task<bool> ElementVersionExistsAsync(string versionName)
+        public async Task<bool> ElementVersionExistsAsync(string versionName, string fileName)
         {
             try
             {
                 var results = await _supabase
                     .From<ElementSnapshot>()
-                    .Where(x => x.VersionName == versionName)
+                    .Where(x => x.VersionName == versionName && x.FileName == fileName)
                     .Limit(1)
                     .Get();
                 return results.Models.Any();
@@ -582,13 +657,13 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Get element version info (for showing who created it)
-        public async Task<ElementSnapshot?> GetElementVersionInfoAsync(string versionName)
+        public async Task<ElementSnapshot?> GetElementVersionInfoAsync(string versionName, string fileName)
         {
             try
             {
                 var results = await _supabase
                     .From<ElementSnapshot>()
-                    .Where(x => x.VersionName == versionName)
+                    .Where(x => x.VersionName == versionName && x.FileName == fileName)
                     .Limit(1)
                     .Get();
                 return results.Models.FirstOrDefault();

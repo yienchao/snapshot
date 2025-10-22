@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © 2025 Yien Chao")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Version control and snapshot management for Revit elements")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cb484b291a27e0e19a319b2292498a214105b809")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+318c23d0b25551b687e3d6e59d4c076c902bbb78")]
 [assembly: System.Reflection.AssemblyProductAttribute("Snapshot - Version Control for Revit")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Snapshot")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
