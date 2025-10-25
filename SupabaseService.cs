@@ -725,5 +725,65 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 return new List<ElementSnapshot>();
             }
         }
+
+        // ===== TRACK ID MANAGEMENT =====
+
+        /// <summary>
+        /// Get all existing track IDs for a project across all snapshot types (rooms, doors, elements)
+        /// Returns a HashSet for fast lookup when generating new IDs
+        /// </summary>
+        public async Task<HashSet<string>> GetAllExistingTrackIDsAsync(Guid projectId)
+        {
+            var allTrackIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                // Get all room trackIDs
+                var roomResults = await _supabase
+                    .From<RoomSnapshot>()
+                    .Select("track_id")
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                foreach (var room in roomResults.Models)
+                {
+                    if (!string.IsNullOrWhiteSpace(room.TrackId))
+                        allTrackIds.Add(room.TrackId);
+                }
+
+                // Get all door trackIDs
+                var doorResults = await _supabase
+                    .From<DoorSnapshot>()
+                    .Select("track_id")
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                foreach (var door in doorResults.Models)
+                {
+                    if (!string.IsNullOrWhiteSpace(door.TrackId))
+                        allTrackIds.Add(door.TrackId);
+                }
+
+                // Get all element trackIDs
+                var elementResults = await _supabase
+                    .From<ElementSnapshot>()
+                    .Select("track_id")
+                    .Where(x => x.ProjectId == projectId)
+                    .Get();
+
+                foreach (var element in elementResults.Models)
+                {
+                    if (!string.IsNullOrWhiteSpace(element.TrackId))
+                        allTrackIds.Add(element.TrackId);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting existing track IDs: {ex.Message}");
+                // Return partial results rather than failing completely
+            }
+
+            return allTrackIds;
+        }
     }
 }

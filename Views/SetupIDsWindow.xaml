@@ -1,0 +1,155 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ViewTracker.Views.SetupIDsWindow"
+        Title="Setup Track IDs"
+        Width="800"
+        Height="600"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinWidth" Value="100"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <TabControl Name="MainTabControl" Margin="10">
+
+            <!-- Tab 1: Generate IDs -->
+            <TabItem Header="Generate IDs">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                        <TextBlock FontSize="16" FontWeight="Bold" Text="Auto-Generate Track IDs"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,5,0,0">
+                            Automatically assign unique track IDs to elements that don't have one yet.
+                            Format: ROOM-0001, DOOR-0001, etc.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Content Area -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Text="Status:"/>
+                            <TextBlock Name="GenerateStatusText" TextWrapping="Wrap" Margin="10,5">
+                                Click "Scan Project" to analyze elements...
+                            </TextBlock>
+
+                            <Separator Margin="0,10"/>
+
+                            <TextBlock FontWeight="Bold" Text="Options:"/>
+                            <CheckBox Name="SkipExistingCheckBox" Content="Skip elements with existing track IDs" IsChecked="True" Margin="10,5"/>
+                            <CheckBox Name="RoomsCheckBox" Content="Include Rooms" IsChecked="True" Margin="10,5"/>
+                            <CheckBox Name="DoorsCheckBox" Content="Include Doors" IsChecked="True" Margin="10,5"/>
+                            <CheckBox Name="ElementsCheckBox" Content="Include Elements" IsChecked="True" Margin="10,5"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Name="ScanButton" Content="Scan Project" Click="ScanButton_Click"/>
+                        <Button Name="GenerateButton" Content="Generate IDs" IsEnabled="False" Click="GenerateButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 2: Audit -->
+            <TabItem Header="Audit">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                        <TextBlock FontSize="16" FontWeight="Bold" Text="Project Audit"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,5,0,0">
+                            View statistics and identify issues with track IDs in your project.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Content Area -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Text="Coverage Statistics:"/>
+                            <TextBlock Name="AuditStatsText" TextWrapping="Wrap" Margin="10,5" FontFamily="Consolas">
+                                Click "Run Audit" to see statistics...
+                            </TextBlock>
+
+                            <Separator Margin="0,10"/>
+
+                            <TextBlock FontWeight="Bold" Text="Issues Found:"/>
+                            <TextBlock Name="AuditIssuesText" TextWrapping="Wrap" Margin="10,5">
+                                No audit run yet.
+                            </TextBlock>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Name="RunAuditButton" Content="Run Audit" Click="RunAuditButton_Click"/>
+                        <Button Name="ExportReportButton" Content="Export Report" IsEnabled="False"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 3: Validate -->
+            <TabItem Header="Validate">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                        <TextBlock FontSize="16" FontWeight="Bold" Text="Validate Uniqueness"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,5,0,0">
+                            Check for duplicate track IDs and validate against database.
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Content Area -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Text="Validation Results:"/>
+                            <TextBlock Name="ValidateResultsText" TextWrapping="Wrap" Margin="10,5">
+                                Click "Check Duplicates" to validate...
+                            </TextBlock>
+
+                            <Separator Margin="0,10"/>
+
+                            <TextBlock FontWeight="Bold" Text="Duplicates (if any):"/>
+                            <ListBox Name="DuplicatesListBox" Height="200" Margin="10,5">
+                                <!-- Will be populated dynamically -->
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Name="CheckDuplicatesButton" Content="Check Duplicates" Click="CheckDuplicatesButton_Click"/>
+                        <Button Name="SelectDuplicatesButton" Content="Select in Model" IsEnabled="False"/>
+                        <Button Name="ZoomToDuplicatesButton" Content="Zoom To" IsEnabled="False"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</Window>

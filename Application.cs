@@ -138,6 +138,19 @@ namespace ViewTracker
 
                 trackerPanel.AddSeparator();
 
+                // Setup IDs button (placeholder for Generate, Audit, Validate)
+                var setupIdsBtn = new PushButtonData(
+                    "SetupIDs",
+                    "Setup IDs",
+                    typeof(Application).Assembly.Location,
+                    "ViewTracker.Commands.SetupIDsCommand"
+                );
+                setupIdsBtn.ToolTip = "Manage Track IDs";
+                setupIdsBtn.LongDescription = "Generate track IDs for elements, audit project, and validate ID uniqueness.";
+                trackerPanel.AddItem(setupIdsBtn);
+
+                trackerPanel.AddSeparator();
+
                 // Create regular buttons with 16x16 icons
                 var snapshotBtn = new PushButtonData(
                     "UnifiedSnapshot",
