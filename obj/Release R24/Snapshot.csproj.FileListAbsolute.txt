@@ -76,3 +76,9 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Websocket.Client.dl
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.csproj.Up2Date
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.pdb
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\HistoryTimelineWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ProjectTimelineWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\SetupIDsWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\HistoryTimelineWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ProjectTimelineWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\SetupIDsWindow.g.cs

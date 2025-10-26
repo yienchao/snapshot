@@ -83,3 +83,5 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Snapshot.genruntime
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\ref\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\SetupIDsWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\SetupIDsWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\HistoryTimelineWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\HistoryTimelineWindow.g.cs

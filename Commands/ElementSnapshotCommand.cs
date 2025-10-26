@@ -141,7 +141,8 @@ namespace ViewTracker.Commands
             foreach (var element in instancesWithTrackId)
             {
                 var trackId = element.LookupParameter("trackID").AsString();
-                var allParams = GetAllParameters(element);
+                var allParams = GetInstanceParameters(element);
+                var typeParams = GetTypeParameters(element);
 
                 var snapshot = new ElementSnapshot
                 {
@@ -160,7 +161,8 @@ namespace ViewTracker.Commands
                     PhaseCreated = element.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsValueString(),
                     PhaseDemolished = element.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED)?.AsValueString(),
                     Comments = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(),
-                    AllParameters = allParams
+                    AllParameters = allParams,
+                    TypeParameters = typeParams
                 };
 
                 snapshots.Add(snapshot);
@@ -187,7 +189,7 @@ namespace ViewTracker.Commands
             return Result.Succeeded;
         }
 
-        private Dictionary<string, object> GetAllParameters(FamilyInstance element)
+        private Dictionary<string, object> GetInstanceParameters(FamilyInstance element)
         {
             var parameters = new Dictionary<string, object>();
 
@@ -277,6 +279,50 @@ namespace ViewTracker.Commands
             {
                 parameters["host_id"] = element.Host.Id.Value.ToString();
                 parameters["host_category"] = element.Host.Category?.Name;
+            }
+
+            return parameters;
+        }
+
+        private Dictionary<string, object> GetTypeParameters(FamilyInstance element)
+        {
+            var parameters = new Dictionary<string, object>();
+
+            if (element.Symbol == null)
+                return parameters;
+
+            // Built-in parameters that are stored in dedicated columns - exclude from JSON
+            var excludedBuiltInParams = new HashSet<BuiltInParameter>
+            {
+                BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
+                BuiltInParameter.ALL_MODEL_TYPE_NAME             // type_name column
+            };
+
+            // Use GetOrderedParameters to get only user-visible TYPE parameters
+            var orderedParams = element.Symbol.GetOrderedParameters();
+            foreach (Parameter param in orderedParams)
+            {
+                string paramName = param.Definition.Name;
+
+                // Skip built-in parameters that are already in dedicated columns
+                if (param.Definition is InternalDefinition internalDef)
+                {
+                    var builtInParam = internalDef.BuiltInParameter;
+                    if (builtInParam != BuiltInParameter.INVALID && excludedBuiltInParams.Contains(builtInParam))
+                        continue;
+                }
+
+                // Skip IFC-related parameters (auto-generated)
+                if (paramName.StartsWith("IFC", StringComparison.OrdinalIgnoreCase) ||
+                    paramName.StartsWith("Ifc", StringComparison.Ordinal) ||
+                    paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Skip if this parameter name already exists
+                if (parameters.ContainsKey(paramName))
+                    continue;
+
+                AddParameterValue(param, parameters);
             }
 
             return parameters;

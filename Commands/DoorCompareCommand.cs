@@ -204,8 +204,8 @@ namespace ViewTracker.Commands
                 var trackId = door.LookupParameter("trackID").AsString();
                 if (snapshotDict.TryGetValue(trackId, out var snapshot))
                 {
-                    var changes = GetParameterChanges(door, snapshot, doc);
-                    if (changes.Any())
+                    var (allChanges, instanceChanges, typeChanges) = GetParameterChanges(door, snapshot, doc);
+                    if (allChanges.Any())
                     {
                         result.ModifiedDoors.Add(new DoorChange
                         {
@@ -214,7 +214,9 @@ namespace ViewTracker.Commands
                             FamilyName = door.Symbol?.Family?.Name,
                             TypeName = door.Symbol?.Name,
                             ChangeType = "Modified",
-                            Changes = changes
+                            Changes = allChanges,
+                            InstanceParameterChanges = instanceChanges,
+                            TypeParameterChanges = typeChanges
                         });
                     }
                 }
@@ -223,24 +225,49 @@ namespace ViewTracker.Commands
             return result;
         }
 
-        private List<string> GetParameterChanges(FamilyInstance currentDoor, DoorSnapshot snapshot, Document doc)
+        private (List<string> allChanges, List<string> instanceChanges, List<string> typeChanges) GetParameterChanges(FamilyInstance currentDoor, DoorSnapshot snapshot, Document doc)
         {
             var changes = new List<string>();
+            var instanceChanges = new List<string>();
+            var typeChanges = new List<string>();
+
+            // Get type parameter names for categorization
+            var typeParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in snapshot.TypeParameters.Keys)
+                {
+                    typeParameterNames.Add(key);
+                }
+            }
 
             // Get all current door parameters (both instance and type, user-visible only)
             var currentParams = new Dictionary<string, object>();
             var currentParamsDisplay = new Dictionary<string, string>();
 
             // Get ONLY instance parameters using GetOrderedParameters
-            // Do NOT include type parameters in comparison (they should not be in snapshots)
+            // Get ONLY instance parameters (not type parameters)
+            // We'll add type parameters later only if snapshot has them
             var orderedParams = currentDoor.GetOrderedParameters();
             foreach (Parameter param in orderedParams)
             {
-                // Skip type parameters - only compare instance parameters
+                // Skip type parameters - only collect instance parameters here
                 if (param.Element is ElementType)
                     continue;
 
                 AddParameterToDict(param, currentParams, currentParamsDisplay);
+            }
+
+            // Also collect type parameters from current door (for comparison with snapshot type parameters)
+            var currentTypeParams = new Dictionary<string, object>();
+            var currentTypeParamsDisplay = new Dictionary<string, string>();
+            if (currentDoor.Symbol != null)
+            {
+                var orderedTypeParams = currentDoor.Symbol.GetOrderedParameters();
+                foreach (Parameter param in orderedTypeParams)
+                {
+                    AddParameterToDict(param, currentTypeParams, currentTypeParamsDisplay);
+                }
             }
 
             // Add location information (same as in snapshot)
@@ -300,80 +327,143 @@ namespace ViewTracker.Commands
             // Add from AllParameters JSON (but skip parameters that should be in dedicated columns)
             if (snapshot.AllParameters != null)
             {
+                // Check if this is an old snapshot (doesn't have type_parameters column)
+                // NULL means old snapshot, empty dictionary means new snapshot with no type parameters
+                bool isOldSnapshot = snapshot.TypeParameters == null;
+
                 foreach (var kvp in snapshot.AllParameters)
                 {
-                    // Skip IFC-related parameters (auto-generated)
-                    if (kvp.Key.StartsWith("IFC", StringComparison.OrdinalIgnoreCase) ||
-                        kvp.Key.StartsWith("Ifc", StringComparison.Ordinal))
+                    // Skip IFC-related parameters from old snapshots (for backward compatibility)
+                    if (kvp.Key.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // Skip parameters that should be in dedicated columns
-                    if (!excludedFromJson.Contains(kvp.Key))
-                    {
-                        snapshotParams[kvp.Key] = kvp.Value;
+                    if (excludedFromJson.Contains(kvp.Key))
+                        continue;
 
-                        // Format the display value properly
-                        // For doubles, we need to get the formatted value from the current parameter
-                        string displayValue;
-                        if (kvp.Value is double doubleVal)
+                    // Skip host_id and host_category ONLY from old snapshots (to avoid false positives)
+                    // Keep location, rotation, facing, hand for quality control comparison
+                    if (isOldSnapshot &&
+                        (kvp.Key.Equals("host_id", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.Equals("host_category", StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    snapshotParams[kvp.Key] = kvp.Value;
+
+                    // Format the display value properly
+                    // For doubles, we need to get the formatted value from the current parameter
+                    string displayValue;
+                    if (kvp.Value is double doubleVal)
+                    {
+                        // Special handling for location/rotation parameters (they're in feet/radians)
+                        if (kvp.Key.StartsWith("location_") || kvp.Key == "rotation" ||
+                            kvp.Key.StartsWith("facing_") || kvp.Key.StartsWith("hand_"))
                         {
-                            // Special handling for location/rotation parameters (they're in feet/radians)
-                            if (kvp.Key.StartsWith("location_") || kvp.Key == "rotation" ||
-                                kvp.Key.StartsWith("facing_") || kvp.Key.StartsWith("hand_"))
+                            // For location: convert feet to project units (mm, inches, etc.)
+                            if (kvp.Key.StartsWith("location_"))
                             {
-                                // For location: convert feet to project units (mm, inches, etc.)
-                                if (kvp.Key.StartsWith("location_"))
-                                {
-                                    displayValue = UnitFormatUtils.Format(
-                                        currentDoor.Document.GetUnits(),
-                                        SpecTypeId.Length,
-                                        doubleVal,
-                                        false);
-                                }
-                                // For rotation: show in degrees or project angle units
-                                else if (kvp.Key == "rotation")
-                                {
-                                    displayValue = UnitFormatUtils.Format(
-                                        currentDoor.Document.GetUnits(),
-                                        SpecTypeId.Angle,
-                                        doubleVal,
-                                        false);
-                                }
-                                // For facing/hand orientation: just show the vector component
-                                else
-                                {
-                                    displayValue = doubleVal.ToString("F6");
-                                }
+                                displayValue = UnitFormatUtils.Format(
+                                    currentDoor.Document.GetUnits(),
+                                    SpecTypeId.Length,
+                                    doubleVal,
+                                    false);
                             }
+                            // For rotation: show in degrees or project angle units
+                            else if (kvp.Key == "rotation")
+                            {
+                                displayValue = UnitFormatUtils.Format(
+                                    currentDoor.Document.GetUnits(),
+                                    SpecTypeId.Angle,
+                                    doubleVal,
+                                    false);
+                            }
+                            // For facing/hand orientation: just show the vector component
                             else
                             {
-                                // Try to get the current parameter to format it properly
-                                var currentParam = currentDoor.LookupParameter(kvp.Key);
-                                if (currentParam != null && currentParam.StorageType == StorageType.Double)
-                                {
-                                    // Format with units, then strip the unit label
-                                    string formatted = UnitFormatUtils.Format(
-                                        currentDoor.Document.GetUnits(),
-                                        currentParam.Definition.GetDataType(),
-                                        doubleVal,
-                                        false);
-                                    // Strip unit label (e.g., "2438.4 mm" → "2438.4")
-                                    displayValue = formatted?.Split(' ')[0]?.Replace(",", ".") ?? doubleVal.ToString("F2");
-                                }
-                                else
-                                {
-                                    // Fallback: just show the number
-                                    displayValue = doubleVal.ToString("F2");
-                                }
+                                displayValue = doubleVal.ToString("F6");
                             }
                         }
                         else
                         {
-                            displayValue = kvp.Value?.ToString() ?? "";
+                            // Try to get the current parameter to format it properly
+                            var currentParam = currentDoor.LookupParameter(kvp.Key);
+                            if (currentParam != null && currentParam.StorageType == StorageType.Double)
+                            {
+                                // Format with units, then strip the unit label
+                                string formatted = UnitFormatUtils.Format(
+                                    currentDoor.Document.GetUnits(),
+                                    currentParam.Definition.GetDataType(),
+                                    doubleVal,
+                                    false);
+                                // Strip unit label (e.g., "2438.4 mm" → "2438.4")
+                                displayValue = formatted?.Split(' ')[0]?.Replace(",", ".") ?? doubleVal.ToString("F2");
+                            }
+                            else
+                            {
+                                // Fallback: just show the number
+                                displayValue = doubleVal.ToString("F2");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        displayValue = kvp.Value?.ToString() ?? "";
+                    }
+
+                    snapshotParamsDisplay[kvp.Key] = displayValue;
+                }
+            }
+
+            // Add from TypeParameters JSON (type parameters) for comparison
+            // ONLY if snapshot has type parameters (for backward compatibility with old snapshots)
+            if (snapshot.TypeParameters != null && snapshot.TypeParameters.Any())
+            {
+                // Add snapshot type parameters
+                foreach (var kvp in snapshot.TypeParameters)
+                {
+                    snapshotParams[kvp.Key] = kvp.Value;
+
+                    // For display, format type parameters
+                    string displayValue;
+                    if (kvp.Value is double doubleVal)
+                    {
+                        // Try to get the parameter from the door's type to format it properly
+                        Parameter currentParam = null;
+                        if (currentDoor.Symbol != null)
+                        {
+                            currentParam = currentDoor.Symbol.LookupParameter(kvp.Key);
                         }
 
-                        snapshotParamsDisplay[kvp.Key] = displayValue;
+                        if (currentParam != null && currentParam.StorageType == StorageType.Double)
+                        {
+                            string formatted = UnitFormatUtils.Format(
+                                currentDoor.Document.GetUnits(),
+                                currentParam.Definition.GetDataType(),
+                                doubleVal,
+                                false);
+                            displayValue = formatted?.Split(' ')[0]?.Replace(",", ".") ?? doubleVal.ToString("F2");
+                        }
+                        else
+                        {
+                            displayValue = doubleVal.ToString("F2");
+                        }
                     }
+                    else
+                    {
+                        displayValue = kvp.Value?.ToString() ?? "";
+                    }
+
+                    snapshotParamsDisplay[kvp.Key] = displayValue;
+                }
+
+                // Also add current type parameters to currentParams for comparison
+                foreach (var kvp in currentTypeParams)
+                {
+                    currentParams[kvp.Key] = kvp.Value;
+                }
+                foreach (var kvp in currentTypeParamsDisplay)
+                {
+                    currentParamsDisplay[kvp.Key] = kvp.Value;
                 }
             }
 
@@ -391,16 +481,16 @@ namespace ViewTracker.Commands
                 snapshotParamsDisplay[markParamName] = snapshot.Mark ?? "";
             }
 
-            // Level parameter - include even if empty
+            // Level parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
             var levelParam = currentDoor.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
-            if (levelParam != null)
+            if (levelParam != null && !string.IsNullOrEmpty(snapshot.Level))
             {
                 string levelParamName = levelParam.Definition.Name;
-                snapshotParams[levelParamName] = snapshot.Level ?? "";
-                snapshotParamsDisplay[levelParamName] = snapshot.Level ?? "";
+                snapshotParams[levelParamName] = snapshot.Level;
+                snapshotParamsDisplay[levelParamName] = snapshot.Level;
             }
 
-            // Fire Rating parameter - include even if empty
+            // Fire Rating parameter - include even if empty (string parameter, not ElementId)
             var fireRatingParam = currentDoor.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING);
             if (fireRatingParam != null)
             {
@@ -409,7 +499,7 @@ namespace ViewTracker.Commands
                 snapshotParamsDisplay[fireRatingParamName] = snapshot.FireRating ?? "";
             }
 
-            // Comments parameter - include even if empty
+            // Comments parameter - include even if empty (string parameter, not ElementId)
             var commentsParam = currentDoor.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
             if (commentsParam != null)
             {
@@ -418,22 +508,22 @@ namespace ViewTracker.Commands
                 snapshotParamsDisplay[commentsParamName] = snapshot.Comments ?? "";
             }
 
-            // Phase Created parameter - include even if empty
+            // Phase Created parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
             var phaseCreatedParam = currentDoor.get_Parameter(BuiltInParameter.PHASE_CREATED);
-            if (phaseCreatedParam != null)
+            if (phaseCreatedParam != null && !string.IsNullOrEmpty(snapshot.PhaseCreated))
             {
                 string phaseCreatedParamName = phaseCreatedParam.Definition.Name;
-                snapshotParams[phaseCreatedParamName] = snapshot.PhaseCreated ?? "";
-                snapshotParamsDisplay[phaseCreatedParamName] = snapshot.PhaseCreated ?? "";
+                snapshotParams[phaseCreatedParamName] = snapshot.PhaseCreated;
+                snapshotParamsDisplay[phaseCreatedParamName] = snapshot.PhaseCreated;
             }
 
-            // Phase Demolished parameter - include even if empty
+            // Phase Demolished parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
             var phaseDemolishedParam = currentDoor.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-            if (phaseDemolishedParam != null)
+            if (phaseDemolishedParam != null && !string.IsNullOrEmpty(snapshot.PhaseDemolished))
             {
                 string phaseDemolishedParamName = phaseDemolishedParam.Definition.Name;
-                snapshotParams[phaseDemolishedParamName] = snapshot.PhaseDemolished ?? "";
-                snapshotParamsDisplay[phaseDemolishedParamName] = snapshot.PhaseDemolished ?? "";
+                snapshotParams[phaseDemolishedParamName] = snapshot.PhaseDemolished;
+                snapshotParamsDisplay[phaseDemolishedParamName] = snapshot.PhaseDemolished;
             }
 
             // Note: Family and Type are NOT in AllParameters, but we need to compare them
@@ -457,7 +547,7 @@ namespace ViewTracker.Commands
 
             // Note: Width and Height are type parameters, not instance parameters
 
-            // Compare parameters
+            // Compare parameters (including location, rotation, facing, hand for quality control)
             foreach (var snapshotParam in snapshotParams)
             {
                 if (currentParams.TryGetValue(snapshotParam.Key, out var currentValue))
@@ -471,27 +561,48 @@ namespace ViewTracker.Commands
                             ? currentParamsDisplay[snapshotParam.Key]
                             : currentValue?.ToString() ?? "";
 
-                        changes.Add($"{snapshotParam.Key}: '{snapDisplay}' → '{currDisplay}'");
+                        string changeText = $"{snapshotParam.Key}: '{snapDisplay}' → '{currDisplay}'";
+                        changes.Add(changeText);
+
+                        // Categorize as instance or type parameter
+                        if (typeParameterNames.Contains(snapshotParam.Key))
+                            typeChanges.Add(changeText);
+                        else
+                            instanceChanges.Add(changeText);
                     }
                 }
                 else
                 {
                     var snapDisplay = snapshotParamsDisplay[snapshotParam.Key];
-                    changes.Add($"{snapshotParam.Key}: '{snapDisplay}' → (removed)");
+                    string changeText = $"{snapshotParam.Key}: '{snapDisplay}' → (removed)";
+                    changes.Add(changeText);
+
+                    // Categorize as instance or type parameter
+                    if (typeParameterNames.Contains(snapshotParam.Key))
+                        typeChanges.Add(changeText);
+                    else
+                        instanceChanges.Add(changeText);
                 }
             }
 
-            // Check for new parameters
+            // Check for new parameters (including type parameters from TypeParameters column)
             foreach (var currentParam in currentParams)
             {
                 if (!snapshotParams.ContainsKey(currentParam.Key))
                 {
                     var currDisplay = currentParamsDisplay[currentParam.Key];
-                    changes.Add($"{currentParam.Key}: (new) → '{currDisplay}'");
+                    string changeText = $"{currentParam.Key}: (new) → '{currDisplay}'";
+                    changes.Add(changeText);
+
+                    // Categorize as instance or type parameter
+                    if (typeParameterNames.Contains(currentParam.Key))
+                        typeChanges.Add(changeText);
+                    else
+                        instanceChanges.Add(changeText);
                 }
             }
 
-            return changes;
+            return (changes, instanceChanges, typeChanges);
         }
 
         private void AddParameterToDict(Parameter param, Dictionary<string, object> values, Dictionary<string, string> display)
@@ -500,7 +611,8 @@ namespace ViewTracker.Commands
 
             // Exclude IFC-related parameters from comparison (they're auto-generated)
             if (paramName.StartsWith("IFC", StringComparison.OrdinalIgnoreCase) ||
-                paramName.StartsWith("Ifc", StringComparison.Ordinal))
+                paramName.StartsWith("Ifc", StringComparison.Ordinal) ||
+                paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                 return;
 
             // DO NOT exclude parameters with dedicated columns - they should still be compared!
@@ -624,7 +736,9 @@ namespace ViewTracker.Commands
                     TrackId = door.TrackId,
                     RoomNumber = door.Mark,
                     RoomName = $"{door.FamilyName}: {door.TypeName}",
-                    Changes = door.Changes
+                    Changes = door.Changes,
+                    InstanceParameterChanges = door.InstanceParameterChanges,
+                    TypeParameterChanges = door.TypeParameterChanges
                 });
             }
 
@@ -665,5 +779,7 @@ namespace ViewTracker.Commands
         public string TypeName { get; set; }
         public string ChangeType { get; set; }
         public List<string> Changes { get; set; } = new List<string>();
+        public List<string> InstanceParameterChanges { get; set; } = new List<string>();
+        public List<string> TypeParameterChanges { get; set; } = new List<string>();
     }
 }

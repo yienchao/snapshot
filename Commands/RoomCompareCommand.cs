@@ -620,8 +620,8 @@ namespace ViewTracker.Commands
                     else
                     {
                         // Check for parameter changes
-                        var changes = GetParameterChanges(room, snapshot, doc);
-                        if (changes.Any())
+                        var (allChanges, instanceChanges, typeChanges) = GetParameterChanges(room, snapshot, doc);
+                        if (allChanges.Any())
                         {
                             result.ModifiedRooms.Add(new RoomChange
                             {
@@ -629,7 +629,9 @@ namespace ViewTracker.Commands
                                 RoomNumber = room.Number,
                                 RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
                                 ChangeType = "Modified",
-                                Changes = changes
+                                Changes = allChanges,
+                                InstanceParameterChanges = instanceChanges,
+                                TypeParameterChanges = typeChanges
                             });
                         }
                     }
@@ -642,9 +644,11 @@ namespace ViewTracker.Commands
         // Cache for GetOrderedParameters to avoid redundant API calls
         private Dictionary<ElementId, IList<Parameter>> _parameterCache = new Dictionary<ElementId, IList<Parameter>>();
 
-        private List<string> GetParameterChanges(Room currentRoom, RoomSnapshot snapshot, Document doc)
+        private (List<string> allChanges, List<string> instanceChanges, List<string> typeChanges) GetParameterChanges(Room currentRoom, RoomSnapshot snapshot, Document doc)
         {
             var changes = new List<string>();
+            var instanceChanges = new List<string>(); // For rooms, all parameters are instance parameters
+            var typeChanges = new List<string>(); // Will be empty for rooms
 
             // Get all current room parameters (user-visible only)
             var currentParams = new Dictionary<string, object>();
@@ -1044,7 +1048,9 @@ namespace ViewTracker.Commands
                             ? snapshotParamsDisplay[snapshotParam.Key]
                             : snapshotParam.Value?.ToString() ?? "";
 
-                        changes.Add($"{snapshotParam.Key}: '{snapDisplay}' → '{currentDisplay}'");
+                        string changeText = $"{snapshotParam.Key}: '{snapDisplay}' → '{currentDisplay}'";
+                        changes.Add(changeText);
+                        instanceChanges.Add(changeText); // All room parameters are instance parameters
                     }
                 }
                 else
@@ -1053,7 +1059,9 @@ namespace ViewTracker.Commands
                     var snapDisplay = snapshotParamsDisplay.ContainsKey(snapshotParam.Key)
                         ? snapshotParamsDisplay[snapshotParam.Key]
                         : snapshotParam.Value?.ToString() ?? "";
-                    changes.Add($"{snapshotParam.Key}: '{snapDisplay}' → (removed)");
+                    string changeText = $"{snapshotParam.Key}: '{snapDisplay}' → (removed)";
+                    changes.Add(changeText);
+                    instanceChanges.Add(changeText); // All room parameters are instance parameters
                 }
             }
 
@@ -1070,11 +1078,13 @@ namespace ViewTracker.Commands
                     if (string.IsNullOrEmpty(currDisplay) || currDisplay == "0" || currDisplay == "0.00")
                         continue;
 
-                    changes.Add($"{currentParam.Key}: (new) → '{currDisplay}'");
+                    string changeText = $"{currentParam.Key}: (new) → '{currDisplay}'";
+                    changes.Add(changeText);
+                    instanceChanges.Add(changeText); // All room parameters are instance parameters
                 }
             }
 
-            return changes;
+            return (changes, instanceChanges, typeChanges);
         }
 
         // Helper method to convert parameter values to file's display units (no unit symbols)
@@ -1175,7 +1185,9 @@ namespace ViewTracker.Commands
                     TrackId = room.TrackId,
                     RoomNumber = room.RoomNumber,
                     RoomName = room.RoomName,
-                    Changes = room.Changes
+                    Changes = room.Changes,
+                    InstanceParameterChanges = room.InstanceParameterChanges,
+                    TypeParameterChanges = room.TypeParameterChanges
                 });
             }
 
@@ -1228,5 +1240,7 @@ namespace ViewTracker.Commands
         public string RoomName { get; set; }
         public string ChangeType { get; set; }
         public List<string> Changes { get; set; } = new List<string>();
+        public List<string> InstanceParameterChanges { get; set; } = new List<string>();
+        public List<string> TypeParameterChanges { get; set; } = new List<string>();
     }
 }

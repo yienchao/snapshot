@@ -1920,11 +1920,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
+      "projectUniqueName": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
       "projectName": "Snapshot",
-      "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
+      "projectPath": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
       "packagesPath": "C:\\Users\\yichao\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
+      "outputPath": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\yichao\\AppData\\Roaming\\NuGet\\NuGet.Config"

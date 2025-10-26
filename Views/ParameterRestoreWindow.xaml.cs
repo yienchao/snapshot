@@ -1057,6 +1057,90 @@ namespace ViewTracker.Views
                     }
                 }
 
+                // Check for type parameter differences
+                var typeParameterWarnings = new List<string>();
+                Dictionary<string, object> snapshotTypeParams = null;
+
+                try
+                {
+                    if (_entityType == "Door")
+                    {
+                        snapshotTypeParams = ((DoorSnapshot)snapshot).TypeParameters;
+                    }
+                    else
+                    {
+                        snapshotTypeParams = ((ElementSnapshot)snapshot).TypeParameters;
+                    }
+                }
+                catch { }
+
+                if (snapshotTypeParams != null && snapshotTypeParams.Any())
+                {
+                    // Get current type parameters
+                    var currentTypeParams = new Dictionary<string, object>();
+                    var familyInstance = element as FamilyInstance;
+                    if (familyInstance?.Symbol != null)
+                    {
+                        foreach (Parameter param in familyInstance.Symbol.GetOrderedParameters())
+                        {
+                            if (param == null || param.Definition == null)
+                                continue;
+
+                            string paramName = param.Definition.Name;
+
+                            // Skip IFC parameters
+                            if (paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            // Get current value
+                            object currentValue = null;
+                            switch (param.StorageType)
+                            {
+                                case StorageType.Double:
+                                    currentValue = param.AsDouble();
+                                    break;
+                                case StorageType.Integer:
+                                    currentValue = param.AsInteger();
+                                    break;
+                                case StorageType.String:
+                                    currentValue = param.AsString() ?? "";
+                                    break;
+                                case StorageType.ElementId:
+                                    currentValue = param.AsValueString() ?? "";
+                                    break;
+                            }
+
+                            if (currentValue != null)
+                            {
+                                currentTypeParams[paramName] = currentValue;
+                            }
+                        }
+                    }
+
+                    // Compare type parameters
+                    foreach (var kvp in snapshotTypeParams)
+                    {
+                        if (currentTypeParams.TryGetValue(kvp.Key, out var currentValue))
+                        {
+                            // Compare values
+                            bool isDifferent = false;
+                            if (kvp.Value is double snapDouble && currentValue is double currDouble)
+                            {
+                                isDifferent = Math.Abs(snapDouble - currDouble) > 0.0001;
+                            }
+                            else
+                            {
+                                isDifferent = !Equals(kvp.Value, currentValue);
+                            }
+
+                            if (isDifferent)
+                            {
+                                typeParameterWarnings.Add($"  {kvp.Key}: '{kvp.Value}' → '{currentValue}'");
+                            }
+                        }
+                    }
+                }
+
                 var restoreItem = new ElementRestoreItem
                 {
                     Element = element,
@@ -1067,7 +1151,8 @@ namespace ViewTracker.Views
                     IsSelected = true,
                     CurrentTypeName = currentTypeName,
                     SnapshotTypeName = snapshotTypeName,
-                    HasTypeMismatch = currentTypeName != snapshotTypeName
+                    HasTypeMismatch = currentTypeName != snapshotTypeName,
+                    TypeParameterWarnings = typeParameterWarnings
                 };
 
                 _elementRestoreItems.Add(restoreItem);
@@ -1192,6 +1277,7 @@ namespace ViewTracker.Views
         public string CurrentTypeName { get; set; }
         public string SnapshotTypeName { get; set; }
         public bool HasTypeMismatch { get; set; }
+        public List<string> TypeParameterWarnings { get; set; } = new List<string>();
 
         public bool IsSelected
         {
@@ -1207,6 +1293,10 @@ namespace ViewTracker.Views
         public string HasNoParameters => !ParameterPreview.Any() ? "Visible" : "Collapsed";
         public string TypeMismatchVisibility => HasTypeMismatch ? "Visible" : "Collapsed";
         public string TypeMismatchText => $"⚠️ Type changed: {SnapshotTypeName} → {CurrentTypeName}";
+        public string TypeParameterWarningsVisibility => TypeParameterWarnings.Any() ? "Visible" : "Collapsed";
+        public string TypeParameterWarningsText => TypeParameterWarnings.Any()
+            ? $"⚠️ Type parameter differences (will NOT be restored):\n{string.Join("\n", TypeParameterWarnings)}"
+            : "";
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)

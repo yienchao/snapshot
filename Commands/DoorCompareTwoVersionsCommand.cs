@@ -271,10 +271,6 @@ namespace ViewTracker.Commands
                 parameters["Level"] = snapshot.Level;
             if (!string.IsNullOrEmpty(snapshot.FireRating))
                 parameters["Fire Rating"] = snapshot.FireRating;
-            if (snapshot.DoorWidth.HasValue)
-                parameters["Width"] = snapshot.DoorWidth.Value;
-            if (snapshot.DoorHeight.HasValue)
-                parameters["Height"] = snapshot.DoorHeight.Value;
             if (!string.IsNullOrEmpty(snapshot.PhaseCreated))
                 parameters["Phase Created"] = snapshot.PhaseCreated;
             if (!string.IsNullOrEmpty(snapshot.PhaseDemolished))

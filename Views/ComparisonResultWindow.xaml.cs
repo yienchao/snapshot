@@ -345,8 +345,32 @@ namespace ViewTracker.Views
         public string TrackId { get; set; }
         public string RoomNumber { get; set; }
         public string RoomName { get; set; }
-        public int ChangesCount => Changes?.Count ?? 0;
-        public string ChangesSummary => Changes?.Count > 0 ? $"{Changes.Count} parameter(s) changed" : "No parameter changes";
+        public int ChangesCount => (InstanceParameterChanges?.Count ?? 0) + (TypeParameterChanges?.Count ?? 0);
+        public string ChangesSummary
+        {
+            get
+            {
+                int instCount = InstanceParameterChanges?.Count ?? 0;
+                int typeCount = TypeParameterChanges?.Count ?? 0;
+                if (instCount == 0 && typeCount == 0)
+                    return "No parameter changes";
+                if (typeCount == 0)
+                    return $"{instCount} parameter(s) changed";
+                if (instCount == 0)
+                    return $"{typeCount} type parameter(s) changed";
+                return $"{instCount} instance, {typeCount} type parameter(s) changed";
+            }
+        }
+
+        // Legacy: combined changes list for backward compatibility
         public List<string> Changes { get; set; } = new List<string>();
+
+        // New: separate instance and type parameter changes
+        public List<string> InstanceParameterChanges { get; set; } = new List<string>();
+        public List<string> TypeParameterChanges { get; set; } = new List<string>();
+
+        // Visibility helpers for columns
+        public string InstanceChangesVisibility => (InstanceParameterChanges?.Count ?? 0) > 0 ? "Visible" : "Collapsed";
+        public string TypeChangesVisibility => (TypeParameterChanges?.Count ?? 0) > 0 ? "Visible" : "Collapsed";
     }
 }

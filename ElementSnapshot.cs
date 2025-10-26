@@ -57,5 +57,8 @@ namespace ViewTracker
 
         [Column("all_parameters")]
         public Dictionary<string, object> AllParameters { get; set; }
+
+        [Column("type_parameters")]
+        public Dictionary<string, object> TypeParameters { get; set; }
     }
 }

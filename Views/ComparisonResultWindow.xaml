@@ -154,16 +154,36 @@
             <DataGrid.RowDetailsTemplate>
                 <DataTemplate>
                     <Border Background="#F0F0F0" Padding="15" Margin="5">
-                        <StackPanel>
-                            <TextBlock Text="Parameter Changes:" FontWeight="Bold" Margin="0,0,0,10"/>
-                            <ItemsControl ItemsSource="{Binding Changes}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}" Margin="20,2,0,2" FontFamily="Consolas"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Instance Parameters Column -->
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0" Visibility="{Binding InstanceChangesVisibility}">
+                                <TextBlock Text="Instance Parameter Changes:" FontWeight="Bold" Margin="0,0,0,10" Foreground="#2196F3"/>
+                                <ItemsControl ItemsSource="{Binding InstanceParameterChanges}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" Margin="10,2,0,2" FontFamily="Consolas" FontSize="12"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Type Parameters Column -->
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0" Visibility="{Binding TypeChangesVisibility}">
+                                <TextBlock Text="Type Parameter Changes:" FontWeight="Bold" Margin="0,0,0,10" Foreground="#FF9800"/>
+                                <ItemsControl ItemsSource="{Binding TypeParameterChanges}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" Margin="10,2,0,2" FontFamily="Consolas" FontSize="12"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </DataTemplate>
             </DataGrid.RowDetailsTemplate>

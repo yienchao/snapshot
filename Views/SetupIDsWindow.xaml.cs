@@ -60,18 +60,19 @@ namespace ViewTracker.Views
                                                     !string.IsNullOrWhiteSpace(d.LookupParameter("trackID").AsString()));
                 }
 
-                // Count elements
+                // Count elements (only those whose category has trackID parameter)
                 if (ElementsCheckBox.IsChecked == true)
                 {
                     var elements = new FilteredElementCollector(_doc)
                         .OfClass(typeof(FamilyInstance))
                         .Cast<FamilyInstance>()
-                        .Where(fi => fi.Category != null && fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors)
+                        .Where(fi => fi.Category != null &&
+                                     fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors &&
+                                     fi.LookupParameter("trackID") != null)  // Only categories with trackID parameter
                         .ToList();
 
                     elementsTotal = elements.Count;
-                    elementsWithId = elements.Count(e => e.LookupParameter("trackID") != null &&
-                                                          !string.IsNullOrWhiteSpace(e.LookupParameter("trackID").AsString()));
+                    elementsWithId = elements.Count(e => !string.IsNullOrWhiteSpace(e.LookupParameter("trackID").AsString()));
                 }
 
                 // Display results
@@ -140,11 +141,13 @@ namespace ViewTracker.Views
                     .Cast<FamilyInstance>();
                 allElementsInModel.AddRange(allDoors);
 
-                // Collect all other elements
+                // Collect all other elements (only those whose category has trackID parameter)
                 var allElements = new FilteredElementCollector(_doc)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
-                    .Where(fi => fi.Category != null && fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors);
+                    .Where(fi => fi.Category != null &&
+                                 fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors &&
+                                 fi.LookupParameter("trackID") != null);  // Only categories with trackID parameter
                 allElementsInModel.AddRange(allElements);
 
                 // Add all trackIDs from current model to the set
@@ -215,8 +218,8 @@ namespace ViewTracker.Views
                         .Cast<FamilyInstance>()
                         .Where(fi => fi.Category != null &&
                                      fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors &&
-                                     (fi.LookupParameter("trackID") == null ||
-                                      string.IsNullOrWhiteSpace(fi.LookupParameter("trackID").AsString())))
+                                     fi.LookupParameter("trackID") != null &&  // Only categories with trackID parameter
+                                     string.IsNullOrWhiteSpace(fi.LookupParameter("trackID").AsString()))  // But missing value
                         .ToList();
 
                     foreach (var element in elements)
@@ -325,15 +328,16 @@ namespace ViewTracker.Views
                 var elements = new FilteredElementCollector(_doc)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
-                    .Where(fi => fi.Category != null && fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors)
+                    .Where(fi => fi.Category != null &&
+                                 fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors &&
+                                 fi.LookupParameter("trackID") != null)  // Only categories with trackID parameter
                     .ToList();
 
                 int roomsWithId = rooms.Count(r => r.LookupParameter("trackID") != null &&
                                                 !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()));
                 int doorsWithId = doors.Count(d => d.LookupParameter("trackID") != null &&
                                                 !string.IsNullOrWhiteSpace(d.LookupParameter("trackID").AsString()));
-                int elementsWithId = elements.Count(e => e.LookupParameter("trackID") != null &&
-                                                      !string.IsNullOrWhiteSpace(e.LookupParameter("trackID").AsString()));
+                int elementsWithId = elements.Count(e => !string.IsNullOrWhiteSpace(e.LookupParameter("trackID").AsString()));
 
                 double roomsPct = rooms.Count > 0 ? (roomsWithId * 100.0 / rooms.Count) : 0;
                 double doorsPct = doors.Count > 0 ? (doorsWithId * 100.0 / doors.Count) : 0;

@@ -46,12 +46,6 @@ namespace ViewTracker
         [Column("fire_rating")]
         public string? FireRating { get; set; }
 
-        [Column("door_width")]
-        public double? DoorWidth { get; set; }
-
-        [Column("door_height")]
-        public double? DoorHeight { get; set; }
-
         [Column("phase_created")]
         public string? PhaseCreated { get; set; }
 
@@ -63,5 +57,8 @@ namespace ViewTracker
 
         [Column("all_parameters")]
         public Dictionary<string, object> AllParameters { get; set; }
+
+        [Column("type_parameters")]
+        public Dictionary<string, object> TypeParameters { get; set; }
     }
 }

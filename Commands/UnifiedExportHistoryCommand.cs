@@ -488,8 +488,6 @@ namespace ViewTracker.Commands
                 worksheet.Cells[1, col++].Value = "Mark";
                 worksheet.Cells[1, col++].Value = "Level";
                 worksheet.Cells[1, col++].Value = "Fire Rating";
-                worksheet.Cells[1, col++].Value = "Door Width";
-                worksheet.Cells[1, col++].Value = "Door Height";
                 worksheet.Cells[1, col++].Value = "Phase Created";
                 worksheet.Cells[1, col++].Value = "Phase Demolished";
                 worksheet.Cells[1, col++].Value = "Comments";
@@ -523,8 +521,6 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = snapshot.Mark;
                     worksheet.Cells[row, col++].Value = snapshot.Level;
                     worksheet.Cells[row, col++].Value = snapshot.FireRating;
-                    worksheet.Cells[row, col++].Value = FormatDoorValueForExport(BuiltInParameter.DOOR_WIDTH, snapshot.DoorWidth, doc);
-                    worksheet.Cells[row, col++].Value = FormatDoorValueForExport(BuiltInParameter.DOOR_HEIGHT, snapshot.DoorHeight, doc);
                     worksheet.Cells[row, col++].Value = snapshot.PhaseCreated;
                     worksheet.Cells[row, col++].Value = snapshot.PhaseDemolished;
                     worksheet.Cells[row, col++].Value = snapshot.Comments;
@@ -571,7 +567,7 @@ namespace ViewTracker.Commands
                 {
                     "Track ID", "Version Name", "Snapshot Date", "Created By", "Is Official",
                     "Family Name", "Type Name", "Mark", "Level", "Fire Rating",
-                    "Door Width", "Door Height", "Phase Created", "Phase Demolished", "Comments"
+                    "Phase Created", "Phase Demolished", "Comments"
                 };
                 headers.AddRange(sortedParamNames);
                 writer.WriteLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
@@ -590,8 +586,6 @@ namespace ViewTracker.Commands
                         CsvEscape(snapshot.Mark),
                         CsvEscape(snapshot.Level),
                         CsvEscape(snapshot.FireRating),
-                        CsvEscape(FormatDoorValueForExport(BuiltInParameter.DOOR_WIDTH, snapshot.DoorWidth, doc)),
-                        CsvEscape(FormatDoorValueForExport(BuiltInParameter.DOOR_HEIGHT, snapshot.DoorHeight, doc)),
                         CsvEscape(snapshot.PhaseCreated),
                         CsvEscape(snapshot.PhaseDemolished),
                         CsvEscape(snapshot.Comments)
