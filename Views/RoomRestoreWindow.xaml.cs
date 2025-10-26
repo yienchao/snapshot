@@ -580,16 +580,17 @@ namespace ViewTracker.Views
             // Get current room trackIDs mapped to rooms for filtering
             var currentRoomsDict = _currentRooms
                 .Where(r => r.LookupParameter("trackID") != null)
-                .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+                .ToDictionary(r => r.LookupParameter("trackID").AsString()?.Trim() ?? "", r => r, StringComparer.OrdinalIgnoreCase);
 
-            var currentTrackIds = currentRoomsDict.Keys.ToHashSet();
+            var currentTrackIds = currentRoomsDict.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // Filter based on scope selection
             if (DeletedRoomsRadio?.IsChecked == true)
             {
                 // Deleted rooms only: snapshots that DON'T exist in current model
                 return _selectedVersionSnapshots
-                    .Where(s => !currentTrackIds.Contains(s.TrackId))
+                    .Where(s => !string.IsNullOrWhiteSpace(s.TrackId) &&
+                               !currentTrackIds.Contains(s.TrackId?.Trim()))
                     .ToList();
             }
             else if (UnplacedRoomsRadio?.IsChecked == true)
@@ -598,8 +599,12 @@ namespace ViewTracker.Views
                 return _selectedVersionSnapshots
                     .Where(s =>
                     {
+                        // Skip snapshots with invalid trackIDs
+                        if (string.IsNullOrWhiteSpace(s.TrackId))
+                            return false;
+
                         // Room must exist in current model
-                        if (!currentRoomsDict.TryGetValue(s.TrackId, out Room currentRoom))
+                        if (!currentRoomsDict.TryGetValue(s.TrackId?.Trim(), out Room currentRoom))
                             return false;
 
                         // Room must be currently unplaced
@@ -616,7 +621,8 @@ namespace ViewTracker.Views
             {
                 // Pre-selected rooms only: snapshots matching pre-selected rooms
                 return _selectedVersionSnapshots
-                    .Where(s => currentTrackIds.Contains(s.TrackId))
+                    .Where(s => !string.IsNullOrWhiteSpace(s.TrackId) &&
+                               currentTrackIds.Contains(s.TrackId?.Trim()))
                     .ToList();
             }
             else
@@ -732,15 +738,17 @@ namespace ViewTracker.Views
             {
                 selectedRoomsFromPanel = panelItems
                     .Where(item => item.IsSelected)
-                    .ToDictionary(item => item.Snapshot.TrackId);
+                    .Where(item => !string.IsNullOrWhiteSpace(item.Snapshot.TrackId))
+                    .ToDictionary(item => item.Snapshot.TrackId?.Trim() ?? "", StringComparer.OrdinalIgnoreCase);
             }
             else if (isAllOrPreselectedScope && _roomRestoreItems != null && _roomRestoreItems.Any())
             {
                 // For All/Pre-selected scopes, get selected rooms from RoomListGroupBox
                 selectedRoomTrackIds = _roomRestoreItems
                     .Where(item => item.IsSelected)
-                    .Select(item => item.TrackId)
-                    .ToHashSet();
+                    .Select(item => item.TrackId?.Trim())
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 // If no rooms selected, show warning
                 if (!selectedRoomTrackIds.Any())
@@ -749,17 +757,14 @@ namespace ViewTracker.Views
                 }
             }
 
-            // Performance optimization: Build complete room dictionary ONCE before loop
-            var allRoomsDict = new FilteredElementCollector(_doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .Cast<Room>()
+            // Performance optimization: Use existing _currentRooms instead of re-querying
+            var allRoomsDict = _currentRooms
                 .Where(r =>
                 {
                     var trackIdParam = r.LookupParameter("trackID");
                     return trackIdParam != null && !string.IsNullOrWhiteSpace(trackIdParam.AsString());
                 })
-                .ToDictionary(r => r.LookupParameter("trackID").AsString());
+                .ToDictionary(r => r.LookupParameter("trackID").AsString()?.Trim() ?? "", StringComparer.OrdinalIgnoreCase);
 
             using (Transaction trans = new Transaction(_doc, "Restore Rooms from Snapshot"))
             {
@@ -769,11 +774,17 @@ namespace ViewTracker.Views
 
                     foreach (var snapshot in snapshotsToRestore)
                 {
+                    // Skip snapshots with invalid trackIDs
+                    if (string.IsNullOrWhiteSpace(snapshot.TrackId))
+                        continue;
+
+                    string trackId = snapshot.TrackId?.Trim();
+
                     // Determine snapshot placement state
                     bool snapshotWasPlaced = snapshot.PositionX.HasValue && snapshot.PositionY.HasValue;
 
                     // Check if room exists in current model
-                    bool roomExists = allRoomsDict.TryGetValue(snapshot.TrackId, out Room existingRoom);
+                    bool roomExists = allRoomsDict.TryGetValue(trackId, out Room existingRoom);
 
                     if (roomExists)
                     {
@@ -788,19 +799,19 @@ namespace ViewTracker.Views
                             if (!roomIsPlaced && snapshotWasPlaced)
                             {
                                 // Check if this room was selected by user in the panel
-                                if (selectedRoomsFromPanel != null && !selectedRoomsFromPanel.ContainsKey(snapshot.TrackId))
+                                if (selectedRoomsFromPanel != null && !selectedRoomsFromPanel.ContainsKey(trackId))
                                 {
                                     continue; // Skip unselected rooms
                                 }
 
                                 // Get user preference for placement
                                 bool shouldPlaceAtLocation = selectedRoomsFromPanel != null &&
-                                                            selectedRoomsFromPanel.TryGetValue(snapshot.TrackId, out var item) &&
+                                                            selectedRoomsFromPanel.TryGetValue(trackId, out var item) &&
                                                             item.PlaceAtLocation;
 
                                 // Strategy: Delete the unplaced room and recreate it
                                 _doc.Delete(existingRoom.Id);
-                                allRoomsDict.Remove(snapshot.TrackId);
+                                allRoomsDict.Remove(trackId);
 
                                 // Recreate room with placement option
                                 var newRoom = CreateRoomWithPlacement(snapshot, selectedParams, shouldPlaceAtLocation);
@@ -820,7 +831,7 @@ namespace ViewTracker.Views
                                     }
 
                                     // Add to dictionary to prevent duplicates
-                                    allRoomsDict[snapshot.TrackId] = newRoom;
+                                    allRoomsDict[trackId] = newRoom;
                                 }
                             }
                             // else: Skip rooms that don't match unplaced criteria
@@ -829,7 +840,7 @@ namespace ViewTracker.Views
                         {
                             // All Rooms or Selected Rooms scope: Just update parameters
                             // But only if this room is selected in the UI
-                            if (isAllOrPreselectedScope && selectedRoomTrackIds != null && !selectedRoomTrackIds.Contains(snapshot.TrackId))
+                            if (isAllOrPreselectedScope && selectedRoomTrackIds != null && !selectedRoomTrackIds.Contains(trackId))
                             {
                                 continue; // Skip unselected rooms
                             }
@@ -848,14 +859,14 @@ namespace ViewTracker.Views
                             // Deleted scope: Recreate deleted rooms
 
                             // Check if this deleted room was selected by user
-                            if (selectedRoomsFromPanel != null && !selectedRoomsFromPanel.ContainsKey(snapshot.TrackId))
+                            if (selectedRoomsFromPanel != null && !selectedRoomsFromPanel.ContainsKey(trackId))
                             {
                                 continue; // Skip unselected rooms
                             }
 
                             // Get user preference for placement
                             bool shouldPlaceAtLocation = selectedRoomsFromPanel != null &&
-                                                        selectedRoomsFromPanel.TryGetValue(snapshot.TrackId, out var item) &&
+                                                        selectedRoomsFromPanel.TryGetValue(trackId, out var item) &&
                                                         item.PlaceAtLocation;
 
                             // Create room with placement option
@@ -876,7 +887,7 @@ namespace ViewTracker.Views
                                 }
 
                                 // Add to dictionary to prevent duplicates
-                                allRoomsDict[snapshot.TrackId] = newRoom;
+                                allRoomsDict[trackId] = newRoom;
                             }
                         }
                         // else: Room doesn't exist and we're not in deleted scope - skip it
