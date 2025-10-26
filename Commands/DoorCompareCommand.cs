@@ -311,29 +311,29 @@ namespace ViewTracker.Commands
             // Add facing and hand orientation (important for flip detection)
             if (currentDoor.FacingOrientation != null)
             {
-                var facingXValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.FacingOrientation.X, DisplayValue = currentDoor.FacingOrientation.X.ToString("F6"), IsTypeParameter = false };
+                var facingXValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.FacingOrientation.X, DisplayValue = currentDoor.FacingOrientation.X.ToString("F2"), IsTypeParameter = false };
                 currentParams["facing_x"] = facingXValue;
                 currentParamsDisplay["facing_x"] = facingXValue.DisplayValue;
 
-                var facingYValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.FacingOrientation.Y, DisplayValue = currentDoor.FacingOrientation.Y.ToString("F6"), IsTypeParameter = false };
+                var facingYValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.FacingOrientation.Y, DisplayValue = currentDoor.FacingOrientation.Y.ToString("F2"), IsTypeParameter = false };
                 currentParams["facing_y"] = facingYValue;
                 currentParamsDisplay["facing_y"] = facingYValue.DisplayValue;
 
-                var facingZValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.FacingOrientation.Z, DisplayValue = currentDoor.FacingOrientation.Z.ToString("F6"), IsTypeParameter = false };
+                var facingZValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.FacingOrientation.Z, DisplayValue = currentDoor.FacingOrientation.Z.ToString("F2"), IsTypeParameter = false };
                 currentParams["facing_z"] = facingZValue;
                 currentParamsDisplay["facing_z"] = facingZValue.DisplayValue;
             }
             if (currentDoor.HandOrientation != null)
             {
-                var handXValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.HandOrientation.X, DisplayValue = currentDoor.HandOrientation.X.ToString("F6"), IsTypeParameter = false };
+                var handXValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.HandOrientation.X, DisplayValue = currentDoor.HandOrientation.X.ToString("F2"), IsTypeParameter = false };
                 currentParams["hand_x"] = handXValue;
                 currentParamsDisplay["hand_x"] = handXValue.DisplayValue;
 
-                var handYValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.HandOrientation.Y, DisplayValue = currentDoor.HandOrientation.Y.ToString("F6"), IsTypeParameter = false };
+                var handYValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.HandOrientation.Y, DisplayValue = currentDoor.HandOrientation.Y.ToString("F2"), IsTypeParameter = false };
                 currentParams["hand_y"] = handYValue;
                 currentParamsDisplay["hand_y"] = handYValue.DisplayValue;
 
-                var handZValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.HandOrientation.Z, DisplayValue = currentDoor.HandOrientation.Z.ToString("F6"), IsTypeParameter = false };
+                var handZValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentDoor.HandOrientation.Z, DisplayValue = currentDoor.HandOrientation.Z.ToString("F2"), IsTypeParameter = false };
                 currentParams["hand_z"] = handZValue;
                 currentParamsDisplay["hand_z"] = handZValue.DisplayValue;
             }

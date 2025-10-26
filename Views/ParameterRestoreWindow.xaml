@@ -141,10 +141,29 @@
                         <Button Content="Select None" Click="SelectNoneElements_Click" Padding="10,5" FontSize="12"/>
                     </StackPanel>
 
-                    <!-- Scrollable element list -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="ElementsItemsControl">
-                            <ItemsControl.ItemTemplate>
+                    <!-- Scrollable element list with virtualization for performance -->
+                    <ListBox x:Name="ElementsItemsControl"
+                             Grid.Row="1"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingStackPanel.IsVirtualizing="True"
+                             VirtualizingStackPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Border BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,8"
                                             Padding="8" CornerRadius="3" Background="White">
@@ -187,9 +206,8 @@
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </GroupBox>
         </Grid>

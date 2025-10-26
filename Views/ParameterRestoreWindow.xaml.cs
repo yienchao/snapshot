@@ -119,7 +119,150 @@ namespace ViewTracker.Views
         private void ParameterCheckbox_Changed(object sender, RoutedEventArgs e)
         {
             // Refresh element list when parameters are selected/deselected
-            PopulateElementList();
+            // OPTIMIZATION: Only update the preview for existing items instead of rebuilding entire list
+            UpdateElementPreviews();
+        }
+
+        private void UpdateElementPreviews()
+        {
+            // Get selected parameters
+            var selectedParams = GetSelectedParameters();
+
+            // Update preview for each existing restore item without recreating the entire list
+            foreach (var restoreItem in _elementRestoreItems)
+            {
+                UpdateElementPreview(restoreItem, selectedParams);
+            }
+        }
+
+        private void UpdateElementPreview(ElementRestoreItem restoreItem, List<string> selectedParams)
+        {
+            var element = restoreItem.Element;
+            var trackId = restoreItem.TrackId;
+
+            // Get snapshot
+            dynamic snapshot = null;
+            if (_selectedVersionSnapshots != null)
+            {
+                snapshot = _selectedVersionSnapshots.FirstOrDefault(s => s.TrackId == trackId);
+            }
+
+            if (snapshot == null)
+                return;
+
+            // Rebuild parameter preview based on selected parameters
+            var parameterPreview = new List<ElementParameterPreview>();
+
+            // Get available parameters from snapshot
+            Dictionary<string, object> allParameters = null;
+            try
+            {
+                if (_entityType == "Door")
+                {
+                    allParameters = ((DoorSnapshot)snapshot).AllParameters;
+                }
+                else
+                {
+                    allParameters = ((ElementSnapshot)snapshot).AllParameters;
+                }
+            }
+            catch { }
+
+            if (allParameters != null && selectedParams.Any())
+            {
+                var nonRestorableParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "facing_x", "facing_y", "facing_z",
+                    "hand_x", "hand_y", "hand_z",
+                    "locationx", "locationy", "locationz",
+                    "location_x", "location_y", "location_z",
+                    "facingx", "facingy", "facingz",
+                    "handx", "handy", "handz"
+                };
+
+                foreach (var paramName in selectedParams)
+                {
+                    if (nonRestorableParams.Contains(paramName))
+                        continue;
+
+                    if (allParameters.ContainsKey(paramName))
+                    {
+                        string displayValue = "(empty)";
+                        var value = allParameters[paramName];
+
+                        if (value != null)
+                        {
+                            // Extract from ParameterValue
+                            if (value is ViewTracker.Models.ParameterValue pv)
+                            {
+                                displayValue = pv.DisplayValue ?? pv.RawValue?.ToString() ?? "(empty)";
+                            }
+                            else if (value is Newtonsoft.Json.Linq.JObject jObj)
+                            {
+                                var paramVal = ViewTracker.Models.ParameterValue.FromJsonObject(jObj);
+                                if (paramVal != null)
+                                {
+                                    displayValue = paramVal.DisplayValue ?? paramVal.RawValue?.ToString() ?? "(empty)";
+                                }
+                            }
+                            else
+                            {
+                                displayValue = value.ToString();
+                            }
+                        }
+
+                        parameterPreview.Add(new ElementParameterPreview
+                        {
+                            Name = paramName,
+                            Value = displayValue
+                        });
+                    }
+                }
+            }
+
+            // If no parameters selected, check for orientation differences (this was already calculated)
+            // Don't recalculate - just check if we need to show orientation status
+            if (!selectedParams.Any() && (_entityType == "Door" || _entityType == "Element"))
+            {
+                // Check if there's cached orientation info from the initial population
+                // For now, we'll add a simple check - this could be optimized further
+                if (element is FamilyInstance familyInst && allParameters != null)
+                {
+                    try
+                    {
+                        XYZ snapshotFacing = GetOrientationFromSnapshot(allParameters, "facing");
+                        XYZ snapshotHand = GetOrientationFromSnapshot(allParameters, "hand");
+
+                        if (snapshotFacing != null && snapshotHand != null &&
+                            familyInst.FacingOrientation != null && familyInst.HandOrientation != null)
+                        {
+                            double facingDot = familyInst.FacingOrientation.DotProduct(snapshotFacing);
+                            double handDot = familyInst.HandOrientation.DotProduct(snapshotHand);
+
+                            if (facingDot < 0.0)
+                            {
+                                parameterPreview.Add(new ElementParameterPreview
+                                {
+                                    Name = "⚠️ Facing orientation",
+                                    Value = "Needs flip"
+                                });
+                            }
+                            if (handDot < 0.0)
+                            {
+                                parameterPreview.Add(new ElementParameterPreview
+                                {
+                                    Name = "⚠️ Hand orientation",
+                                    Value = "Needs flip"
+                                });
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // Update the restore item's preview
+            restoreItem.ParameterPreview = parameterPreview;
         }
 
         private void PopulateParameterCheckboxes()
@@ -302,6 +445,39 @@ namespace ViewTracker.Views
 
         private void ScopeRadio_Changed(object sender, RoutedEventArgs e)
         {
+            // When switching to "All elements", fetch all elements from document
+            if (AllElementsRadio?.IsChecked == true && _hasPreSelection)
+            {
+                // Fetch all elements with trackID from document
+                try
+                {
+                    if (_entityType == "Door")
+                    {
+                        _currentElements = new FilteredElementCollector(_doc)
+                            .OfCategory(BuiltInCategory.OST_Doors)
+                            .WhereElementIsNotElementType()
+                            .Cast<Element>()
+                            .Where(e => e.LookupParameter("trackID") != null &&
+                                       !string.IsNullOrWhiteSpace(e.LookupParameter("trackID").AsString()))
+                            .ToList();
+                    }
+                    else // Element
+                    {
+                        _currentElements = new FilteredElementCollector(_doc)
+                            .WhereElementIsNotElementType()
+                            .Cast<Element>()
+                            .Where(e => e.Category != null &&
+                                       e.LookupParameter("trackID") != null &&
+                                       !string.IsNullOrWhiteSpace(e.LookupParameter("trackID").AsString()))
+                            .ToList();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error fetching all elements: {ex.Message}");
+                }
+            }
+
             // Reload the element list based on the new scope selection
             if (_selectedVersionSnapshots != null && _selectedVersionSnapshots.Any())
             {
@@ -366,7 +542,9 @@ namespace ViewTracker.Views
         private void Preview_Click(object sender, RoutedEventArgs e)
         {
             var selectedParams = GetSelectedParameters();
-            if (!selectedParams.Any())
+
+            // For doors/elements, allow preview even with no parameters (for orientation info)
+            if (!selectedParams.Any() && _entityType != "Door" && _entityType != "Element")
             {
                 MessageBox.Show("Please select at least one instance parameter to restore.",
                     "No Parameters Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -383,7 +561,10 @@ namespace ViewTracker.Views
         private void Restore_Click(object sender, RoutedEventArgs e)
         {
             var selectedParams = GetSelectedParameters();
-            if (!selectedParams.Any())
+
+            // For doors/elements, allow restore even with no parameters (for orientation restore)
+            // For other entity types, require at least one parameter
+            if (!selectedParams.Any() && _entityType != "Door" && _entityType != "Element")
             {
                 MessageBox.Show("Please select at least one instance parameter to restore.",
                     "No Parameters Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -397,13 +578,24 @@ namespace ViewTracker.Views
                 return;
             }
 
-            var result = MessageBox.Show(
-                $"Are you sure you want to restore {selectedParams.Count} parameter(s) for existing {_entityType.ToLower()}(s)?\n\n" +
-                $"This will update parameters based on the selected snapshot version." +
-                (ChkCreateBackup.IsChecked == true ? "\n\nA backup snapshot will be created first." : ""),
-                "Confirm Restore",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+            // Build confirmation message
+            string message = selectedParams.Count > 0
+                ? $"Are you sure you want to restore {selectedParams.Count} parameter(s) for existing {_entityType.ToLower()}(s)?\n\n" +
+                  $"This will update parameters based on the selected snapshot version."
+                : $"Are you sure you want to restore orientation for existing {_entityType.ToLower()}(s)?\n\n" +
+                  $"This will flip {_entityType.ToLower()}(s) back to their snapshot orientation (no parameters will be changed).";
+
+            if (_entityType == "Door" || _entityType == "Element")
+            {
+                message += "\n\nOrientation (facing/hand) will also be restored automatically.";
+            }
+
+            if (ChkCreateBackup.IsChecked == true)
+            {
+                message += "\n\nA backup snapshot will be created first.";
+            }
+
+            var result = MessageBox.Show(message, "Confirm Restore", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result != MessageBoxResult.Yes)
                 return;
@@ -706,6 +898,22 @@ namespace ViewTracker.Views
                             }
                         }
 
+                        // After restoring parameters, check if orientation needs to be restored (doors/elements only)
+                        if (element is FamilyInstance familyInstance &&
+                            (_entityType == "Door" || _entityType == "Element"))
+                        {
+                            try
+                            {
+                                bool orientationChanged = RestoreOrientation(familyInstance, allParameters, errors);
+                                if (orientationChanged)
+                                    elementHadChanges = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                errors.Add($"Element {element.Id}: Orientation restore failed: {ex.Message}");
+                            }
+                        }
+
                         if (elementHadChanges)
                             updatedCount++;
                     }
@@ -822,6 +1030,15 @@ namespace ViewTracker.Views
             if (value is ViewTracker.Models.ParameterValue paramValue)
             {
                 actualValue = paramValue.RawValue;
+            }
+            else if (value is Newtonsoft.Json.Linq.JObject jObj)
+            {
+                // Handle JSON deserialization - convert JObject to ParameterValue
+                var pv = ViewTracker.Models.ParameterValue.FromJsonObject(jObj);
+                if (pv != null)
+                {
+                    actualValue = pv.RawValue;
+                }
             }
 
             // Set parameter based on storage type - clean, type-safe logic
@@ -1141,23 +1358,114 @@ namespace ViewTracker.Views
                     {
                         if (currentTypeParams.TryGetValue(kvp.Key, out var currentValue))
                         {
+                            // Extract snapshot value from ParameterValue object
+                            object snapshotValue = null;
+                            try
+                            {
+                                if (kvp.Value is Models.ParameterValue pv)
+                                {
+                                    snapshotValue = pv.RawValue;
+                                }
+                                else if (kvp.Value is Newtonsoft.Json.Linq.JObject jObj)
+                                {
+                                    var paramVal = Models.ParameterValue.FromJsonObject(jObj);
+                                    if (paramVal != null)
+                                        snapshotValue = paramVal.RawValue;
+                                }
+                                else
+                                {
+                                    snapshotValue = kvp.Value;
+                                }
+                            }
+                            catch
+                            {
+                                snapshotValue = kvp.Value;
+                            }
+
+                            if (snapshotValue == null)
+                                continue;
+
                             // Compare values
                             bool isDifferent = false;
-                            if (kvp.Value is double snapDouble && currentValue is double currDouble)
+                            if (snapshotValue is double snapDouble && currentValue is double currDouble)
                             {
                                 isDifferent = Math.Abs(snapDouble - currDouble) > 0.0001;
                             }
+                            else if (snapshotValue is long snapLong && currentValue is int currInt)
+                            {
+                                // JSON deserializes integers as long, compare as long
+                                isDifferent = snapLong != currInt;
+                            }
+                            else if (snapshotValue is int snapInt && currentValue is int currInt2)
+                            {
+                                isDifferent = snapInt != currInt2;
+                            }
                             else
                             {
-                                isDifferent = !Equals(kvp.Value, currentValue);
+                                // Handle ElementId special case: -1 (invalid) equals empty string
+                                string snapStr = snapshotValue?.ToString() ?? "";
+                                string currStr = currentValue?.ToString() ?? "";
+
+                                // Normalize: -1 and empty string both mean "no value"
+                                if ((snapStr == "-1" || snapStr == "") && (currStr == "-1" || currStr == ""))
+                                {
+                                    isDifferent = false;
+                                }
+                                else
+                                {
+                                    isDifferent = !Equals(snapStr, currStr);
+                                }
                             }
 
                             if (isDifferent)
                             {
-                                typeParameterWarnings.Add($"  {kvp.Key}: '{kvp.Value}' → '{currentValue}'");
+                                typeParameterWarnings.Add($"  {kvp.Key}: '{snapshotValue}' → '{currentValue}'");
                             }
                         }
                     }
+                }
+
+                // Check for orientation differences (doors/elements only)
+                bool needsOrientationRestore = false;
+                if ((_entityType == "Door" || _entityType == "Element") && element is FamilyInstance familyInst)
+                {
+                    try
+                    {
+                        // Get snapshot orientation
+                        XYZ snapshotFacing = GetOrientationFromSnapshot(allParameters, "facing");
+                        XYZ snapshotHand = GetOrientationFromSnapshot(allParameters, "hand");
+
+                        if (snapshotFacing != null && snapshotHand != null &&
+                            familyInst.FacingOrientation != null && familyInst.HandOrientation != null)
+                        {
+                            double facingDot = familyInst.FacingOrientation.DotProduct(snapshotFacing);
+                            double handDot = familyInst.HandOrientation.DotProduct(snapshotHand);
+
+                            needsOrientationRestore = facingDot < 0.0 || handDot < 0.0;
+
+                            // Add orientation info to preview if no parameters selected
+                            if (!selectedParams.Any() && needsOrientationRestore)
+                            {
+                                if (facingDot < 0.0)
+                                {
+                                    parameterPreview.Add(new ElementParameterPreview
+                                    {
+                                        Name = "⚠️ Facing orientation",
+                                        Value = "Needs flip"
+                                    });
+                                }
+                                if (handDot < 0.0)
+                                {
+                                    parameterPreview.Add(new ElementParameterPreview
+                                    {
+                                        Name = "⚠️ Hand orientation",
+                                        Value = "Needs flip"
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    catch { }
                 }
 
                 var restoreItem = new ElementRestoreItem
@@ -1281,18 +1589,165 @@ namespace ViewTracker.Views
 
             return result;
         }
+
+        /// <summary>
+        /// Restores orientation (facing and hand) for doors and elements by comparing snapshot orientation with current orientation
+        /// Returns true if any flips were performed
+        /// </summary>
+        private bool RestoreOrientation(FamilyInstance element, Dictionary<string, object> snapshotParameters, List<string> errors)
+        {
+            if (snapshotParameters == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"RestoreOrientation: snapshotParameters is null for element {element.Id}");
+                return false;
+            }
+
+            if (element.FacingOrientation == null || element.HandOrientation == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"RestoreOrientation: Element {element.Id} has null orientation");
+                return false;
+            }
+
+            bool orientationChanged = false;
+
+            try
+            {
+                // Extract snapshot orientation vectors from AllParameters JSON
+                XYZ snapshotFacing = GetOrientationFromSnapshot(snapshotParameters, "facing");
+                XYZ snapshotHand = GetOrientationFromSnapshot(snapshotParameters, "hand");
+
+                if (snapshotFacing == null || snapshotHand == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"RestoreOrientation: Could not extract orientation from snapshot for element {element.Id}");
+                    System.Diagnostics.Debug.WriteLine($"  snapshotFacing: {snapshotFacing}, snapshotHand: {snapshotHand}");
+                    System.Diagnostics.Debug.WriteLine($"  Available keys: {string.Join(", ", snapshotParameters.Keys)}");
+                    return false; // No orientation data in snapshot
+                }
+
+                // Get current orientation
+                XYZ currentFacing = element.FacingOrientation;
+                XYZ currentHand = element.HandOrientation;
+
+                // Check if facing orientation needs to be flipped
+                // Use dot product to determine if orientations are opposite (dot product near -1) or same (near 1)
+                double facingDot = currentFacing.DotProduct(snapshotFacing);
+                bool needsFacingFlip = facingDot < 0.0; // If dot product is negative, vectors point in opposite directions
+
+                // Check if hand orientation needs to be flipped
+                double handDot = currentHand.DotProduct(snapshotHand);
+                bool needsHandFlip = handDot < 0.0;
+
+                System.Diagnostics.Debug.WriteLine($"RestoreOrientation: Element {element.Id}");
+                System.Diagnostics.Debug.WriteLine($"  Facing dot: {facingDot:F3}, needs flip: {needsFacingFlip}");
+                System.Diagnostics.Debug.WriteLine($"  Hand dot: {handDot:F3}, needs flip: {needsHandFlip}");
+
+                // Perform flips if needed
+                if (needsFacingFlip)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Flipping facing for element {element.Id}");
+                    element.flipFacing();
+                    orientationChanged = true;
+                }
+
+                if (needsHandFlip)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Flipping hand for element {element.Id}");
+                    element.flipHand();
+                    orientationChanged = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RestoreOrientation: Exception for element {element.Id}: {ex.Message}");
+                errors.Add($"Element {element.Id}: Failed to restore orientation: {ex.Message}");
+            }
+
+            return orientationChanged;
+        }
+
+        /// <summary>
+        /// Extracts orientation vector (facing or hand) from snapshot AllParameters JSON
+        /// </summary>
+        private XYZ GetOrientationFromSnapshot(Dictionary<string, object> snapshotParameters, string prefix)
+        {
+            try
+            {
+                string xKey = $"{prefix}_x";
+                string yKey = $"{prefix}_y";
+                string zKey = $"{prefix}_z";
+
+                if (!snapshotParameters.ContainsKey(xKey) ||
+                    !snapshotParameters.ContainsKey(yKey) ||
+                    !snapshotParameters.ContainsKey(zKey))
+                {
+                    return null;
+                }
+
+                // Extract values from ParameterValue objects
+                double x = GetDoubleFromParameterValue(snapshotParameters[xKey]);
+                double y = GetDoubleFromParameterValue(snapshotParameters[yKey]);
+                double z = GetDoubleFromParameterValue(snapshotParameters[zKey]);
+
+                return new XYZ(x, y, z);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Extracts double value from ParameterValue object or JSON
+        /// </summary>
+        private double GetDoubleFromParameterValue(object paramValue)
+        {
+            if (paramValue == null)
+                return 0.0;
+
+            // Try direct cast first (if it's already a ParameterValue object)
+            if (paramValue is Models.ParameterValue pv)
+            {
+                return Convert.ToDouble(pv.RawValue);
+            }
+
+            // Try JObject (if it's JSON)
+            if (paramValue is Newtonsoft.Json.Linq.JObject jObj)
+            {
+                var pValue = Models.ParameterValue.FromJsonObject(jObj);
+                if (pValue != null)
+                {
+                    return Convert.ToDouble(pValue.RawValue);
+                }
+            }
+
+            // Fallback: try direct conversion
+            return Convert.ToDouble(paramValue);
+        }
     }
 
     // Data model for element restore items
     public class ElementRestoreItem : INotifyPropertyChanged
     {
         private bool _isSelected;
+        private List<ElementParameterPreview> _parameterPreview = new List<ElementParameterPreview>();
 
         public Element Element { get; set; }
         public string TrackId { get; set; }
         public string ElementDisplayName { get; set; }
         public string ElementInfo { get; set; }
-        public List<ElementParameterPreview> ParameterPreview { get; set; } = new List<ElementParameterPreview>();
+
+        public List<ElementParameterPreview> ParameterPreview
+        {
+            get => _parameterPreview;
+            set
+            {
+                _parameterPreview = value;
+                OnPropertyChanged(nameof(ParameterPreview));
+                OnPropertyChanged(nameof(HasParametersVisibility));
+                OnPropertyChanged(nameof(HasNoParameters));
+            }
+        }
+
         public string CurrentTypeName { get; set; }
         public string SnapshotTypeName { get; set; }
         public bool HasTypeMismatch { get; set; }

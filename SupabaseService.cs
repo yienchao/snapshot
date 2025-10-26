@@ -297,6 +297,7 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Get all versions with detailed info (for version selection UI)
+        // OPTIMIZED: Fetch only metadata columns with pagination to avoid loading heavy JSONB data
         public async Task<List<RoomSnapshot>> GetAllVersionsWithInfoAsync(Guid projectId)
         {
             try
@@ -305,11 +306,12 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 const int batchSize = 1000;
                 int offset = 0;
 
-                // Load all snapshots with pagination
+                // Load snapshots with pagination, but only metadata columns (not heavy JSONB)
                 while (true)
                 {
                     var resp = await _supabase
                         .From<RoomSnapshot>()
+                        .Select("version_name, snapshot_date, created_by, is_official, project_id, track_id")
                         .Where(x => x.ProjectId == projectId)
                         // Add ordering for deterministic pagination
                         .Order(x => x.VersionName, Supabase.Postgrest.Constants.Ordering.Ascending)
@@ -480,6 +482,7 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Get all door versions with detailed info (for version selection UI)
+        // OPTIMIZED: Fetch only metadata columns with pagination to avoid loading heavy JSONB data
         public async Task<List<DoorSnapshot>> GetAllDoorVersionsWithInfoAsync(Guid projectId)
         {
             try
@@ -488,11 +491,12 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 const int batchSize = 1000;
                 int offset = 0;
 
-                // Load all snapshots with pagination
+                // Load snapshots with pagination, but only metadata columns (not heavy JSONB)
                 while (true)
                 {
                     var resp = await _supabase
                         .From<DoorSnapshot>()
+                        .Select("version_name, snapshot_date, created_by, is_official, project_id, track_id")
                         .Where(x => x.ProjectId == projectId)
                         // Add ordering for deterministic pagination
                         .Order(x => x.VersionName, Supabase.Postgrest.Constants.Ordering.Ascending)
@@ -663,6 +667,7 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
         }
 
         // Get all element versions with detailed info (for version selection UI)
+        // OPTIMIZED: Fetch only metadata columns with pagination to avoid loading heavy JSONB data
         public async Task<List<ElementSnapshot>> GetAllElementVersionsWithInfoAsync(Guid projectId)
         {
             try
@@ -671,11 +676,12 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
                 const int batchSize = 1000;
                 int offset = 0;
 
-                // Load all snapshots with pagination
+                // Load snapshots with pagination, but only metadata columns (not heavy JSONB)
                 while (true)
                 {
                     var resp = await _supabase
                         .From<ElementSnapshot>()
+                        .Select("version_name, snapshot_date, created_by, is_official, project_id, track_id")
                         .Where(x => x.ProjectId == projectId)
                         // Add ordering for deterministic pagination
                         .Order(x => x.VersionName, Supabase.Postgrest.Constants.Ordering.Ascending)

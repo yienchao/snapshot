@@ -207,6 +207,12 @@ namespace ViewTracker.Commands
                 BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
+            // Shared/string parameters to exclude (by name, for non-built-in parameters)
+            var excludedSharedParams = new HashSet<string>
+            {
+                "Variantes"                      // Read-only parameter (variants/design options)
+            };
+
             // Use GetOrderedParameters to get only user-visible INSTANCE parameters
             var orderedParams = element.GetOrderedParameters();
             foreach (Parameter param in orderedParams)
@@ -225,6 +231,10 @@ namespace ViewTracker.Commands
                     if (builtInParam != BuiltInParameter.INVALID && excludedBuiltInParams.Contains(builtInParam))
                         continue;
                 }
+
+                // Skip shared parameters that are in exclusion list
+                if (excludedSharedParams.Contains(paramName))
+                    continue;
 
                 // Skip IFC-related parameters (auto-generated)
                 if (paramName.StartsWith("IFC", StringComparison.OrdinalIgnoreCase) ||

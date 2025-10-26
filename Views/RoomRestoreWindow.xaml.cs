@@ -293,14 +293,18 @@ namespace ViewTracker.Views
             // Get current room trackIDs mapped to rooms
             var currentRoomsDict = _currentRooms
                 .Where(r => r.LookupParameter("trackID") != null)
-                .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+                .ToDictionary(r => r.LookupParameter("trackID").AsString()?.Trim() ?? "", r => r, StringComparer.OrdinalIgnoreCase);
 
             // Find unplaced rooms: exist in current model, exist in snapshot as placed, but are now unplaced
             var unplacedItems = new List<DeletedRoomItem>();
             foreach (var snapshot in _selectedVersionSnapshots)
             {
+                // Skip snapshots with invalid trackIDs
+                if (string.IsNullOrWhiteSpace(snapshot.TrackId))
+                    continue;
+
                 // Check if room exists in current model
-                if (!currentRoomsDict.TryGetValue(snapshot.TrackId, out Room currentRoom))
+                if (!currentRoomsDict.TryGetValue(snapshot.TrackId?.Trim(), out Room currentRoom))
                     continue;
 
                 // Check if room is currently unplaced (Location == null)
@@ -349,11 +353,14 @@ namespace ViewTracker.Views
             var currentRoomsDict = (_currentRooms != null && _currentRooms.Any())
                 ? _currentRooms
                     .Where(r => r.LookupParameter("trackID") != null)
-                    .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r)
-                : new Dictionary<string, Room>();
+                    .ToDictionary(r => r.LookupParameter("trackID").AsString()?.Trim() ?? "", r => r, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, Room>(StringComparer.OrdinalIgnoreCase);
 
-            var currentTrackIds = currentRoomsDict.Keys.ToHashSet();
-            var snapshotTrackIds = _selectedVersionSnapshots.Select(s => s.TrackId).ToHashSet();
+            var currentTrackIds = currentRoomsDict.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var snapshotTrackIds = _selectedVersionSnapshots
+                .Select(s => s.TrackId?.Trim())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // Calculate counts based on scope selection
             var existingCount = currentTrackIds.Intersect(snapshotTrackIds).Count();
@@ -362,7 +369,10 @@ namespace ViewTracker.Views
             // Count unplaced rooms (exist in model but currently unplaced, were placed in snapshot)
             var unplacedCount = _selectedVersionSnapshots.Count(s =>
             {
-                if (!currentRoomsDict.TryGetValue(s.TrackId, out Room currentRoom))
+                if (string.IsNullOrWhiteSpace(s.TrackId))
+                    return false;
+
+                if (!currentRoomsDict.TryGetValue(s.TrackId?.Trim(), out Room currentRoom))
                     return false;
 
                 bool roomIsUnplaced = currentRoom.Location == null;
@@ -376,7 +386,8 @@ namespace ViewTracker.Views
             if (DeletedRoomsRadio?.IsChecked == true)
             {
                 relevantSnapshots = _selectedVersionSnapshots
-                    .Where(s => !currentTrackIds.Contains(s.TrackId))
+                    .Where(s => !string.IsNullOrWhiteSpace(s.TrackId) &&
+                               !currentTrackIds.Contains(s.TrackId?.Trim()))
                     .ToList();
             }
             else if (UnplacedRoomsRadio?.IsChecked == true)
@@ -384,7 +395,10 @@ namespace ViewTracker.Views
                 relevantSnapshots = _selectedVersionSnapshots
                     .Where(s =>
                     {
-                        if (!currentRoomsDict.TryGetValue(s.TrackId, out Room currentRoom))
+                        if (string.IsNullOrWhiteSpace(s.TrackId))
+                            return false;
+
+                        if (!currentRoomsDict.TryGetValue(s.TrackId?.Trim(), out Room currentRoom))
                             return false;
 
                         bool roomIsUnplaced = currentRoom.Location == null;
@@ -397,7 +411,8 @@ namespace ViewTracker.Views
             else if (SelectedRoomsRadio?.IsChecked == true && _hasPreSelection)
             {
                 relevantSnapshots = _selectedVersionSnapshots
-                    .Where(s => currentTrackIds.Contains(s.TrackId))
+                    .Where(s => !string.IsNullOrWhiteSpace(s.TrackId) &&
+                               currentTrackIds.Contains(s.TrackId?.Trim()))
                     .ToList();
             }
             else
@@ -972,12 +987,12 @@ namespace ViewTracker.Views
 
         private void SetParameterFromObject(Room room, string paramName, object value)
         {
-            if (value == null)
-                return;
-
             var param = room.LookupParameter(paramName);
             if (param == null || param.IsReadOnly)
                 return;
+
+            // Allow null/empty values for string parameters to clear them
+            // For numeric parameters, skip if value is null
 
             try
             {
@@ -988,15 +1003,28 @@ namespace ViewTracker.Views
                     // Extract the raw value based on storage type
                     actualValue = paramValue.RawValue;
                 }
+                else if (value is Newtonsoft.Json.Linq.JObject jObj)
+                {
+                    // Handle JSON deserialization - convert JObject to ParameterValue
+                    var pv = ViewTracker.Models.ParameterValue.FromJsonObject(jObj);
+                    if (pv != null)
+                    {
+                        actualValue = pv.RawValue;
+                    }
+                }
 
                 switch (param.StorageType)
                 {
                     case StorageType.String:
-                        // BUGFIX Issue #1: Allow empty strings to be restored (can clear parameters)
+                        // Allow empty strings to be restored (can clear parameters)
                         param.Set(actualValue?.ToString() ?? "");
                         break;
 
                     case StorageType.Integer:
+                        // Skip if value is null (cannot set null for numeric parameters)
+                        if (actualValue == null)
+                            break;
+
                         if (actualValue is long longVal)
                             param.Set((int)longVal);
                         else if (actualValue is int intVal)
@@ -1006,7 +1034,10 @@ namespace ViewTracker.Views
                         break;
 
                     case StorageType.Double:
-                        // BUGFIX Issue #2: Use invariant culture for locale-independent parsing
+                        // Skip if value is null (cannot set null for numeric parameters)
+                        if (actualValue == null)
+                            break;
+
                         if (actualValue is double doubleVal)
                             param.Set(doubleVal);
                         else if (actualValue is float floatVal)
@@ -1236,14 +1267,16 @@ namespace ViewTracker.Views
             // Get current room trackIDs (empty set if no current rooms)
             var currentTrackIds = (_currentRooms != null && _currentRooms.Any())
                 ? _currentRooms
-                    .Select(r => r.LookupParameter("trackID")?.AsString())
+                    .Select(r => r.LookupParameter("trackID")?.AsString()?.Trim())
                     .Where(id => !string.IsNullOrWhiteSpace(id))
-                    .ToHashSet()
-                : new HashSet<string>();
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Find deleted rooms (in snapshot but not in current model)
+            // Filter out snapshots with null/empty/whitespace trackIDs
             var deletedSnapshots = _selectedVersionSnapshots
-                .Where(s => !currentTrackIds.Contains(s.TrackId))
+                .Where(s => !string.IsNullOrWhiteSpace(s.TrackId) &&
+                           !currentTrackIds.Contains(s.TrackId?.Trim()))
                 .ToList();
 
             // Create DeletedRoomItem objects
@@ -1381,7 +1414,9 @@ namespace ViewTracker.Views
                 return;
 
             // Build trackID to snapshot mapping
-            var snapshotMap = _selectedVersionSnapshots.ToDictionary(s => s.TrackId);
+            var snapshotMap = _selectedVersionSnapshots
+                .Where(s => !string.IsNullOrWhiteSpace(s.TrackId))
+                .ToDictionary(s => s.TrackId?.Trim() ?? "", StringComparer.OrdinalIgnoreCase);
 
             // Get selected parameters
             var selectedParams = GetSelectedParameters();
@@ -1389,7 +1424,7 @@ namespace ViewTracker.Views
             // Get current room trackIDs
             var currentRoomsDict = _currentRooms
                 .Where(r => r.LookupParameter("trackID") != null)
-                .ToDictionary(r => r.LookupParameter("trackID").AsString(), r => r);
+                .ToDictionary(r => r.LookupParameter("trackID").AsString()?.Trim() ?? "", r => r, StringComparer.OrdinalIgnoreCase);
 
             // Create restore items for each room
             foreach (var room in _currentRooms)
@@ -1398,8 +1433,8 @@ namespace ViewTracker.Views
                 if (trackIdParam == null || string.IsNullOrWhiteSpace(trackIdParam.AsString()))
                     continue;
 
-                string trackId = trackIdParam.AsString();
-                if (!snapshotMap.ContainsKey(trackId))
+                string trackId = trackIdParam.AsString()?.Trim();
+                if (string.IsNullOrWhiteSpace(trackId) || !snapshotMap.ContainsKey(trackId))
                     continue;
 
                 var snapshot = snapshotMap[trackId];

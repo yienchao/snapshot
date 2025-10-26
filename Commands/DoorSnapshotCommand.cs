@@ -210,7 +210,8 @@ namespace ViewTracker.Commands
             var excludedSharedParams = new HashSet<string>
             {
                 "From Room", "De la pièce",     // From Room
-                "To Room", "À la pièce"          // To Room
+                "To Room", "À la pièce",         // To Room
+                "Variantes"                      // Read-only parameter (variants/design options)
             };
 
             // Use GetOrderedParameters to get only user-visible parameters
@@ -258,15 +259,15 @@ namespace ViewTracker.Commands
             // Add facing and hand orientation (important for flip detection)
             if (door.FacingOrientation != null)
             {
-                parameters["facing_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.FacingOrientation.X, DisplayValue = door.FacingOrientation.X.ToString("F6"), IsTypeParameter = false };
-                parameters["facing_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.FacingOrientation.Y, DisplayValue = door.FacingOrientation.Y.ToString("F6"), IsTypeParameter = false };
-                parameters["facing_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.FacingOrientation.Z, DisplayValue = door.FacingOrientation.Z.ToString("F6"), IsTypeParameter = false };
+                parameters["facing_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.FacingOrientation.X, DisplayValue = door.FacingOrientation.X.ToString("F2"), IsTypeParameter = false };
+                parameters["facing_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.FacingOrientation.Y, DisplayValue = door.FacingOrientation.Y.ToString("F2"), IsTypeParameter = false };
+                parameters["facing_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.FacingOrientation.Z, DisplayValue = door.FacingOrientation.Z.ToString("F2"), IsTypeParameter = false };
             }
             if (door.HandOrientation != null)
             {
-                parameters["hand_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.HandOrientation.X, DisplayValue = door.HandOrientation.X.ToString("F6"), IsTypeParameter = false };
-                parameters["hand_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.HandOrientation.Y, DisplayValue = door.HandOrientation.Y.ToString("F6"), IsTypeParameter = false };
-                parameters["hand_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.HandOrientation.Z, DisplayValue = door.HandOrientation.Z.ToString("F6"), IsTypeParameter = false };
+                parameters["hand_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.HandOrientation.X, DisplayValue = door.HandOrientation.X.ToString("F2"), IsTypeParameter = false };
+                parameters["hand_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.HandOrientation.Y, DisplayValue = door.HandOrientation.Y.ToString("F2"), IsTypeParameter = false };
+                parameters["hand_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = door.HandOrientation.Z, DisplayValue = door.HandOrientation.Z.ToString("F2"), IsTypeParameter = false };
             }
 
             return parameters;

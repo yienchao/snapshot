@@ -136,43 +136,61 @@
                         <Button Content="Select None" Click="SelectNoneRooms_Click" Padding="10,5" FontSize="12"/>
                     </StackPanel>
 
-                    <!-- Scrollable room list -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="RoomsItemsControl">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,8"
-                                            Padding="8" CornerRadius="3" Background="White">
-                                        <StackPanel>
-                                            <CheckBox Content="{Binding RoomDisplayName}"
-                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                      FontWeight="Bold" FontSize="13"/>
-                                            <TextBlock Text="{Binding RoomInfo}"
-                                                       Margin="20,2,0,4" FontSize="11" Foreground="#666"/>
+                    <!-- Scrollable room list with virtualization for performance -->
+                    <ListBox x:Name="RoomsItemsControl"
+                             Grid.Row="1"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingStackPanel.IsVirtualizing="True"
+                             VirtualizingStackPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,8"
+                                        Padding="8" CornerRadius="3" Background="White">
+                                    <StackPanel>
+                                        <CheckBox Content="{Binding RoomDisplayName}"
+                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                  FontWeight="Bold" FontSize="13"/>
+                                        <TextBlock Text="{Binding RoomInfo}"
+                                                   Margin="20,2,0,4" FontSize="11" Foreground="#666"/>
 
-                                            <!-- Parameter preview -->
-                                            <TextBlock Text="Parameters to restore:"
-                                                       Margin="20,6,0,2" FontSize="11" FontWeight="SemiBold"
-                                                       Visibility="{Binding HasParametersVisibility}"/>
-                                            <ItemsControl ItemsSource="{Binding ParameterPreview}"
-                                                          Margin="20,0,0,0">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock FontSize="10" Foreground="#555">
-                                                            <Run Text="{Binding Name}" FontWeight="SemiBold"/>: <Run Text="{Binding Value}"/>
-                                                        </TextBlock>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            <TextBlock Text="(No parameters selected)"
-                                                       Visibility="{Binding HasNoParameters}"
-                                                       Margin="20,0,0,0" FontSize="10" Foreground="#999" FontStyle="Italic"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                                        <!-- Parameter preview -->
+                                        <TextBlock Text="Parameters to restore:"
+                                                   Margin="20,6,0,2" FontSize="11" FontWeight="SemiBold"
+                                                   Visibility="{Binding HasParametersVisibility}"/>
+                                        <ItemsControl ItemsSource="{Binding ParameterPreview}"
+                                                      Margin="20,0,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock FontSize="10" Foreground="#555">
+                                                        <Run Text="{Binding Name}" FontWeight="SemiBold"/>: <Run Text="{Binding Value}"/>
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="(No parameters selected)"
+                                                   Visibility="{Binding HasNoParameters}"
+                                                   Margin="20,0,0,0" FontSize="10" Foreground="#999" FontStyle="Italic"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </GroupBox>
 
@@ -197,56 +215,74 @@
                                 ToolTip="Set all rooms to 'Create unplaced'"/>
                     </StackPanel>
 
-                    <!-- Scrollable deleted rooms list -->
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="DeletedRoomsItemsControl">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,8"
-                                            Padding="8" CornerRadius="3" Background="White">
-                                        <StackPanel>
-                                            <CheckBox Content="{Binding RoomDisplayName}"
-                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                      FontWeight="Bold" FontSize="13"/>
-                                            <TextBlock Text="{Binding LevelAreaDisplay}"
-                                                       Margin="20,2,0,4" FontSize="11" Foreground="#666"/>
+                    <!-- Scrollable deleted rooms list with virtualization for performance -->
+                    <ListBox x:Name="DeletedRoomsItemsControl"
+                             Grid.Row="2"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingStackPanel.IsVirtualizing="True"
+                             VirtualizingStackPanel.VirtualizationMode="Recycling">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,8"
+                                        Padding="8" CornerRadius="3" Background="White">
+                                    <StackPanel>
+                                        <CheckBox Content="{Binding RoomDisplayName}"
+                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                  FontWeight="Bold" FontSize="13"/>
+                                        <TextBlock Text="{Binding LevelAreaDisplay}"
+                                                   Margin="20,2,0,4" FontSize="11" Foreground="#666"/>
 
-                                            <!-- Placement options -->
-                                            <StackPanel Margin="20,4,0,0">
-                                                <RadioButton Content="Place at location"
-                                                             IsChecked="{Binding PlaceAtLocation, Mode=TwoWay}"
-                                                             GroupName="{Binding GroupName}"
-                                                             IsEnabled="{Binding HasValidCoordinates}"
-                                                             FontSize="12"/>
-                                                <RadioButton Content="Create unplaced"
-                                                             IsChecked="{Binding CreateUnplaced, Mode=TwoWay}"
-                                                             GroupName="{Binding GroupName}"
-                                                             Margin="0,2,0,0" FontSize="12"/>
-                                            </StackPanel>
-
-                                            <!-- Parameter preview -->
-                                            <TextBlock Text="Parameters to restore:"
-                                                       Margin="20,6,0,2" FontSize="11" FontWeight="SemiBold"
-                                                       Visibility="{Binding HasParametersVisibility}"/>
-                                            <ItemsControl ItemsSource="{Binding ParameterPreview}"
-                                                          Margin="20,0,0,0">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock FontSize="10" Foreground="#555">
-                                                            <Run Text="{Binding Name}" FontWeight="SemiBold"/>: <Run Text="{Binding Value}"/>
-                                                        </TextBlock>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            <TextBlock Text="(No parameters selected)"
-                                                       Visibility="{Binding HasNoParameters}"
-                                                       Margin="20,0,0,0" FontSize="10" Foreground="#999" FontStyle="Italic"/>
+                                        <!-- Placement options -->
+                                        <StackPanel Margin="20,4,0,0">
+                                            <RadioButton Content="Place at location"
+                                                         IsChecked="{Binding PlaceAtLocation, Mode=TwoWay}"
+                                                         GroupName="{Binding GroupName}"
+                                                         IsEnabled="{Binding HasValidCoordinates}"
+                                                         FontSize="12"/>
+                                            <RadioButton Content="Create unplaced"
+                                                         IsChecked="{Binding CreateUnplaced, Mode=TwoWay}"
+                                                         GroupName="{Binding GroupName}"
+                                                         Margin="0,2,0,0" FontSize="12"/>
                                         </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+
+                                        <!-- Parameter preview -->
+                                        <TextBlock Text="Parameters to restore:"
+                                                   Margin="20,6,0,2" FontSize="11" FontWeight="SemiBold"
+                                                   Visibility="{Binding HasParametersVisibility}"/>
+                                        <ItemsControl ItemsSource="{Binding ParameterPreview}"
+                                                      Margin="20,0,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock FontSize="10" Foreground="#555">
+                                                        <Run Text="{Binding Name}" FontWeight="SemiBold"/>: <Run Text="{Binding Value}"/>
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="(No parameters selected)"
+                                                   Visibility="{Binding HasNoParameters}"
+                                                   Margin="20,0,0,0" FontSize="10" Foreground="#999" FontStyle="Italic"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </GroupBox>
         </Grid>
