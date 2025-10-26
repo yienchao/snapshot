@@ -12,15 +12,21 @@ namespace ViewTracker.Commands
         {
             try
             {
-                // Route to appropriate command based on selected entity type
-                IExternalCommand targetCommand = TrackerContext.CurrentEntityType switch
+                // Only rooms support snapshot-vs-snapshot comparison
+                // Doors and elements use current-vs-snapshot comparison only
+                if (TrackerContext.CurrentEntityType == TrackerContext.EntityType.Door ||
+                    TrackerContext.CurrentEntityType == TrackerContext.EntityType.Element)
                 {
-                    TrackerContext.EntityType.Room => new RoomCompareTwoVersionsCommand(),
-                    TrackerContext.EntityType.Door => new DoorCompareTwoVersionsCommand(),
-                    TrackerContext.EntityType.Element => new ElementCompareTwoVersionsCommand(),
-                    _ => new RoomCompareTwoVersionsCommand()
-                };
+                    var entityLabel = TrackerContext.CurrentEntityType == TrackerContext.EntityType.Door ? "Doors" : "Elements";
+                    TaskDialog.Show("Feature Not Available",
+                        $"Snapshot-vs-snapshot comparison is only available for Rooms.\n\n" +
+                        $"{entityLabel} only support current model vs snapshot comparison.\n" +
+                        $"Please use the regular Compare command instead.");
+                    return Result.Cancelled;
+                }
 
+                // Route to room comparison command
+                IExternalCommand targetCommand = new RoomCompareTwoVersionsCommand();
                 return targetCommand.Execute(commandData, ref message, elements);
             }
             catch (Exception ex)

@@ -817,31 +817,50 @@ namespace ViewTracker.Views
                 }
             }
 
+            // Extract value from ParameterValue object (professional architecture)
+            object actualValue = value;
+            if (value is ViewTracker.Models.ParameterValue paramValue)
+            {
+                actualValue = paramValue.RawValue;
+            }
+
+            // Set parameter based on storage type - clean, type-safe logic
             switch (param.StorageType)
             {
                 case StorageType.String:
-                    param.Set(value.ToString());
+                    param.Set(actualValue?.ToString() ?? "");
                     break;
+
                 case StorageType.Double:
-                    if (value is double dVal)
-                        param.Set(dVal);
-                    else if (double.TryParse(value.ToString(), out double parsed))
-                        param.Set(parsed);
+                    if (actualValue is double doubleValue)
+                    {
+                        param.Set(doubleValue);
+                    }
+                    else
+                    {
+                        throw new Exception($"Expected Double value but got {actualValue?.GetType().Name}. Snapshot may be corrupted.");
+                    }
                     break;
+
                 case StorageType.Integer:
-                    if (value is int iVal)
-                        param.Set(iVal);
-                    else if (value is long lVal)
-                        param.Set((int)lVal);
-                    else if (int.TryParse(value.ToString(), out int parsedInt))
-                        param.Set(parsedInt);
+                    if (actualValue is int intValue)
+                    {
+                        param.Set(intValue);
+                    }
+                    else if (actualValue is long longValue)
+                    {
+                        // Handle JSON deserialization that might use long for integers
+                        param.Set((int)longValue);
+                    }
+                    else
+                    {
+                        throw new Exception($"Expected Integer value but got {actualValue?.GetType().Name}. Snapshot may be corrupted.");
+                    }
                     break;
+
                 case StorageType.ElementId:
-                    // For ElementId parameters, try to parse the value
-                    if (value is ElementId elemId)
-                        param.Set(elemId);
-                    else if (long.TryParse(value.ToString(), out long idVal))
-                        param.Set(new ElementId(idVal));
+                    // ElementId parameters store display names as strings - skip restore
+                    // These are auto-generated (like Level, Phase) and handled separately above
                     break;
             }
         }

@@ -239,40 +239,41 @@ namespace ViewTracker.Commands
             }
 
             // Add location information
+            // BUGFIX: Wrap in ParameterValue objects for type-safe storage
             var location = element.Location;
             if (location is LocationPoint locationPoint)
             {
                 var point = locationPoint.Point;
-                parameters["location_x"] = point.X;
-                parameters["location_y"] = point.Y;
-                parameters["location_z"] = point.Z;
-                parameters["rotation"] = locationPoint.Rotation;
+                parameters["location_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = point.X, DisplayValue = point.X.ToString(), IsTypeParameter = false };
+                parameters["location_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = point.Y, DisplayValue = point.Y.ToString(), IsTypeParameter = false };
+                parameters["location_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = point.Z, DisplayValue = point.Z.ToString(), IsTypeParameter = false };
+                parameters["rotation"] = new Models.ParameterValue { StorageType = "Double", RawValue = locationPoint.Rotation, DisplayValue = locationPoint.Rotation.ToString(), IsTypeParameter = false };
             }
             else if (location is LocationCurve locationCurve)
             {
                 var curve = locationCurve.Curve;
                 var startPoint = curve.GetEndPoint(0);
                 var endPoint = curve.GetEndPoint(1);
-                parameters["location_start_x"] = startPoint.X;
-                parameters["location_start_y"] = startPoint.Y;
-                parameters["location_start_z"] = startPoint.Z;
-                parameters["location_end_x"] = endPoint.X;
-                parameters["location_end_y"] = endPoint.Y;
-                parameters["location_end_z"] = endPoint.Z;
+                parameters["location_start_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = startPoint.X, DisplayValue = startPoint.X.ToString(), IsTypeParameter = false };
+                parameters["location_start_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = startPoint.Y, DisplayValue = startPoint.Y.ToString(), IsTypeParameter = false };
+                parameters["location_start_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = startPoint.Z, DisplayValue = startPoint.Z.ToString(), IsTypeParameter = false };
+                parameters["location_end_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = endPoint.X, DisplayValue = endPoint.X.ToString(), IsTypeParameter = false };
+                parameters["location_end_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = endPoint.Y, DisplayValue = endPoint.Y.ToString(), IsTypeParameter = false };
+                parameters["location_end_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = endPoint.Z, DisplayValue = endPoint.Z.ToString(), IsTypeParameter = false };
             }
 
             // Add facing and hand orientation (important for flip detection)
             if (element.FacingOrientation != null)
             {
-                parameters["facing_x"] = element.FacingOrientation.X;
-                parameters["facing_y"] = element.FacingOrientation.Y;
-                parameters["facing_z"] = element.FacingOrientation.Z;
+                parameters["facing_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = element.FacingOrientation.X, DisplayValue = element.FacingOrientation.X.ToString("F6"), IsTypeParameter = false };
+                parameters["facing_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = element.FacingOrientation.Y, DisplayValue = element.FacingOrientation.Y.ToString("F6"), IsTypeParameter = false };
+                parameters["facing_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = element.FacingOrientation.Z, DisplayValue = element.FacingOrientation.Z.ToString("F6"), IsTypeParameter = false };
             }
             if (element.HandOrientation != null)
             {
-                parameters["hand_x"] = element.HandOrientation.X;
-                parameters["hand_y"] = element.HandOrientation.Y;
-                parameters["hand_z"] = element.HandOrientation.Z;
+                parameters["hand_x"] = new Models.ParameterValue { StorageType = "Double", RawValue = element.HandOrientation.X, DisplayValue = element.HandOrientation.X.ToString("F6"), IsTypeParameter = false };
+                parameters["hand_y"] = new Models.ParameterValue { StorageType = "Double", RawValue = element.HandOrientation.Y, DisplayValue = element.HandOrientation.Y.ToString("F6"), IsTypeParameter = false };
+                parameters["hand_z"] = new Models.ParameterValue { StorageType = "Double", RawValue = element.HandOrientation.Z, DisplayValue = element.HandOrientation.Z.ToString("F6"), IsTypeParameter = false };
             }
 
             // Add host information if hosted
@@ -333,55 +334,10 @@ namespace ViewTracker.Commands
         private void AddParameterValue(Parameter param, Dictionary<string, object> parameters)
         {
             string paramName = param.Definition.Name;
-            object paramValue = null;
-            bool shouldAdd = false;
 
-            switch (param.StorageType)
-            {
-                case StorageType.Double:
-                    // Always add double values, even if 0
-                    paramValue = param.AsDouble();
-                    shouldAdd = true;
-                    break;
-                case StorageType.Integer:
-                    // Use AsValueString() to get display text for enums (e.g., "Par type" instead of "0")
-                    var intValueString = param.AsValueString();
-                    if (!string.IsNullOrEmpty(intValueString))
-                    {
-                        paramValue = intValueString;
-                        shouldAdd = true;
-                    }
-                    else
-                    {
-                        // Fallback to integer if no display string available
-                        paramValue = param.AsInteger();
-                        shouldAdd = true;
-                    }
-                    break;
-                case StorageType.String:
-                    // Save ALL string parameters, even empty ones
-                    // Users may want to restore empty values or set values from empty
-                    var stringValue = param.AsString();
-                    paramValue = stringValue ?? "";  // Use empty string if null
-                    shouldAdd = true;
-                    break;
-                case StorageType.ElementId:
-                    // Use AsValueString() to get the display value instead of the ID
-                    var valueString = param.AsValueString();
-                    if (!string.IsNullOrEmpty(valueString))
-                    {
-                        paramValue = valueString;
-                        shouldAdd = true;
-                    }
-                    else if (param.AsElementId().Value != -1)
-                    {
-                        paramValue = param.AsElementId().Value.ToString();
-                        shouldAdd = true;
-                    }
-                    break;
-            }
-
-            if (shouldAdd)
+            // NEW: Use ParameterValue class for type-safe storage
+            var paramValue = Models.ParameterValue.FromRevitParameter(param);
+            if (paramValue != null)
             {
                 parameters[paramName] = paramValue;
             }

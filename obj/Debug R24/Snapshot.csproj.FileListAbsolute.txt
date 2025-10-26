@@ -76,3 +76,7 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.sourcelink.j
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.csproj.Up2Date
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.dll
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.pdb
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\HistoryTimelineWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\SetupIDsWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\HistoryTimelineWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\SetupIDsWindow.g.cs

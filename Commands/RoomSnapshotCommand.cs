@@ -260,55 +260,9 @@ namespace ViewTracker.Commands
                 if (excludedSharedParams.Contains(paramName))
                     continue;
 
-                object paramValue = null;
-                bool shouldAdd = false;
-
-                switch (param.StorageType)
-                {
-                    case StorageType.Double:
-                        // Always add double values, even if 0
-                        paramValue = param.AsDouble();
-                        shouldAdd = true;
-                        break;
-                    case StorageType.Integer:
-                        // Use AsValueString() to get display text for enums (e.g., "Par type" instead of "0")
-                        var intValueString = param.AsValueString();
-                        if (!string.IsNullOrEmpty(intValueString))
-                        {
-                            paramValue = intValueString;
-                            shouldAdd = true;
-                        }
-                        else
-                        {
-                            // Fallback to integer if no display string available
-                            paramValue = param.AsInteger();
-                            shouldAdd = true;
-                        }
-                        break;
-                    case StorageType.String:
-                        // BUGFIX: Save ALL string parameters, even empty ones (consistent with doors/elements)
-                        // This ensures we can detect when users clear text parameters (not just set them)
-                        var stringValue = param.AsString();
-                        paramValue = stringValue ?? "";  // Use empty string if null
-                        shouldAdd = true;
-                        break;
-                    case StorageType.ElementId:
-                        // Use AsValueString() to get the display value instead of the ID
-                        var valueString = param.AsValueString();
-                        if (!string.IsNullOrEmpty(valueString))
-                        {
-                            paramValue = valueString;
-                            shouldAdd = true;
-                        }
-                        else if (param.AsElementId().Value != -1)
-                        {
-                            paramValue = param.AsElementId().Value.ToString();
-                            shouldAdd = true;
-                        }
-                        break;
-                }
-
-                if (shouldAdd)
+                // NEW: Use ParameterValue class for type-safe storage
+                var paramValue = Models.ParameterValue.FromRevitParameter(param);
+                if (paramValue != null)
                 {
                     parameters[paramName] = paramValue;
                 }

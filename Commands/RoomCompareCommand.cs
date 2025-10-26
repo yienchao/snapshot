@@ -707,71 +707,12 @@ namespace ViewTracker.Commands
                     paramName == "Niveau" || paramName == "Level")
                     continue;
 
-                object paramValue = null;
-                string displayValue = null;
-                bool shouldAdd = false;
-
-                switch (param.StorageType)
-                {
-                    case StorageType.Double:
-                        // Store raw value for comparison, formatted value for display
-                        paramValue = param.AsDouble();
-                        var valueString = param.AsValueString();
-                        if (!string.IsNullOrEmpty(valueString))
-                        {
-                            // Extract numeric part only (remove unit symbols)
-                            displayValue = valueString.Split(' ')[0].Replace(",", ".");
-                        }
-                        else
-                        {
-                            displayValue = paramValue.ToString();
-                        }
-                        shouldAdd = true;
-                        break;
-                    case StorageType.Integer:
-                        // Always add integer values, even if 0
-                        paramValue = param.AsInteger();
-                        var intValueString = param.AsValueString();
-                        if (!string.IsNullOrEmpty(intValueString))
-                        {
-                            displayValue = intValueString.Split(' ')[0].Replace(",", ".");
-                        }
-                        else
-                        {
-                            displayValue = paramValue.ToString();
-                        }
-                        shouldAdd = true;
-                        break;
-                    case StorageType.String:
-                        // Always add string parameters, even if empty (matches snapshot capture behavior)
-                        // This ensures we detect changes from empty→value and value→empty
-                        var stringValue = param.AsString();
-                        paramValue = stringValue ?? "";
-                        displayValue = stringValue ?? "";
-                        shouldAdd = true;
-                        break;
-                    case StorageType.ElementId:
-                        // Use AsValueString() to get the display value instead of the ID
-                        var elementIdValueString = param.AsValueString();
-                        if (!string.IsNullOrEmpty(elementIdValueString))
-                        {
-                            paramValue = elementIdValueString;
-                            displayValue = elementIdValueString;
-                            shouldAdd = true;
-                        }
-                        else if (param.AsElementId().Value != -1)
-                        {
-                            paramValue = param.AsElementId().Value.ToString();
-                            displayValue = paramValue.ToString();
-                            shouldAdd = true;
-                        }
-                        break;
-                }
-
-                if (shouldAdd)
+                // NEW: Use ParameterValue class for type-safe storage and comparison
+                var paramValue = Models.ParameterValue.FromRevitParameter(param);
+                if (paramValue != null)
                 {
                     currentParams[paramName] = paramValue;
-                    currentParamsDisplay[paramName] = displayValue;
+                    currentParamsDisplay[paramName] = paramValue.DisplayValue;
                 }
             }
 
@@ -800,25 +741,17 @@ namespace ViewTracker.Commands
                     if (kvp.Key == "Modifié par" || kvp.Key == "Edited by" || kvp.Key == "Modified by")
                         continue;
 
-                    snapshotParams[kvp.Key] = kvp.Value;
+                    // Convert JSON objects to ParameterValue objects
+                    var paramValue = Models.ParameterValue.FromJsonObject(kvp.Value);
+                    if (paramValue == null)
+                    {
+                        // This should never happen with new snapshots - log error and skip
+                        System.Diagnostics.Debug.WriteLine($"ERROR: Failed to convert parameter '{kvp.Key}' to ParameterValue. Snapshot may be corrupted.");
+                        continue;
+                    }
 
-                    // Try to format snapshot value using current parameter's units (use cached dictionary for fast lookup)
-                    if (paramByName.TryGetValue(kvp.Key, out var param))
-                    {
-                        try
-                        {
-                            // Format using the parameter's units (handles all numeric types)
-                            snapshotParamsDisplay[kvp.Key] = FormatParameterValue(param, kvp.Value, doc);
-                        }
-                        catch
-                        {
-                            snapshotParamsDisplay[kvp.Key] = kvp.Value?.ToString() ?? "";
-                        }
-                    }
-                    else
-                    {
-                        snapshotParamsDisplay[kvp.Key] = kvp.Value?.ToString() ?? "";
-                    }
+                    snapshotParams[kvp.Key] = paramValue;
+                    snapshotParamsDisplay[kvp.Key] = paramValue.DisplayValue;
                 }
             }
 
@@ -953,19 +886,54 @@ namespace ViewTracker.Commands
                     // 2. Current room has this parameter (even if empty)
                     if (snapshotData.hasValue || param != null)
                     {
-                        snapshotParams[paramName] = snapshotData.value;
-                        // Format display value using the current parameter's formatting
-                        try
+                        // BUGFIX: Wrap dedicated column values in ParameterValue objects to match current format
+                        // Create a ParameterValue from the raw dedicated column value
+                        var paramValue = new Models.ParameterValue
                         {
-                            var formatted = FormatParameterValue(param, snapshotData.value, doc);
-                            snapshotParamsDisplay[paramName] = formatted;
-                            System.Diagnostics.Debug.WriteLine($"Formatted {paramName}: raw={snapshotData.value}, formatted={formatted}");
-                        }
-                        catch (Exception ex)
+                            StorageType = param.StorageType.ToString(),
+                            IsTypeParameter = false
+                        };
+
+                        switch (param.StorageType)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Failed to format {paramName}: {ex.Message}");
-                            snapshotParamsDisplay[paramName] = snapshotData.value?.ToString() ?? "";
+                            case StorageType.String:
+                                var stringVal = snapshotData.value as string ?? "";
+                                paramValue.RawValue = stringVal;
+                                paramValue.DisplayValue = stringVal;
+                                break;
+                            case StorageType.Double:
+                                var doubleVal = Convert.ToDouble(snapshotData.value);
+                                paramValue.RawValue = doubleVal;
+                                // BUGFIX: Format the SNAPSHOT value, not the current value!
+                                // Use UnitFormatUtils to format the snapshot value with current document units
+                                try
+                                {
+                                    paramValue.DisplayValue = UnitFormatUtils.Format(
+                                        doc.GetUnits(),
+                                        param.Definition.GetDataType(),
+                                        doubleVal,
+                                        false);
+                                }
+                                catch
+                                {
+                                    paramValue.DisplayValue = doubleVal.ToString();
+                                }
+                                break;
+                            case StorageType.Integer:
+                                var intVal = Convert.ToInt32(snapshotData.value);
+                                paramValue.RawValue = intVal;
+                                // For integers, we can't format the snapshot value, so just show the number
+                                paramValue.DisplayValue = intVal.ToString();
+                                break;
+                            case StorageType.ElementId:
+                                var elemVal = snapshotData.value as string ?? "";
+                                paramValue.RawValue = elemVal;
+                                paramValue.DisplayValue = elemVal;
+                                break;
                         }
+
+                        snapshotParams[paramName] = paramValue;
+                        snapshotParamsDisplay[paramName] = paramValue.DisplayValue;
                     }
                 }
             }
@@ -981,38 +949,33 @@ namespace ViewTracker.Commands
 
                 if (currentParams.TryGetValue(snapshotParam.Key, out var dictValue))
                 {
-                    // Found in dictionary (non-empty)
+                    // Found in dictionary (non-empty) - should be a ParameterValue object
                     currentValue = dictValue;
                     currentDisplay = currentParamsDisplay.ContainsKey(snapshotParam.Key)
                         ? currentParamsDisplay[snapshotParam.Key]
-                        : currentValue?.ToString() ?? "";
+                        : dictValue?.ToString() ?? "";
                     paramExistsInCurrent = true;
                 }
                 else
                 {
-                    // Not in dictionary - check if parameter exists in room but is empty (use cached dictionary for fast lookup)
+                    // Not in dictionary - check if parameter exists in room but is empty
+                    // PROFESSIONAL FIX: Create ParameterValue object for empty parameters too
                     if (paramByName.TryGetValue(snapshotParam.Key, out var param))
                     {
-                        // Parameter exists but value is empty/null
                         paramExistsInCurrent = true;
-                        switch (param.StorageType)
+
+                        // Create ParameterValue object for the empty/null parameter
+                        var paramValue = Models.ParameterValue.FromRevitParameter(param);
+                        if (paramValue != null)
                         {
-                            case StorageType.String:
-                                currentValue = param.AsString() ?? "";
-                                currentDisplay = currentValue.ToString();
-                                break;
-                            case StorageType.Integer:
-                                currentValue = param.AsInteger();
-                                currentDisplay = param.AsValueString()?.Split(' ')[0]?.Replace(",", ".") ?? currentValue.ToString();
-                                break;
-                            case StorageType.Double:
-                                currentValue = param.AsDouble();
-                                currentDisplay = param.AsValueString()?.Split(' ')[0]?.Replace(",", ".") ?? currentValue.ToString();
-                                break;
-                            case StorageType.ElementId:
-                                currentValue = param.AsValueString() ?? "";
-                                currentDisplay = currentValue.ToString();
-                                break;
+                            currentValue = paramValue;
+                            currentDisplay = paramValue.DisplayValue;
+                        }
+                        else
+                        {
+                            // Fallback if FromRevitParameter fails
+                            currentValue = null;
+                            currentDisplay = "";
                         }
                     }
                 }
@@ -1051,6 +1014,13 @@ namespace ViewTracker.Commands
             {
                 if (!snapshotParams.ContainsKey(currentParam.Key))
                 {
+                    // BUGFIX: Skip EDITED_BY parameter (excluded from snapshots, covers all languages)
+                    var paramNameLower = currentParam.Key.ToLower();
+                    if (paramNameLower.Contains("modifié par") ||
+                        paramNameLower.Contains("edited by") ||
+                        paramNameLower.Contains("modified by"))
+                        continue;
+
                     var currDisplay = currentParamsDisplay.ContainsKey(currentParam.Key)
                         ? currentParamsDisplay[currentParam.Key]
                         : currentParam.Value?.ToString() ?? "";
@@ -1073,26 +1043,18 @@ namespace ViewTracker.Commands
             return (changes, instanceChanges, typeChanges);
         }
 
-        // BUGFIX: Shared comparison method for consistency with Door/Element commands
+        // NEW: Type-safe comparison using ParameterValue objects
         private bool CompareValues(object snapValue, object currentValue)
         {
-            // Handle numeric comparisons with tolerance
-            if (snapValue is double snapDouble && currentValue is double currDouble)
-                return Math.Abs(snapDouble - currDouble) > 0.001;
+            // Both must be ParameterValue objects
+            if (snapValue is Models.ParameterValue snapParam && currentValue is Models.ParameterValue currParam)
+            {
+                return !snapParam.IsEqualTo(currParam); // Return true if DIFFERENT
+            }
 
-            // Handle mixed integer/long comparisons
-            if (snapValue is long snapLong && currentValue is int currInt)
-                return snapLong != currInt;
-
-            if (snapValue is int snapInt && currentValue is long currLong)
-                return snapInt != currLong;
-
-            // String comparison: trim whitespace and normalize
-            var snapStr = snapValue?.ToString()?.Trim() ?? "";
-            var currStr = currentValue?.ToString()?.Trim() ?? "";
-
-            // Return true if different (changed)
-            return snapStr != currStr;
+            // If we get here, something is wrong - log and treat as different
+            System.Diagnostics.Debug.WriteLine($"WARNING: CompareValues received non-ParameterValue objects. Snapshot type: {snapValue?.GetType().Name}, Current type: {currentValue?.GetType().Name}");
+            return true; // Treat as different to be safe
         }
 
         // Helper method to convert parameter values to file's display units (no unit symbols)

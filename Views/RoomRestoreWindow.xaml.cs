@@ -981,62 +981,46 @@ namespace ViewTracker.Views
 
             try
             {
+                // NEW: Handle ParameterValue objects from new snapshot format
+                object actualValue = value;
+                if (value is ViewTracker.Models.ParameterValue paramValue)
+                {
+                    // Extract the raw value based on storage type
+                    actualValue = paramValue.RawValue;
+                }
+
                 switch (param.StorageType)
                 {
                     case StorageType.String:
-                        param.Set(value.ToString());
+                        // BUGFIX Issue #1: Allow empty strings to be restored (can clear parameters)
+                        param.Set(actualValue?.ToString() ?? "");
                         break;
 
                     case StorageType.Integer:
-                        if (value is long longVal)
+                        if (actualValue is long longVal)
                             param.Set((int)longVal);
-                        else if (value is int intVal)
+                        else if (actualValue is int intVal)
                             param.Set(intVal);
-                        else if (int.TryParse(value.ToString(), out int parsedInt))
+                        else if (int.TryParse(actualValue?.ToString(), out int parsedInt))
                             param.Set(parsedInt);
                         break;
 
                     case StorageType.Double:
-                        if (value is double doubleVal)
+                        // BUGFIX Issue #2: Use invariant culture for locale-independent parsing
+                        if (actualValue is double doubleVal)
                             param.Set(doubleVal);
-                        else if (value is float floatVal)
+                        else if (actualValue is float floatVal)
                             param.Set(floatVal);
-                        else if (double.TryParse(value.ToString(), out double parsedDouble))
+                        else if (double.TryParse(actualValue?.ToString().Replace(',', '.'),
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out double parsedDouble))
                             param.Set(parsedDouble);
                         break;
 
                     case StorageType.ElementId:
-                        // For ElementId parameters (materials, etc.), the snapshot stores display text (name)
-                        // We need to find the element by name and set its ID
-                        if (value == null)
-                            break;
-
-                        string elementName = value.ToString();
-                        if (string.IsNullOrEmpty(elementName))
-                            break;
-
-                        // Try to find material by name (most common ElementId parameter for rooms)
-                        var material = new FilteredElementCollector(_doc)
-                            .OfClass(typeof(Material))
-                            .Cast<Material>()
-                            .FirstOrDefault(m => m.Name == elementName);
-
-                        if (material != null)
-                        {
-                            param.Set(material.Id);
-                        }
-                        // If not found, try to find any element with that name
-                        else
-                        {
-                            var element = new FilteredElementCollector(_doc)
-                                .WhereElementIsNotElementType()
-                                .FirstOrDefault(e => e.Name == elementName);
-
-                            if (element != null)
-                            {
-                                param.Set(element.Id);
-                            }
-                        }
+                        // ElementId parameters are display strings - skip restore
+                        // User can verify in comparison view
                         break;
                 }
             }
@@ -1048,15 +1032,15 @@ namespace ViewTracker.Views
 
         private void SetParameterValue(Room room, string[] parameterNames, string value)
         {
-            if (string.IsNullOrEmpty(value))
-                return;
+            // BUGFIX Issue #1: Allow empty strings to be restored (can clear parameters)
+            // Don't return early for empty values - user may want to clear a parameter
 
             foreach (var paramName in parameterNames)
             {
                 var param = room.LookupParameter(paramName);
                 if (param != null && !param.IsReadOnly)
                 {
-                    param.Set(value);
+                    param.Set(value ?? "");
                     return;
                 }
             }

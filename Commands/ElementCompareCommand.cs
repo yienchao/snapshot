@@ -289,56 +289,87 @@ namespace ViewTracker.Commands
             }
 
             // Add location information (same as in snapshot)
+            // BUGFIX: Wrap in ParameterValue objects to match snapshot format
             var location = currentElement.Location;
             if (location is LocationPoint locationPoint)
             {
                 var point = locationPoint.Point;
-                currentParams["location_x"] = point.X;
-                currentParamsDisplay["location_x"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.X, false);
-                currentParams["location_y"] = point.Y;
-                currentParamsDisplay["location_y"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Y, false);
-                currentParams["location_z"] = point.Z;
-                currentParamsDisplay["location_z"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Z, false);
-                currentParams["rotation"] = locationPoint.Rotation;
-                currentParamsDisplay["rotation"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Angle, locationPoint.Rotation, false);
+
+                var locXValue = new Models.ParameterValue { StorageType = "Double", RawValue = point.X, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.X, false), IsTypeParameter = false };
+                currentParams["location_x"] = locXValue;
+                currentParamsDisplay["location_x"] = locXValue.DisplayValue;
+
+                var locYValue = new Models.ParameterValue { StorageType = "Double", RawValue = point.Y, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Y, false), IsTypeParameter = false };
+                currentParams["location_y"] = locYValue;
+                currentParamsDisplay["location_y"] = locYValue.DisplayValue;
+
+                var locZValue = new Models.ParameterValue { StorageType = "Double", RawValue = point.Z, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Z, false), IsTypeParameter = false };
+                currentParams["location_z"] = locZValue;
+                currentParamsDisplay["location_z"] = locZValue.DisplayValue;
+
+                var rotValue = new Models.ParameterValue { StorageType = "Double", RawValue = locationPoint.Rotation, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Angle, locationPoint.Rotation, false), IsTypeParameter = false };
+                currentParams["rotation"] = rotValue;
+                currentParamsDisplay["rotation"] = rotValue.DisplayValue;
             }
             else if (location is LocationCurve locationCurve)
             {
                 var curve = locationCurve.Curve;
                 var startPoint = curve.GetEndPoint(0);
                 var endPoint = curve.GetEndPoint(1);
-                currentParams["location_start_x"] = startPoint.X;
-                currentParamsDisplay["location_start_x"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, startPoint.X, false);
-                currentParams["location_start_y"] = startPoint.Y;
-                currentParamsDisplay["location_start_y"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, startPoint.Y, false);
-                currentParams["location_start_z"] = startPoint.Z;
-                currentParamsDisplay["location_start_z"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, startPoint.Z, false);
-                currentParams["location_end_x"] = endPoint.X;
-                currentParamsDisplay["location_end_x"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, endPoint.X, false);
-                currentParams["location_end_y"] = endPoint.Y;
-                currentParamsDisplay["location_end_y"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, endPoint.Y, false);
-                currentParams["location_end_z"] = endPoint.Z;
-                currentParamsDisplay["location_end_z"] = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, endPoint.Z, false);
+
+                var startXValue = new Models.ParameterValue { StorageType = "Double", RawValue = startPoint.X, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, startPoint.X, false), IsTypeParameter = false };
+                currentParams["location_start_x"] = startXValue;
+                currentParamsDisplay["location_start_x"] = startXValue.DisplayValue;
+
+                var startYValue = new Models.ParameterValue { StorageType = "Double", RawValue = startPoint.Y, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, startPoint.Y, false), IsTypeParameter = false };
+                currentParams["location_start_y"] = startYValue;
+                currentParamsDisplay["location_start_y"] = startYValue.DisplayValue;
+
+                var startZValue = new Models.ParameterValue { StorageType = "Double", RawValue = startPoint.Z, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, startPoint.Z, false), IsTypeParameter = false };
+                currentParams["location_start_z"] = startZValue;
+                currentParamsDisplay["location_start_z"] = startZValue.DisplayValue;
+
+                var endXValue = new Models.ParameterValue { StorageType = "Double", RawValue = endPoint.X, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, endPoint.X, false), IsTypeParameter = false };
+                currentParams["location_end_x"] = endXValue;
+                currentParamsDisplay["location_end_x"] = endXValue.DisplayValue;
+
+                var endYValue = new Models.ParameterValue { StorageType = "Double", RawValue = endPoint.Y, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, endPoint.Y, false), IsTypeParameter = false };
+                currentParams["location_end_y"] = endYValue;
+                currentParamsDisplay["location_end_y"] = endYValue.DisplayValue;
+
+                var endZValue = new Models.ParameterValue { StorageType = "Double", RawValue = endPoint.Z, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, endPoint.Z, false), IsTypeParameter = false };
+                currentParams["location_end_z"] = endZValue;
+                currentParamsDisplay["location_end_z"] = endZValue.DisplayValue;
             }
 
             // Add facing and hand orientation (important for flip detection)
             if (currentElement.FacingOrientation != null)
             {
-                currentParams["facing_x"] = currentElement.FacingOrientation.X;
-                currentParamsDisplay["facing_x"] = currentElement.FacingOrientation.X.ToString("F6");
-                currentParams["facing_y"] = currentElement.FacingOrientation.Y;
-                currentParamsDisplay["facing_y"] = currentElement.FacingOrientation.Y.ToString("F6");
-                currentParams["facing_z"] = currentElement.FacingOrientation.Z;
-                currentParamsDisplay["facing_z"] = currentElement.FacingOrientation.Z.ToString("F6");
+                var facingXValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentElement.FacingOrientation.X, DisplayValue = currentElement.FacingOrientation.X.ToString("F6"), IsTypeParameter = false };
+                currentParams["facing_x"] = facingXValue;
+                currentParamsDisplay["facing_x"] = facingXValue.DisplayValue;
+
+                var facingYValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentElement.FacingOrientation.Y, DisplayValue = currentElement.FacingOrientation.Y.ToString("F6"), IsTypeParameter = false };
+                currentParams["facing_y"] = facingYValue;
+                currentParamsDisplay["facing_y"] = facingYValue.DisplayValue;
+
+                var facingZValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentElement.FacingOrientation.Z, DisplayValue = currentElement.FacingOrientation.Z.ToString("F6"), IsTypeParameter = false };
+                currentParams["facing_z"] = facingZValue;
+                currentParamsDisplay["facing_z"] = facingZValue.DisplayValue;
             }
             if (currentElement.HandOrientation != null)
             {
-                currentParams["hand_x"] = currentElement.HandOrientation.X;
-                currentParamsDisplay["hand_x"] = currentElement.HandOrientation.X.ToString("F6");
-                currentParams["hand_y"] = currentElement.HandOrientation.Y;
-                currentParamsDisplay["hand_y"] = currentElement.HandOrientation.Y.ToString("F6");
-                currentParams["hand_z"] = currentElement.HandOrientation.Z;
-                currentParamsDisplay["hand_z"] = currentElement.HandOrientation.Z.ToString("F6");
+                var handXValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentElement.HandOrientation.X, DisplayValue = currentElement.HandOrientation.X.ToString("F6"), IsTypeParameter = false };
+                currentParams["hand_x"] = handXValue;
+                currentParamsDisplay["hand_x"] = handXValue.DisplayValue;
+
+                var handYValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentElement.HandOrientation.Y, DisplayValue = currentElement.HandOrientation.Y.ToString("F6"), IsTypeParameter = false };
+                currentParams["hand_y"] = handYValue;
+                currentParamsDisplay["hand_y"] = handYValue.DisplayValue;
+
+                var handZValue = new Models.ParameterValue { StorageType = "Double", RawValue = currentElement.HandOrientation.Z, DisplayValue = currentElement.HandOrientation.Z.ToString("F6"), IsTypeParameter = false };
+                currentParams["hand_z"] = handZValue;
+                currentParamsDisplay["hand_z"] = handZValue.DisplayValue;
             }
 
             // Build snapshot parameters dictionary
@@ -360,13 +391,9 @@ namespace ViewTracker.Commands
             // Add from AllParameters JSON (but skip parameters that should be in dedicated columns)
             if (snapshot.AllParameters != null)
             {
-                // Check if this is an old snapshot (doesn't have type_parameters column)
-                // NULL means old snapshot, empty dictionary means new snapshot with no type parameters
-                bool isOldSnapshot = snapshot.TypeParameters == null;
-
                 foreach (var kvp in snapshot.AllParameters)
                 {
-                    // Skip IFC-related parameters from old snapshots (for backward compatibility)
+                    // Skip IFC-related parameters
                     if (kvp.Key.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                         continue;
 
@@ -382,112 +409,37 @@ namespace ViewTracker.Commands
                         kvp.Key.Equals("rotation", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    snapshotParams[kvp.Key] = kvp.Value;
-
-                    // Format the display value properly
-                    // For doubles, we need to get the formatted value from the current parameter
-                    string displayValue;
-                    if (kvp.Value is double doubleVal)
+                    // Convert JSON objects to ParameterValue objects
+                    var paramValue = Models.ParameterValue.FromJsonObject(kvp.Value);
+                    if (paramValue == null)
                     {
-                        // Special handling for location/rotation parameters (they're in feet/radians)
-                        if (kvp.Key.StartsWith("location_") || kvp.Key == "rotation" ||
-                            kvp.Key.StartsWith("facing_") || kvp.Key.StartsWith("hand_"))
-                        {
-                            // For location: convert feet to project units (mm, inches, etc.)
-                            if (kvp.Key.StartsWith("location_"))
-                            {
-                                displayValue = UnitFormatUtils.Format(
-                                    currentElement.Document.GetUnits(),
-                                    SpecTypeId.Length,
-                                    doubleVal,
-                                    false);
-                            }
-                            // For rotation: show in degrees or project angle units
-                            else if (kvp.Key == "rotation")
-                            {
-                                displayValue = UnitFormatUtils.Format(
-                                    currentElement.Document.GetUnits(),
-                                    SpecTypeId.Angle,
-                                    doubleVal,
-                                    false);
-                            }
-                            // For facing/hand orientation: just show the vector component
-                            else
-                            {
-                                displayValue = doubleVal.ToString("F6");
-                            }
-                        }
-                        else
-                        {
-                            // Try to get the current parameter to format it properly
-                            var currentParam = currentElement.LookupParameter(kvp.Key);
-                            if (currentParam != null && currentParam.StorageType == StorageType.Double)
-                            {
-                                // Format with units, then strip the unit label
-                                string formatted = UnitFormatUtils.Format(
-                                    currentElement.Document.GetUnits(),
-                                    currentParam.Definition.GetDataType(),
-                                    doubleVal,
-                                    false);
-                                // Strip unit label (e.g., "2438.4 mm" → "2438.4")
-                                displayValue = formatted?.Split(' ')[0]?.Replace(",", ".") ?? doubleVal.ToString("F2");
-                            }
-                            else
-                            {
-                                // Fallback: just show the number
-                                displayValue = doubleVal.ToString("F2");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        displayValue = kvp.Value?.ToString() ?? "";
+                        // This should never happen with new snapshots - log error
+                        System.Diagnostics.Debug.WriteLine($"ERROR: Failed to convert parameter '{kvp.Key}' to ParameterValue. Snapshot may be corrupted.");
+                        continue;
                     }
 
-                    snapshotParamsDisplay[kvp.Key] = displayValue;
+                    snapshotParams[kvp.Key] = paramValue;
+                    snapshotParamsDisplay[kvp.Key] = paramValue.DisplayValue;
                 }
             }
 
             // Add from TypeParameters JSON (type parameters) for comparison
-            // ONLY if snapshot has type parameters (for backward compatibility with old snapshots)
             if (snapshot.TypeParameters != null && snapshot.TypeParameters.Any())
             {
                 // Add snapshot type parameters
                 foreach (var kvp in snapshot.TypeParameters)
                 {
-                    snapshotParams[kvp.Key] = kvp.Value;
-
-                    // For display, format type parameters
-                    string displayValue;
-                    if (kvp.Value is double doubleVal)
+                    // Convert JSON objects to ParameterValue objects
+                    var paramValue = Models.ParameterValue.FromJsonObject(kvp.Value);
+                    if (paramValue == null)
                     {
-                        // Try to get the parameter from the element's type to format it properly
-                        Parameter currentParam = null;
-                        if (currentElement.Symbol != null)
-                        {
-                            currentParam = currentElement.Symbol.LookupParameter(kvp.Key);
-                        }
-
-                        if (currentParam != null && currentParam.StorageType == StorageType.Double)
-                        {
-                            string formatted = UnitFormatUtils.Format(
-                                currentElement.Document.GetUnits(),
-                                currentParam.Definition.GetDataType(),
-                                doubleVal,
-                                false);
-                            displayValue = formatted?.Split(' ')[0]?.Replace(",", ".") ?? doubleVal.ToString("F2");
-                        }
-                        else
-                        {
-                            displayValue = doubleVal.ToString("F2");
-                        }
-                    }
-                    else
-                    {
-                        displayValue = kvp.Value?.ToString() ?? "";
+                        // This should never happen with new snapshots - log error
+                        System.Diagnostics.Debug.WriteLine($"ERROR: Failed to convert type parameter '{kvp.Key}' to ParameterValue. Snapshot may be corrupted.");
+                        continue;
                     }
 
-                    snapshotParamsDisplay[kvp.Key] = displayValue;
+                    snapshotParams[kvp.Key] = paramValue;
+                    snapshotParamsDisplay[kvp.Key] = paramValue.DisplayValue;
                 }
 
                 // Also add current type parameters to currentParams for comparison
@@ -505,14 +457,22 @@ namespace ViewTracker.Commands
             // These are not in AllParameters JSON, but we still want to compare them
             // IMPORTANT: Use the actual parameter name from the current element (language-independent)
             // not hardcoded English names, to avoid false "(new)" and "(removed)" changes
+            // BUGFIX: Wrap dedicated column values in ParameterValue objects to match current format
 
             // Mark parameter - include even if empty
             var markParam = currentElement.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
             if (markParam != null)
             {
                 string markParamName = markParam.Definition.Name;
-                snapshotParams[markParamName] = snapshot.Mark ?? "";
-                snapshotParamsDisplay[markParamName] = snapshot.Mark ?? "";
+                var markValue = new Models.ParameterValue
+                {
+                    StorageType = StorageType.String.ToString(),
+                    RawValue = snapshot.Mark ?? "",
+                    DisplayValue = snapshot.Mark ?? "",
+                    IsTypeParameter = false
+                };
+                snapshotParams[markParamName] = markValue;
+                snapshotParamsDisplay[markParamName] = markValue.DisplayValue;
             }
 
             // Level parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
@@ -520,8 +480,15 @@ namespace ViewTracker.Commands
             if (levelParam != null && !string.IsNullOrEmpty(snapshot.Level))
             {
                 string levelParamName = levelParam.Definition.Name;
-                snapshotParams[levelParamName] = snapshot.Level;
-                snapshotParamsDisplay[levelParamName] = snapshot.Level;
+                var levelValue = new Models.ParameterValue
+                {
+                    StorageType = StorageType.ElementId.ToString(),
+                    RawValue = snapshot.Level,
+                    DisplayValue = snapshot.Level,
+                    IsTypeParameter = false
+                };
+                snapshotParams[levelParamName] = levelValue;
+                snapshotParamsDisplay[levelParamName] = levelValue.DisplayValue;
             }
 
             // Comments parameter - include even if empty
@@ -529,8 +496,15 @@ namespace ViewTracker.Commands
             if (commentsParam != null)
             {
                 string commentsParamName = commentsParam.Definition.Name;
-                snapshotParams[commentsParamName] = snapshot.Comments ?? "";
-                snapshotParamsDisplay[commentsParamName] = snapshot.Comments ?? "";
+                var commentsValue = new Models.ParameterValue
+                {
+                    StorageType = StorageType.String.ToString(),
+                    RawValue = snapshot.Comments ?? "",
+                    DisplayValue = snapshot.Comments ?? "",
+                    IsTypeParameter = false
+                };
+                snapshotParams[commentsParamName] = commentsValue;
+                snapshotParamsDisplay[commentsParamName] = commentsValue.DisplayValue;
             }
 
             // Phase Created parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
@@ -538,8 +512,15 @@ namespace ViewTracker.Commands
             if (phaseCreatedParam != null && !string.IsNullOrEmpty(snapshot.PhaseCreated))
             {
                 string phaseCreatedParamName = phaseCreatedParam.Definition.Name;
-                snapshotParams[phaseCreatedParamName] = snapshot.PhaseCreated;
-                snapshotParamsDisplay[phaseCreatedParamName] = snapshot.PhaseCreated;
+                var phaseCreatedValue = new Models.ParameterValue
+                {
+                    StorageType = StorageType.ElementId.ToString(),
+                    RawValue = snapshot.PhaseCreated,
+                    DisplayValue = snapshot.PhaseCreated,
+                    IsTypeParameter = false
+                };
+                snapshotParams[phaseCreatedParamName] = phaseCreatedValue;
+                snapshotParamsDisplay[phaseCreatedParamName] = phaseCreatedValue.DisplayValue;
             }
 
             // Phase Demolished parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
@@ -547,8 +528,15 @@ namespace ViewTracker.Commands
             if (phaseDemolishedParam != null && !string.IsNullOrEmpty(snapshot.PhaseDemolished))
             {
                 string phaseDemolishedParamName = phaseDemolishedParam.Definition.Name;
-                snapshotParams[phaseDemolishedParamName] = snapshot.PhaseDemolished;
-                snapshotParamsDisplay[phaseDemolishedParamName] = snapshot.PhaseDemolished;
+                var phaseDemolishedValue = new Models.ParameterValue
+                {
+                    StorageType = StorageType.ElementId.ToString(),
+                    RawValue = snapshot.PhaseDemolished,
+                    DisplayValue = snapshot.PhaseDemolished,
+                    IsTypeParameter = false
+                };
+                snapshotParams[phaseDemolishedParamName] = phaseDemolishedValue;
+                snapshotParamsDisplay[phaseDemolishedParamName] = phaseDemolishedValue.DisplayValue;
             }
 
             // Note: Family and Type are NOT in AllParameters, but we need to compare them
@@ -628,6 +616,13 @@ namespace ViewTracker.Commands
                         currentParam.Key.Equals("rotation", StringComparison.OrdinalIgnoreCase))
                         continue;
 
+                    // BUGFIX: Skip EDITED_BY parameter (excluded from snapshots, covers all languages)
+                    var paramNameLower = currentParam.Key.ToLower();
+                    if (paramNameLower.Contains("modifié par") ||
+                        paramNameLower.Contains("edited by") ||
+                        paramNameLower.Contains("modified by"))
+                        continue;
+
                     // BUGFIX: Safe dictionary access to prevent KeyNotFoundException
                     var currDisplay = currentParamsDisplay.ContainsKey(currentParam.Key)
                         ? currentParamsDisplay[currentParam.Key]
@@ -656,81 +651,26 @@ namespace ViewTracker.Commands
                 paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            // DO NOT exclude parameters with dedicated columns - they should still be compared!
-            // We want to compare ALL instance parameters that GetOrderedParameters() returns
-
-            object paramValue = null;
-            string displayValue = null;
-            bool shouldAdd = false;
-
-            switch (param.StorageType)
-            {
-                case StorageType.Double:
-                    paramValue = param.AsDouble();
-                    // Use AsValueString for display, keep full value (don't truncate)
-                    displayValue = param.AsValueString() ?? paramValue.ToString();
-                    shouldAdd = true;
-                    break;
-                case StorageType.Integer:
-                    // Use AsValueString to get enum text (e.g., "Par type" instead of "0")
-                    var intValueString = param.AsValueString();
-                    if (!string.IsNullOrEmpty(intValueString))
-                    {
-                        paramValue = intValueString; // Store the display text for comparison
-                        displayValue = intValueString;
-                        shouldAdd = true;
-                    }
-                    else
-                    {
-                        paramValue = param.AsInteger();
-                        displayValue = paramValue.ToString();
-                        shouldAdd = true;
-                    }
-                    break;
-                case StorageType.String:
-                    // Include all string parameters, even empty ones (to match snapshot behavior)
-                    var stringValue = param.AsString();
-                    paramValue = (stringValue ?? "").Trim(); // Trim whitespace for accurate comparison
-                    displayValue = (stringValue ?? "").Trim();
-                    shouldAdd = true;
-                    break;
-                case StorageType.ElementId:
-                    var valueString = param.AsValueString();
-                    if (!string.IsNullOrEmpty(valueString))
-                    {
-                        paramValue = valueString.Trim(); // Trim whitespace for accurate comparison
-                        displayValue = valueString.Trim();
-                        shouldAdd = true;
-                    }
-                    break;
-            }
-
-            if (shouldAdd)
+            // NEW: Use ParameterValue class for type-safe storage and comparison
+            var paramValue = Models.ParameterValue.FromRevitParameter(param);
+            if (paramValue != null)
             {
                 values[paramName] = paramValue;
-                display[paramName] = displayValue;
+                display[paramName] = paramValue.DisplayValue;
             }
         }
 
         private bool CompareValues(object snapValue, object currentValue)
         {
-            // Handle numeric comparisons with tolerance
-            if (snapValue is double snapDouble && currentValue is double currDouble)
-                return Math.Abs(snapDouble - currDouble) > 0.001;
+            // NEW: Type-safe comparison using ParameterValue objects
+            if (snapValue is Models.ParameterValue snapParam && currentValue is Models.ParameterValue currParam)
+            {
+                return !snapParam.IsEqualTo(currParam);
+            }
 
-            // Handle mixed integer/long comparisons
-            if (snapValue is long snapLong && currentValue is int currInt)
-                return snapLong != currInt;
-
-            if (snapValue is int snapInt && currentValue is long currLong)
-                return snapInt != currLong;
-
-            // String comparison: trim whitespace and normalize
-            var snapStr = snapValue?.ToString()?.Trim() ?? "";
-            var currStr = currentValue?.ToString()?.Trim() ?? "";
-
-            // Return true if different (changed)
-            return snapStr != currStr;
+            // If we get here, something is wrong
+            System.Diagnostics.Debug.WriteLine($"WARNING: CompareValues received non-ParameterValue objects");
+            return true; // Treat as different
         }
 
         // Helper method to convert parameter values from internal units to display units (no unit symbols)
