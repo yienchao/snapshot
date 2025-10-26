@@ -229,7 +229,8 @@ namespace ViewTracker.Commands
                 BuiltInParameter.ROOM_FINISH_WALL,      // wall_finish column
                 BuiltInParameter.ROOM_FINISH_FLOOR,     // floor_finish column
                 BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,  // comments column
-                BuiltInParameter.IFC_EXPORT_ELEMENT_AS  // IFC export parameter (has formatting issues)
+                BuiltInParameter.IFC_EXPORT_ELEMENT_AS,  // IFC export parameter (has formatting issues)
+                BuiltInParameter.EDITED_BY              // System metadata (changes automatically)
             };
 
             // Shared/string parameters to exclude (by name, for language-independence)
@@ -285,14 +286,11 @@ namespace ViewTracker.Commands
                         }
                         break;
                     case StorageType.String:
-                        // Only add string parameters if they have a value (non-empty)
-                        // This reduces database storage size significantly
+                        // BUGFIX: Save ALL string parameters, even empty ones (consistent with doors/elements)
+                        // This ensures we can detect when users clear text parameters (not just set them)
                         var stringValue = param.AsString();
-                        if (!string.IsNullOrEmpty(stringValue))
-                        {
-                            paramValue = stringValue;
-                            shouldAdd = true;
-                        }
+                        paramValue = stringValue ?? "";  // Use empty string if null
+                        shouldAdd = true;
                         break;
                     case StorageType.ElementId:
                         // Use AsValueString() to get the display value instead of the ID

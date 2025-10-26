@@ -590,7 +590,10 @@ namespace ViewTracker.Commands
                 }
                 else
                 {
-                    var snapDisplay = snapshotParamsDisplay[snapshotParam.Key];
+                    // BUGFIX: Safe dictionary access to prevent KeyNotFoundException
+                    var snapDisplay = snapshotParamsDisplay.ContainsKey(snapshotParam.Key)
+                        ? snapshotParamsDisplay[snapshotParam.Key]
+                        : snapshotParam.Value?.ToString() ?? "";
                     string changeText = $"{snapshotParam.Key}: '{snapDisplay}' → (removed)";
                     changes.Add(changeText);
 
@@ -607,7 +610,10 @@ namespace ViewTracker.Commands
             {
                 if (!snapshotParams.ContainsKey(currentParam.Key))
                 {
-                    var currDisplay = currentParamsDisplay[currentParam.Key];
+                    // BUGFIX: Safe dictionary access to prevent KeyNotFoundException
+                    var currDisplay = currentParamsDisplay.ContainsKey(currentParam.Key)
+                        ? currentParamsDisplay[currentParam.Key]
+                        : currentParam.Value?.ToString() ?? "";
                     string changeText = $"{currentParam.Key}: (new) → '{currDisplay}'";
                     changes.Add(changeText);
 

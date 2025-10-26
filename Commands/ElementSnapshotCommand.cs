@@ -203,7 +203,8 @@ namespace ViewTracker.Commands
                 BuiltInParameter.FAMILY_LEVEL_PARAM,             // level column
                 BuiltInParameter.PHASE_CREATED,                  // phase_created column
                 BuiltInParameter.PHASE_DEMOLISHED,               // phase_demolished column
-                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS     // comments column
+                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,    // comments column
+                BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
             // Use GetOrderedParameters to get only user-visible INSTANCE parameters
@@ -295,7 +296,8 @@ namespace ViewTracker.Commands
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
                 BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
-                BuiltInParameter.ALL_MODEL_TYPE_NAME             // type_name column
+                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
+                BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
             // Use GetOrderedParameters to get only user-visible TYPE parameters

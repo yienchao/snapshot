@@ -202,7 +202,8 @@ namespace ViewTracker.Commands
                 BuiltInParameter.DOOR_HEIGHT,                    // door_height column (from type)
                 BuiltInParameter.PHASE_CREATED,                  // phase_created column
                 BuiltInParameter.PHASE_DEMOLISHED,               // phase_demolished column
-                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS     // comments column
+                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,    // comments column
+                BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
             // Shared/string parameters to exclude (by name, for non-built-in parameters)
@@ -281,7 +282,8 @@ namespace ViewTracker.Commands
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
                 BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
-                BuiltInParameter.ALL_MODEL_TYPE_NAME             // type_name column
+                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
+                BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
             // Use GetOrderedParameters to get only user-visible TYPE parameters

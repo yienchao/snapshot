@@ -1019,32 +1019,8 @@ namespace ViewTracker.Commands
 
                 if (paramExistsInCurrent)
                 {
-                    // Compare values
-                    bool isDifferent = false;
-
-                    // For doubles, use tolerance comparison
-                    if (snapshotParam.Value is double snapDouble && currentValue is double currDouble)
-                    {
-                        isDifferent = Math.Abs(snapDouble - currDouble) > 0.001;
-                    }
-                    // Handle long/int comparison (JSON deserialization might convert to long)
-                    else if (snapshotParam.Value is long snapLong && currentValue is int currInt)
-                    {
-                        isDifferent = (snapLong != currInt);
-                    }
-                    else if (snapshotParam.Value is int snapInt && currentValue is long currLong)
-                    {
-                        isDifferent = (snapInt != currLong);
-                    }
-                    else
-                    {
-                        // For string comparison, use the formatted display values
-                        var snapDisplay = snapshotParamsDisplay.ContainsKey(snapshotParam.Key)
-                            ? snapshotParamsDisplay[snapshotParam.Key]
-                            : snapshotParam.Value?.ToString() ?? "";
-
-                        isDifferent = (snapDisplay != currentDisplay);
-                    }
+                    // BUGFIX: Use standardized CompareValues method
+                    bool isDifferent = CompareValues(snapshotParam.Value, currentValue);
 
                     if (isDifferent)
                     {
@@ -1079,8 +1055,13 @@ namespace ViewTracker.Commands
                         ? currentParamsDisplay[currentParam.Key]
                         : currentParam.Value?.ToString() ?? "";
 
-                    // Skip empty string parameters - they're not really "new", they just weren't captured in snapshot
-                    if (string.IsNullOrEmpty(currDisplay) || currDisplay == "0" || currDisplay == "0.00")
+                    // BUGFIX: Skip empty/zero parameters - they're not really "new", they just weren't captured in snapshot
+                    // Handle both English and French decimal separators
+                    if (string.IsNullOrWhiteSpace(currDisplay))
+                        continue;
+
+                    // Check for numeric zeros (handles "0", "0.0", "0.00", "0,0", "0,00")
+                    if (double.TryParse(currDisplay.Replace(',', '.'), out double numValue) && Math.Abs(numValue) < 0.0001)
                         continue;
 
                     string changeText = $"{currentParam.Key}: (new) → '{currDisplay}'";
@@ -1090,6 +1071,28 @@ namespace ViewTracker.Commands
             }
 
             return (changes, instanceChanges, typeChanges);
+        }
+
+        // BUGFIX: Shared comparison method for consistency with Door/Element commands
+        private bool CompareValues(object snapValue, object currentValue)
+        {
+            // Handle numeric comparisons with tolerance
+            if (snapValue is double snapDouble && currentValue is double currDouble)
+                return Math.Abs(snapDouble - currDouble) > 0.001;
+
+            // Handle mixed integer/long comparisons
+            if (snapValue is long snapLong && currentValue is int currInt)
+                return snapLong != currInt;
+
+            if (snapValue is int snapInt && currentValue is long currLong)
+                return snapInt != currLong;
+
+            // String comparison: trim whitespace and normalize
+            var snapStr = snapValue?.ToString()?.Trim() ?? "";
+            var currStr = currentValue?.ToString()?.Trim() ?? "";
+
+            // Return true if different (changed)
+            return snapStr != currStr;
         }
 
         // Helper method to convert parameter values to file's display units (no unit symbols)
