@@ -521,17 +521,34 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
             }
         }
 
-        // Get all doors for a specific version and project
+        // Get all doors for a specific version and project (with pagination for large datasets)
         public async Task<List<DoorSnapshot>> GetDoorsByVersionAsync(string versionName, Guid projectId)
         {
             try
             {
-                var results = await _supabase
-                    .From<DoorSnapshot>()
-                    .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
-                    .Get();
+                var allDoors = new List<DoorSnapshot>();
+                const int batchSize = 1000;
+                int offset = 0;
 
-                return results.Models.ToList();
+                while (true)
+                {
+                    var resp = await _supabase
+                        .From<DoorSnapshot>()
+                        .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
+                        // Add ordering for deterministic pagination
+                        .Order(x => x.TrackId, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Range(offset, offset + batchSize - 1)
+                        .Get();
+
+                    var batch = resp.Models.ToList();
+                    allDoors.AddRange(batch);
+
+                    // If we got fewer results than batch size, we've reached the end
+                    if (batch.Count < batchSize) break;
+                    offset += batchSize;
+                }
+
+                return allDoors;
             }
             catch (Exception ex)
             {
@@ -687,17 +704,34 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
             }
         }
 
-        // Get all elements for a specific version and project
+        // Get all elements for a specific version and project (with pagination for large datasets)
         public async Task<List<ElementSnapshot>> GetElementsByVersionAsync(string versionName, Guid projectId)
         {
             try
             {
-                var results = await _supabase
-                    .From<ElementSnapshot>()
-                    .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
-                    .Get();
+                var allElements = new List<ElementSnapshot>();
+                const int batchSize = 1000;
+                int offset = 0;
 
-                return results.Models.ToList();
+                while (true)
+                {
+                    var resp = await _supabase
+                        .From<ElementSnapshot>()
+                        .Where(x => x.VersionName == versionName && x.ProjectId == projectId)
+                        // Add ordering for deterministic pagination
+                        .Order(x => x.TrackId, Supabase.Postgrest.Constants.Ordering.Ascending)
+                        .Range(offset, offset + batchSize - 1)
+                        .Get();
+
+                    var batch = resp.Models.ToList();
+                    allElements.AddRange(batch);
+
+                    // If we got fewer results than batch size, we've reached the end
+                    if (batch.Count < batchSize) break;
+                    offset += batchSize;
+                }
+
+                return allElements;
             }
             catch (Exception ex)
             {

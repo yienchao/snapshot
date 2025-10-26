@@ -662,41 +662,42 @@ namespace ViewTracker.Commands
             }
 
             // Create a dictionary of parameters by name for fast lookups (avoid repeated FirstOrDefault calls)
+            // OPTIMIZATION: Single loop to build cache AND process parameters (was two separate loops)
             var paramByName = new Dictionary<string, Parameter>();
             var builtInParamCache = new Dictionary<string, BuiltInParameter>();
-            foreach (Parameter p in orderedParams)
-            {
-                var paramName = p.Definition.Name;
-                if (!paramByName.ContainsKey(paramName))
-                {
-                    paramByName[paramName] = p;
 
-                    // Cache BuiltInParameter enum for fast lookup (avoid repeated "is InternalDefinition" checks)
-                    if (p.Definition is InternalDefinition internalDef)
-                    {
-                        builtInParamCache[paramName] = internalDef.BuiltInParameter;
-                    }
-                }
-            }
             foreach (Parameter param in orderedParams)
             {
                 string paramName = param.Definition.Name;
 
-                // Skip only system metadata and IFC parameters in comparison
-                // We WANT to show placement-dependent parameters in comparison (Area, Volume, Level, etc.)
-                // but they will be excluded from restore since they're read-only
-                if (param.Definition is InternalDefinition internalDef)
+                // Build lookup dictionaries (skip duplicates)
+                if (!paramByName.ContainsKey(paramName))
                 {
-                    var builtInParam = internalDef.BuiltInParameter;
+                    paramByName[paramName] = param;
 
+                    // Cache BuiltInParameter enum for fast lookup (avoid repeated "is InternalDefinition" checks)
+                    if (param.Definition is InternalDefinition internalDefForCache)
+                    {
+                        builtInParamCache[paramName] = internalDefForCache.BuiltInParameter;
+                    }
+                }
+
+                // Skip only system metadata and IFC parameters in comparison
+                // Use cached BuiltInParameter to avoid redundant casting
+                if (builtInParamCache.TryGetValue(paramName, out var builtInParam))
+                {
                     // Skip only these system parameters
                     if (builtInParam == BuiltInParameter.EDITED_BY ||
                         builtInParam == BuiltInParameter.IFC_EXPORT_ELEMENT_AS)  // IFC export (has formatting issues)
                         continue;
                 }
 
-                // Also skip by parameter name for IFC export (covers all languages)
+                // Also skip by parameter name (covers all languages and parameters not in cache)
                 if (paramName == "Exporter au format IFC" || paramName == "Export to IFC" || paramName == "IFC Export")
+                    continue;
+
+                // Skip EDITED_BY parameter (covers all languages)
+                if (paramName == "Modifié par" || paramName == "Edited by" || paramName == "Modified by")
                     continue;
 
                 // Skip placement-dependent parameters that cause false positives
@@ -793,6 +794,10 @@ namespace ViewTracker.Commands
                     // Skip IFC parameters
                     if (kvp.Key == "Exporter au format IFC" || kvp.Key == "Export to IFC" || kvp.Key == "IFC Export" ||
                         kvp.Key.Contains("IFC") || kvp.Key.Contains("prédéfini d'IFC"))
+                        continue;
+
+                    // Skip EDITED_BY parameter (covers all languages)
+                    if (kvp.Key == "Modifié par" || kvp.Key == "Edited by" || kvp.Key == "Modified by")
                         continue;
 
                     snapshotParams[kvp.Key] = kvp.Value;

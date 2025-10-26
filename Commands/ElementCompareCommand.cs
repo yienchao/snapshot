@@ -61,7 +61,9 @@ namespace ViewTracker.Commands
                 .OrderByDescending(v => v.SnapshotDate)
                 .ToList();
 
-            var selectionWindow = new VersionSelectionWindow(versionInfos);
+            var selectionWindow = new VersionSelectionWindow(versionInfos,
+                null, // use default title
+                "Choose a snapshot version to compare with current elements:");
             var dialogResult = selectionWindow.ShowDialog();
 
             if (dialogResult != true)
@@ -228,6 +230,10 @@ namespace ViewTracker.Commands
             return result;
         }
 
+        // OPTIMIZATION: Cache for GetOrderedParameters to avoid redundant API calls
+        private Dictionary<ElementId, IList<Parameter>> _instanceParamCache = new Dictionary<ElementId, IList<Parameter>>();
+        private Dictionary<ElementId, IList<Parameter>> _typeParamCache = new Dictionary<ElementId, IList<Parameter>>();
+
         private (List<string> allChanges, List<string> instanceChanges, List<string> typeChanges) GetParameterChanges(FamilyInstance currentElement, ElementSnapshot snapshot, Document doc)
         {
             var changes = new List<string>();
@@ -248,8 +254,13 @@ namespace ViewTracker.Commands
             var currentParams = new Dictionary<string, object>();
             var currentParamsDisplay = new Dictionary<string, string>();
 
-            // Get ONLY instance parameters using GetOrderedParameters
-            var orderedParams = currentElement.GetOrderedParameters();
+            // Get ONLY instance parameters using GetOrderedParameters (with caching)
+            if (!_instanceParamCache.TryGetValue(currentElement.Id, out var orderedParams))
+            {
+                orderedParams = currentElement.GetOrderedParameters();
+                _instanceParamCache[currentElement.Id] = orderedParams;
+            }
+
             foreach (Parameter param in orderedParams)
             {
                 // Skip type parameters - only collect instance parameters here
@@ -264,7 +275,13 @@ namespace ViewTracker.Commands
             var currentTypeParamsDisplay = new Dictionary<string, string>();
             if (currentElement.Symbol != null)
             {
-                var orderedTypeParams = currentElement.Symbol.GetOrderedParameters();
+                // Use cache for type parameters too
+                if (!_typeParamCache.TryGetValue(currentElement.Symbol.Id, out var orderedTypeParams))
+                {
+                    orderedTypeParams = currentElement.Symbol.GetOrderedParameters();
+                    _typeParamCache[currentElement.Symbol.Id] = orderedTypeParams;
+                }
+
                 foreach (Parameter param in orderedTypeParams)
                 {
                     AddParameterToDict(param, currentTypeParams, currentTypeParamsDisplay);
