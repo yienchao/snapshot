@@ -153,17 +153,17 @@ namespace ViewTracker.Commands
             }
 
             // 7. Compare
-            DoorComparisonResult comparison = CompareDoors(currentDoors, filteredSnapshotDoors, doc);
+            var comparison = CompareDoors(currentDoors, filteredSnapshotDoors, doc);
 
-            // 8. Show results
-            ShowComparisonResults(comparison, selectedVersion, commandData.Application);
+            // 8. Show results using unified helper
+            Helpers.ComparisonHelper.ShowComparisonResults(comparison, selectedVersion, "DOORS");
 
             return Result.Succeeded;
         }
 
-        private DoorComparisonResult CompareDoors(List<FamilyInstance> currentDoors, List<DoorSnapshot> snapshotDoors, Document doc)
+        private Models.ComparisonResult<Models.EntityChange> CompareDoors(List<FamilyInstance> currentDoors, List<DoorSnapshot> snapshotDoors, Document doc)
         {
-            var result = new DoorComparisonResult();
+            var result = new Models.ComparisonResult<Models.EntityChange>();
             var snapshotDict = snapshotDoors.ToDictionary(s => s.TrackId, s => s);
             var currentDict = currentDoors.ToDictionary(d => d.LookupParameter("trackID").AsString(), d => d);
 
@@ -173,12 +173,11 @@ namespace ViewTracker.Commands
                 var trackId = door.LookupParameter("trackID").AsString();
                 if (!snapshotDict.ContainsKey(trackId))
                 {
-                    result.NewDoors.Add(new DoorChange
+                    result.NewEntities.Add(new Models.EntityChange
                     {
                         TrackId = trackId,
-                        Mark = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
-                        FamilyName = door.Symbol?.Family?.Name,
-                        TypeName = door.Symbol?.Name,
+                        Identifier1 = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
+                        Identifier2 = $"{door.Symbol?.Family?.Name}: {door.Symbol?.Name}",
                         ChangeType = "New"
                     });
                 }
@@ -189,12 +188,11 @@ namespace ViewTracker.Commands
             {
                 if (!currentDict.ContainsKey(snapshot.TrackId))
                 {
-                    result.DeletedDoors.Add(new DoorChange
+                    result.DeletedEntities.Add(new Models.EntityChange
                     {
                         TrackId = snapshot.TrackId,
-                        Mark = snapshot.Mark,
-                        FamilyName = snapshot.FamilyName,
-                        TypeName = snapshot.TypeName,
+                        Identifier1 = snapshot.Mark,
+                        Identifier2 = $"{snapshot.FamilyName}: {snapshot.TypeName}",
                         ChangeType = "Deleted"
                     });
                 }
@@ -209,12 +207,11 @@ namespace ViewTracker.Commands
                     var (allChanges, instanceChanges, typeChanges) = GetParameterChanges(door, snapshot, doc);
                     if (allChanges.Any())
                     {
-                        result.ModifiedDoors.Add(new DoorChange
+                        result.ModifiedEntities.Add(new Models.EntityChange
                         {
                             TrackId = trackId,
-                            Mark = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
-                            FamilyName = door.Symbol?.Family?.Name,
-                            TypeName = door.Symbol?.Name,
+                            Identifier1 = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
+                            Identifier2 = $"{door.Symbol?.Family?.Name}: {door.Symbol?.Name}",
                             ChangeType = "Modified",
                             Changes = allChanges,
                             InstanceParameterChanges = instanceChanges,
@@ -675,95 +672,5 @@ namespace ViewTracker.Commands
             System.Diagnostics.Debug.WriteLine($"WARNING: Non-ParameterValue objects! Snap: {snapValue?.GetType().Name}, Curr: {currentValue?.GetType().Name}");
             return true; // Treat as different
         }
-
-        private void ShowComparisonResults(DoorComparisonResult result, string versionName, UIApplication uiApp)
-        {
-            int totalChanges = result.NewDoors.Count + result.DeletedDoors.Count + result.ModifiedDoors.Count;
-
-            if (totalChanges == 0)
-            {
-                TaskDialog.Show("No Changes", $"No changes detected compared to version '{versionName}'.");
-                return;
-            }
-
-            // Build ViewModel (reusing room view model structure)
-            var viewModel = new ComparisonResultViewModel
-            {
-                VersionName = versionName,
-                VersionInfo = $"Door Comparison | Version: {versionName} | Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
-                EntityTypeLabel = "DOORS",
-                NewRoomsCount = result.NewDoors.Count,
-                ModifiedRoomsCount = result.ModifiedDoors.Count,
-                DeletedRoomsCount = result.DeletedDoors.Count
-            };
-
-            // Convert to display models (reusing room display structure)
-            var displayItems = new List<RoomChangeDisplay>();
-
-            foreach (var door in result.NewDoors)
-            {
-                displayItems.Add(new RoomChangeDisplay
-                {
-                    ChangeType = "New",
-                    TrackId = door.TrackId,
-                    RoomNumber = door.Mark,
-                    RoomName = $"{door.FamilyName}: {door.TypeName}",
-                    Changes = new List<string>()
-                });
-            }
-
-            foreach (var door in result.ModifiedDoors)
-            {
-                displayItems.Add(new RoomChangeDisplay
-                {
-                    ChangeType = "Modified",
-                    TrackId = door.TrackId,
-                    RoomNumber = door.Mark,
-                    RoomName = $"{door.FamilyName}: {door.TypeName}",
-                    Changes = door.Changes,
-                    InstanceParameterChanges = door.InstanceParameterChanges,
-                    TypeParameterChanges = door.TypeParameterChanges
-                });
-            }
-
-            foreach (var door in result.DeletedDoors)
-            {
-                displayItems.Add(new RoomChangeDisplay
-                {
-                    ChangeType = "Deleted",
-                    TrackId = door.TrackId,
-                    RoomNumber = door.Mark,
-                    RoomName = $"{door.FamilyName}: {door.TypeName}",
-                    Changes = new List<string>()
-                });
-            }
-
-            viewModel.AllResults = new ObservableCollection<RoomChangeDisplay>(displayItems);
-            viewModel.FilteredResults = new ObservableCollection<RoomChangeDisplay>(displayItems);
-
-            // Show WPF window
-            var window = new ComparisonResultWindow(viewModel);
-            window.ShowDialog();
-        }
-    }
-
-    // Helper classes
-    public class DoorComparisonResult
-    {
-        public List<DoorChange> NewDoors { get; set; } = new List<DoorChange>();
-        public List<DoorChange> DeletedDoors { get; set; } = new List<DoorChange>();
-        public List<DoorChange> ModifiedDoors { get; set; } = new List<DoorChange>();
-    }
-
-    public class DoorChange
-    {
-        public string TrackId { get; set; }
-        public string Mark { get; set; }
-        public string FamilyName { get; set; }
-        public string TypeName { get; set; }
-        public string ChangeType { get; set; }
-        public List<string> Changes { get; set; } = new List<string>();
-        public List<string> InstanceParameterChanges { get; set; } = new List<string>();
-        public List<string> TypeParameterChanges { get; set; } = new List<string>();
     }
 }

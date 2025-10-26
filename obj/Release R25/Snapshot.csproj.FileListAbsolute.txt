@@ -48,7 +48,6 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R25\System.Security.Cry
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R25\Websocket.Client.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R25\runtimes\win\lib\net8.0\System.Security.Cryptography.Pkcs.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Snapshot.csproj.AssemblyReference.cache
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\ComparisonModeWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\ComparisonResultWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\ExcelMappingWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\FilledRegionToRoomMappingWindow.baml
@@ -58,7 +57,6 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\RestoreResult
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\RoomRestoreWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\SyncAreaWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\VersionSelectionWindow.baml
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\ComparisonModeWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\ComparisonResultWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\ExcelMappingWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\FilledRegionToRoomMappingWindow.g.cs
@@ -83,5 +81,3 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Snapshot.genruntime
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\ref\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\SetupIDsWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\SetupIDsWindow.g.cs
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\HistoryTimelineWindow.baml
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R25\Views\HistoryTimelineWindow.g.cs

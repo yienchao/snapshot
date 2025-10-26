@@ -153,17 +153,17 @@ namespace ViewTracker.Commands
             }
 
             // 7. Compare
-            ElementComparisonResult comparison = CompareElements(currentElements, filteredSnapshotElements, doc);
+            var comparison = CompareElements(currentElements, filteredSnapshotElements, doc);
 
-            // 8. Show results
-            ShowComparisonResults(comparison, selectedVersion, commandData.Application);
+            // 8. Show results using unified helper
+            Helpers.ComparisonHelper.ShowComparisonResults(comparison, selectedVersion, "ELEMENTS");
 
             return Result.Succeeded;
         }
 
-        private ElementComparisonResult CompareElements(List<FamilyInstance> currentElements, List<ElementSnapshot> snapshotElements, Document doc)
+        private Models.ComparisonResult<Models.EntityChange> CompareElements(List<FamilyInstance> currentElements, List<ElementSnapshot> snapshotElements, Document doc)
         {
-            var result = new ElementComparisonResult();
+            var result = new Models.ComparisonResult<Models.EntityChange>();
             var snapshotDict = snapshotElements.ToDictionary(s => s.TrackId, s => s);
             var currentDict = currentElements.ToDictionary(e => e.LookupParameter("trackID").AsString(), e => e);
 
@@ -173,13 +173,11 @@ namespace ViewTracker.Commands
                 var trackId = element.LookupParameter("trackID").AsString();
                 if (!snapshotDict.ContainsKey(trackId))
                 {
-                    result.NewElements.Add(new ElementChange
+                    result.NewEntities.Add(new Models.EntityChange
                     {
                         TrackId = trackId,
-                        Category = element.Category?.Name,
-                        Mark = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
-                        FamilyName = element.Symbol?.Family?.Name,
-                        TypeName = element.Symbol?.Name,
+                        Identifier1 = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
+                        Identifier2 = $"{element.Symbol?.Family?.Name}: {element.Symbol?.Name}",
                         ChangeType = "New"
                     });
                 }
@@ -190,13 +188,11 @@ namespace ViewTracker.Commands
             {
                 if (!currentDict.ContainsKey(snapshot.TrackId))
                 {
-                    result.DeletedElements.Add(new ElementChange
+                    result.DeletedEntities.Add(new Models.EntityChange
                     {
                         TrackId = snapshot.TrackId,
-                        Category = snapshot.Category,
-                        Mark = snapshot.Mark,
-                        FamilyName = snapshot.FamilyName,
-                        TypeName = snapshot.TypeName,
+                        Identifier1 = snapshot.Mark,
+                        Identifier2 = $"{snapshot.FamilyName}: {snapshot.TypeName}",
                         ChangeType = "Deleted"
                     });
                 }
@@ -211,13 +207,11 @@ namespace ViewTracker.Commands
                     var (allChanges, instanceChanges, typeChanges) = GetParameterChanges(element, snapshot, doc);
                     if (allChanges.Any())
                     {
-                        result.ModifiedElements.Add(new ElementChange
+                        result.ModifiedEntities.Add(new Models.EntityChange
                         {
                             TrackId = trackId,
-                            Category = element.Category?.Name,
-                            Mark = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
-                            FamilyName = element.Symbol?.Family?.Name,
-                            TypeName = element.Symbol?.Name,
+                            Identifier1 = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
+                            Identifier2 = $"{element.Symbol?.Family?.Name}: {element.Symbol?.Name}",
                             ChangeType = "Modified",
                             Changes = allChanges,
                             InstanceParameterChanges = instanceChanges,
@@ -727,95 +721,5 @@ namespace ViewTracker.Commands
             }
         }
 
-        private void ShowComparisonResults(ElementComparisonResult result, string versionName, UIApplication uiApp)
-        {
-            int totalChanges = result.NewElements.Count + result.DeletedElements.Count + result.ModifiedElements.Count;
-
-            if (totalChanges == 0)
-            {
-                TaskDialog.Show("No Changes", $"No changes detected compared to version '{versionName}'.");
-                return;
-            }
-
-            // Build ViewModel (reusing room view model structure)
-            var viewModel = new ComparisonResultViewModel
-            {
-                VersionName = versionName,
-                VersionInfo = $"Element Comparison | Version: {versionName} | Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
-                EntityTypeLabel = "ELEMENTS",
-                NewRoomsCount = result.NewElements.Count,
-                ModifiedRoomsCount = result.ModifiedElements.Count,
-                DeletedRoomsCount = result.DeletedElements.Count
-            };
-
-            // Convert to display models (reusing room display structure)
-            var displayItems = new List<RoomChangeDisplay>();
-
-            foreach (var element in result.NewElements)
-            {
-                displayItems.Add(new RoomChangeDisplay
-                {
-                    ChangeType = "New",
-                    TrackId = element.TrackId,
-                    RoomNumber = $"{element.Category}: {element.Mark}",
-                    RoomName = $"{element.FamilyName}: {element.TypeName}",
-                    Changes = new List<string>()
-                });
-            }
-
-            foreach (var element in result.ModifiedElements)
-            {
-                displayItems.Add(new RoomChangeDisplay
-                {
-                    ChangeType = "Modified",
-                    TrackId = element.TrackId,
-                    RoomNumber = $"{element.Category}: {element.Mark}",
-                    RoomName = $"{element.FamilyName}: {element.TypeName}",
-                    Changes = element.Changes,
-                    InstanceParameterChanges = element.InstanceParameterChanges,
-                    TypeParameterChanges = element.TypeParameterChanges
-                });
-            }
-
-            foreach (var element in result.DeletedElements)
-            {
-                displayItems.Add(new RoomChangeDisplay
-                {
-                    ChangeType = "Deleted",
-                    TrackId = element.TrackId,
-                    RoomNumber = $"{element.Category}: {element.Mark}",
-                    RoomName = $"{element.FamilyName}: {element.TypeName}",
-                    Changes = new List<string>()
-                });
-            }
-
-            viewModel.AllResults = new ObservableCollection<RoomChangeDisplay>(displayItems);
-            viewModel.FilteredResults = new ObservableCollection<RoomChangeDisplay>(displayItems);
-
-            // Show WPF window
-            var window = new ComparisonResultWindow(viewModel);
-            window.ShowDialog();
-        }
-    }
-
-    // Helper classes
-    public class ElementComparisonResult
-    {
-        public List<ElementChange> NewElements { get; set; } = new List<ElementChange>();
-        public List<ElementChange> DeletedElements { get; set; } = new List<ElementChange>();
-        public List<ElementChange> ModifiedElements { get; set; } = new List<ElementChange>();
-    }
-
-    public class ElementChange
-    {
-        public string TrackId { get; set; }
-        public string Category { get; set; }
-        public string Mark { get; set; }
-        public string FamilyName { get; set; }
-        public string TypeName { get; set; }
-        public string ChangeType { get; set; }
-        public List<string> Changes { get; set; } = new List<string>();
-        public List<string> InstanceParameterChanges { get; set; } = new List<string>();
-        public List<string> TypeParameterChanges { get; set; } = new List<string>();
     }
 }

@@ -46,7 +46,6 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R24\System.Threading.Task
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R24\System.ValueTuple.dll
 c:\Users\yichao\Documents\VsCode\ViewTracker\bin\Debug R24\Websocket.Client.dll
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.csproj.AssemblyReference.cache
-c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\ComparisonModeWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\ComparisonResultWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\ExcelMappingWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\FilledRegionToRoomMappingWindow.baml
@@ -56,7 +55,6 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\RestoreResultWi
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\RoomRestoreWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\SyncAreaWindow.baml
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\VersionSelectionWindow.baml
-c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\ComparisonModeWindow.g.cs
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\ComparisonResultWindow.g.cs
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\ExcelMappingWindow.g.cs
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\FilledRegionToRoomMappingWindow.g.cs
@@ -76,7 +74,5 @@ c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.sourcelink.j
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.csproj.Up2Date
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.dll
 c:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Snapshot.pdb
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\HistoryTimelineWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\SetupIDsWindow.baml
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\HistoryTimelineWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Debug R24\Views\SetupIDsWindow.g.cs

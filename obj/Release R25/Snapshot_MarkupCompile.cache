@@ -10,11 +10,11 @@ none
 false
 ;RELEASE;TRACE;RELEASE_R25;NET;NET8_0;NETCOREAPP
 
-12-793154754
+10-1066685188
 
-52-414313746
+50420556910
 2351770089434
-Views\ComparisonModeWindow.xaml;Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\HistoryTimelineWindow.xaml;Views\ParameterRestoreWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\SetupIDsWindow.xaml;Views\SyncAreaWindow.xaml;Views\VersionSelectionWindow.xaml;
+Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\ParameterRestoreWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\SetupIDsWindow.xaml;Views\SyncAreaWindow.xaml;Views\VersionSelectionWindow.xaml;
 
 False
 
