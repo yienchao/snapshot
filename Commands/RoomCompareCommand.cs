@@ -443,7 +443,7 @@ namespace ViewTracker.Commands
                 // Categories
                 ["occupancy"] = (snapshot.Occupancy, !string.IsNullOrEmpty(snapshot.Occupancy)),
                 ["department"] = (snapshot.Department, !string.IsNullOrEmpty(snapshot.Department)),
-                ["phase"] = (snapshot.Phase, !string.IsNullOrEmpty(snapshot.Phase)),
+                ["phase"] = (snapshot.Phase, snapshot.Phase.HasValue),
 
                 // Finishes
                 ["base_finish"] = (snapshot.BaseFinish, !string.IsNullOrEmpty(snapshot.BaseFinish)),
@@ -593,9 +593,27 @@ namespace ViewTracker.Commands
                                 paramValue.DisplayValue = intVal.ToString();
                                 break;
                             case StorageType.ElementId:
-                                var elemVal = snapshotData.value as string ?? "";
-                                paramValue.RawValue = elemVal;
-                                paramValue.DisplayValue = elemVal;
+                                // Handle both numeric (new snapshots) and string (old snapshots for backwards compatibility)
+                                if (snapshotData.value is long longElemId)
+                                {
+                                    paramValue.RawValue = longElemId;
+                                    // Get display text from document (e.g., Phase name)
+                                    var element = doc.GetElement(new ElementId(longElemId));
+                                    paramValue.DisplayValue = element?.Name ?? longElemId.ToString();
+                                }
+                                else if (snapshotData.value is int intElemId)
+                                {
+                                    paramValue.RawValue = (long)intElemId;
+                                    var element = doc.GetElement(new ElementId((long)intElemId));
+                                    paramValue.DisplayValue = element?.Name ?? intElemId.ToString();
+                                }
+                                else
+                                {
+                                    // Old format: string (for backwards compatibility)
+                                    var elemVal = snapshotData.value as string ?? "";
+                                    paramValue.RawValue = elemVal;
+                                    paramValue.DisplayValue = elemVal;
+                                }
                                 break;
                         }
 

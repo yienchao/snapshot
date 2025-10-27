@@ -73,7 +73,7 @@ namespace ViewTracker.Models
                     {
                         // Parameter is unset (gray state for booleans/integers)
                         paramValue.RawValue = null;
-                        paramValue.DisplayValue = "(unset)";
+                        paramValue.DisplayValue = "";  // Empty string for better Excel export/import
                     }
                     break;
 

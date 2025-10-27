@@ -165,7 +165,7 @@ namespace ViewTracker.Commands
                     UnboundHeight = room.UnboundedHeight,
                     Occupancy = room.get_Parameter(BuiltInParameter.ROOM_OCCUPANCY)?.AsString(),
                     Department = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString(),
-                    Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsValueString(),
+                    Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsElementId()?.Value,
                     PositionX = posX,
                     PositionY = posY,
                     PositionZ = posZ,

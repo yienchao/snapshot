@@ -59,7 +59,7 @@ namespace ViewTracker
         public string? Department { get; set; }
 
         [Column("phase")]
-        public string? Phase { get; set; }
+        public long? Phase { get; set; }
 
         [Column("position_x")]
         public double? PositionX { get; set; }

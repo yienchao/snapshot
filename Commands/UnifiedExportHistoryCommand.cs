@@ -186,7 +186,7 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_UPPER_LEVEL, snapshot.UnboundHeight, doc);
                     worksheet.Cells[row, col++].Value = snapshot.Occupancy;
                     worksheet.Cells[row, col++].Value = snapshot.Department;
-                    worksheet.Cells[row, col++].Value = snapshot.Phase;
+                    worksheet.Cells[row, col++].Value = snapshot.Phase?.ToString();
                     worksheet.Cells[row, col++].Value = snapshot.BaseFinish;
                     worksheet.Cells[row, col++].Value = snapshot.CeilingFinish;
                     worksheet.Cells[row, col++].Value = snapshot.WallFinish;
@@ -266,7 +266,7 @@ namespace ViewTracker.Commands
                         CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_UPPER_LEVEL, snapshot.UnboundHeight, doc)),
                         CsvEscape(snapshot.Occupancy),
                         CsvEscape(snapshot.Department),
-                        CsvEscape(snapshot.Phase),
+                        CsvEscape(snapshot.Phase?.ToString()),
                         CsvEscape(snapshot.BaseFinish),
                         CsvEscape(snapshot.CeilingFinish),
                         CsvEscape(snapshot.WallFinish),
@@ -336,6 +336,29 @@ namespace ViewTracker.Commands
         {
             if (value == null)
                 return "";
+
+            // BUGFIX: Handle ParameterValue objects (from AllParameters JSON)
+            // When deserialized from JSON, these might be ParameterValue objects or JObject/Dictionary
+            if (value is Models.ParameterValue paramValue)
+            {
+                return paramValue.DisplayValue ?? "";
+            }
+
+            // Handle JSON objects that haven't been deserialized to ParameterValue yet
+            if (value is Newtonsoft.Json.Linq.JObject jobj)
+            {
+                var displayValue = jobj["DisplayValue"]?.ToString();
+                return displayValue ?? "";
+            }
+
+            // Handle dictionary representation
+            if (value is Dictionary<string, object> dict)
+            {
+                if (dict.TryGetValue("DisplayValue", out var displayVal))
+                {
+                    return displayVal?.ToString() ?? "";
+                }
+            }
 
             // For double values, try to convert from internal units to display units
             if (value is double doubleVal)
@@ -659,6 +682,29 @@ namespace ViewTracker.Commands
             if (value == null)
                 return "";
 
+            // BUGFIX: Handle ParameterValue objects (from AllParameters JSON)
+            // When deserialized from JSON, these might be ParameterValue objects or JObject/Dictionary
+            if (value is Models.ParameterValue paramValue)
+            {
+                return paramValue.DisplayValue ?? "";
+            }
+
+            // Handle JSON objects that haven't been deserialized to ParameterValue yet
+            if (value is Newtonsoft.Json.Linq.JObject jobj)
+            {
+                var displayValue = jobj["DisplayValue"]?.ToString();
+                return displayValue ?? "";
+            }
+
+            // Handle dictionary representation
+            if (value is Dictionary<string, object> dict)
+            {
+                if (dict.TryGetValue("DisplayValue", out var displayVal))
+                {
+                    return displayVal?.ToString() ?? "";
+                }
+            }
+
             // For double values, try to convert from internal units to display units
             if (value is double doubleVal)
             {
@@ -930,6 +976,29 @@ namespace ViewTracker.Commands
         {
             if (value == null)
                 return "";
+
+            // BUGFIX: Handle ParameterValue objects (from AllParameters JSON)
+            // When deserialized from JSON, these might be ParameterValue objects or JObject/Dictionary
+            if (value is Models.ParameterValue paramValue)
+            {
+                return paramValue.DisplayValue ?? "";
+            }
+
+            // Handle JSON objects that haven't been deserialized to ParameterValue yet
+            if (value is Newtonsoft.Json.Linq.JObject jobj)
+            {
+                var displayValue = jobj["DisplayValue"]?.ToString();
+                return displayValue ?? "";
+            }
+
+            // Handle dictionary representation
+            if (value is Dictionary<string, object> dict)
+            {
+                if (dict.TryGetValue("DisplayValue", out var displayVal))
+                {
+                    return displayVal?.ToString() ?? "";
+                }
+            }
 
             // For double values, try to convert from internal units to display units
             if (value is double doubleVal)

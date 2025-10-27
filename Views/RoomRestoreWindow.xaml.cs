@@ -710,7 +710,7 @@ namespace ViewTracker.Views
                 UnboundHeight = room.UnboundedHeight,
                 Occupancy = room.LookupParameter("Occupancy")?.AsString() ?? room.LookupParameter("Occupation")?.AsString(),
                 Department = room.LookupParameter("Department")?.AsString() ?? room.LookupParameter("Service")?.AsString(),
-                Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsValueString(),
+                Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsElementId()?.Value,
                 BaseFinish = room.LookupParameter("Base Finish")?.AsString() ?? room.LookupParameter("Finition de la base")?.AsString(),
                 CeilingFinish = room.LookupParameter("Ceiling Finish")?.AsString() ?? room.LookupParameter("Finition du plafond")?.AsString(),
                 WallFinish = room.LookupParameter("Wall Finish")?.AsString() ?? room.LookupParameter("Finition du mur")?.AsString(),
@@ -979,11 +979,11 @@ namespace ViewTracker.Views
                                 break;
 
                             case "Phase":
-                                // Phase might be read-only, skip if so
+                                // Phase: Set the ElementId directly
                                 var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE);
-                                if (phaseParam != null && !phaseParam.IsReadOnly && !string.IsNullOrEmpty(snapshot.Phase))
+                                if (phaseParam != null && !phaseParam.IsReadOnly && snapshot.Phase.HasValue)
                                 {
-                                    // Would need to match phase name to ElementId - complex, skip for now
+                                    phaseParam.Set(new ElementId(snapshot.Phase.Value));
                                 }
                                 break;
                         }
@@ -1148,16 +1148,13 @@ namespace ViewTracker.Views
 
                 // Get phase for room creation
                 Phase targetPhase = null;
-                if (!string.IsNullOrEmpty(snapshot.Phase))
+                if (snapshot.Phase.HasValue)
                 {
-                    var phases = _doc.Phases;
-                    foreach (Phase phase in phases)
+                    // Get phase by ElementId
+                    var phaseElement = _doc.GetElement(new ElementId(snapshot.Phase.Value));
+                    if (phaseElement is Phase phase)
                     {
-                        if (phase.Name == snapshot.Phase)
-                        {
-                            targetPhase = phase;
-                            break;
-                        }
+                        targetPhase = phase;
                     }
                 }
 
@@ -1401,7 +1398,7 @@ namespace ViewTracker.Views
                     case "FloorFinish": return snapshot.FloorFinish;
                     case "Comments": return snapshot.Comments;
                     case "Occupant": return snapshot.Occupant;
-                    case "Phase": return snapshot.Phase;
+                    case "Phase": return snapshot.Phase?.ToString() ?? "";
                 }
             }
             return "";

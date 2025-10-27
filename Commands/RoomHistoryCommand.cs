@@ -224,8 +224,8 @@ namespace ViewTracker.Commands
                 parameters["Occupancy"] = snapshot.Occupancy;
             if (!string.IsNullOrEmpty(snapshot.Department))
                 parameters["Department"] = snapshot.Department;
-            if (!string.IsNullOrEmpty(snapshot.Phase))
-                parameters["Phase"] = snapshot.Phase;
+            if (snapshot.Phase.HasValue)
+                parameters["Phase"] = snapshot.Phase.Value.ToString();
             if (!string.IsNullOrEmpty(snapshot.BaseFinish))
                 parameters["BaseFinish"] = snapshot.BaseFinish;
             if (!string.IsNullOrEmpty(snapshot.CeilingFinish))
