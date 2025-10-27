@@ -84,18 +84,18 @@ namespace ViewTracker.Models
                     break;
 
                 case Autodesk.Revit.DB.StorageType.ElementId:
+                    // BUGFIX: Always store the numeric ElementId value, not the display text
+                    // This allows proper restoration of key schedule references
+                    var elemId = param.AsElementId();
+                    var elemIdValue = elemId.Value;
                     var elemDisplayText = param.AsValueString();
-                    if (!string.IsNullOrEmpty(elemDisplayText))
-                    {
-                        paramValue.RawValue = elemDisplayText;  // Store display name
-                        paramValue.DisplayValue = elemDisplayText;
-                    }
-                    else
-                    {
-                        var elemIdVal = param.AsElementId().Value;
-                        paramValue.RawValue = elemIdVal.ToString();
-                        paramValue.DisplayValue = elemIdVal.ToString();
-                    }
+
+                    // Store the numeric ID for restoration
+                    paramValue.RawValue = elemIdValue;
+                    // Store the display text for comparison UI
+                    paramValue.DisplayValue = !string.IsNullOrEmpty(elemDisplayText)
+                        ? elemDisplayText
+                        : elemIdValue.ToString();
                     break;
             }
 

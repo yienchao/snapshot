@@ -1005,10 +1005,10 @@ namespace ViewTracker.Views
             // Allow null/empty values for string parameters to clear them
             // For numeric parameters, skip if value is null
 
+            object actualValue = value; // Declare outside try for error reporting
             try
             {
                 // NEW: Handle ParameterValue objects from new snapshot format
-                object actualValue = value;
                 if (value is ViewTracker.Models.ParameterValue paramValue)
                 {
                     // Extract the raw value based on storage type
