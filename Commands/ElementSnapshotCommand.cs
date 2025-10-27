@@ -210,7 +210,7 @@ namespace ViewTracker.Commands
             // Shared/string parameters to exclude (by name, for non-built-in parameters)
             var excludedSharedParams = new HashSet<string>
             {
-                "Variantes"                      // Read-only parameter (variants/design options)
+                // NOTE: Variantes is now included - we track it for comparison but won't restore it (read-only)
             };
 
             // Use GetOrderedParameters to get only user-visible INSTANCE parameters
@@ -218,6 +218,10 @@ namespace ViewTracker.Commands
             foreach (Parameter param in orderedParams)
             {
                 string paramName = param.Definition.Name;
+
+                // Skip ALL IFC-related parameters (any parameter containing "IFC" - catches all languages)
+                if (paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
                 // Skip TYPE parameters - only capture INSTANCE parameters
                 // Type parameters belong to the ElementType, not the instance

@@ -359,8 +359,8 @@ namespace ViewTracker.Commands
                         continue;
                 }
 
-                // Also skip by parameter name (covers all languages and parameters not in cache)
-                if (paramName == "Exporter au format IFC" || paramName == "Export to IFC" || paramName == "IFC Export")
+                // Skip ALL IFC-related parameters (any parameter containing "IFC" - catches all languages)
+                if (paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 // Skip EDITED_BY parameter (covers all languages)

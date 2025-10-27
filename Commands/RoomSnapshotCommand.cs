@@ -248,6 +248,10 @@ namespace ViewTracker.Commands
             {
                 string paramName = param.Definition.Name;
 
+                // Skip ALL IFC-related parameters (any parameter containing "IFC" - catches all languages)
+                if (paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 // Skip built-in parameters that are already in dedicated columns
                 if (param.Definition is InternalDefinition internalDef)
                 {

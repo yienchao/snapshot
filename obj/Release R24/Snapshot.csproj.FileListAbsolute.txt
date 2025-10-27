@@ -1,5 +1,4 @@
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.csproj.AssemblyReference.cache
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ComparisonModeWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ComparisonResultWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ExcelMappingWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\FilledRegionToRoomMappingWindow.baml
@@ -9,7 +8,6 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\RestoreResult
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\RoomRestoreWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\SyncAreaWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\VersionSelectionWindow.baml
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ComparisonModeWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ComparisonResultWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\ExcelMappingWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\FilledRegionToRoomMappingWindow.g.cs
@@ -76,7 +74,5 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R24\Websocket.Client.dl
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.csproj.Up2Date
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Snapshot.pdb
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\HistoryTimelineWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\SetupIDsWindow.baml
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\HistoryTimelineWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R24\Views\SetupIDsWindow.g.cs

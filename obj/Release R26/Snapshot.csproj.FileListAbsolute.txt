@@ -48,7 +48,6 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R26\System.Security.Cry
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R26\Websocket.Client.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R26\runtimes\win\lib\net8.0\System.Security.Cryptography.Pkcs.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Snapshot.csproj.AssemblyReference.cache
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\ComparisonModeWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\ComparisonResultWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\ExcelMappingWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\FilledRegionToRoomMappingWindow.baml
@@ -58,7 +57,6 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\RestoreResult
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\RoomRestoreWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\SyncAreaWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\VersionSelectionWindow.baml
-C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\ComparisonModeWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\ComparisonResultWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\ExcelMappingWindow.g.cs
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\FilledRegionToRoomMappingWindow.g.cs
@@ -81,3 +79,5 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\refint\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Snapshot.pdb
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Snapshot.genruntimeconfig.cache
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\ref\Snapshot.dll
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\SetupIDsWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\SetupIDsWindow.g.cs

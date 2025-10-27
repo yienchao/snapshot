@@ -934,14 +934,14 @@ namespace ViewTracker.Views
                         switch (paramKey)
                         {
                             case "RoomNumber":
-                                if (!string.IsNullOrEmpty(snapshot.RoomNumber))
-                                    room.Number = snapshot.RoomNumber;
+                                // Allow empty values to clear the parameter
+                                room.Number = snapshot.RoomNumber ?? "";
                                 break;
 
                             case "RoomName":
                                 var nameParam = room.get_Parameter(BuiltInParameter.ROOM_NAME);
-                                if (nameParam != null && !nameParam.IsReadOnly && !string.IsNullOrEmpty(snapshot.RoomName))
-                                    nameParam.Set(snapshot.RoomName);
+                                if (nameParam != null && !nameParam.IsReadOnly)
+                                    nameParam.Set(snapshot.RoomName ?? "");
                                 break;
 
                             case "Department":
@@ -970,8 +970,8 @@ namespace ViewTracker.Views
 
                             case "Comments":
                                 var commentsParam = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                                if (commentsParam != null && !commentsParam.IsReadOnly && !string.IsNullOrEmpty(snapshot.Comments))
-                                    commentsParam.Set(snapshot.Comments);
+                                if (commentsParam != null && !commentsParam.IsReadOnly)
+                                    commentsParam.Set(snapshot.Comments ?? "");
                                 break;
 
                             case "Occupant":
@@ -1032,16 +1032,26 @@ namespace ViewTracker.Views
                         break;
 
                     case StorageType.Integer:
-                        // Skip if value is null (cannot set null for numeric parameters)
+                        // Handle null (unset/gray state for booleans/integers)
                         if (actualValue == null)
+                        {
+                            // NOTE: Revit API doesn't allow clearing integer parameters back to "unset/gray" state
+                            // Best we can do is set to 0 (unchecked for booleans, empty for integers)
+                            param.Set(0);
                             break;
-
-                        if (actualValue is long longVal)
+                        }
+                        else if (actualValue is long longVal)
+                        {
                             param.Set((int)longVal);
+                        }
                         else if (actualValue is int intVal)
+                        {
                             param.Set(intVal);
+                        }
                         else if (int.TryParse(actualValue?.ToString(), out int parsedInt))
+                        {
                             param.Set(parsedInt);
+                        }
                         break;
 
                     case StorageType.Double:
@@ -1061,8 +1071,29 @@ namespace ViewTracker.Views
                         break;
 
                     case StorageType.ElementId:
-                        // ElementId parameters are display strings - skip restore
-                        // User can verify in comparison view
+                        // ElementId parameters (key schedules, references, etc.)
+                        // Handle clearing to "none" (-1 or empty)
+                        if (actualValue == null ||
+                            actualValue.ToString() == "" ||
+                            actualValue.ToString() == "-1")
+                        {
+                            // Set to InvalidElementId (clears the reference)
+                            param.Set(ElementId.InvalidElementId);
+                        }
+                        else if (actualValue is long longId)
+                        {
+                            // Use long constructor (Revit 2024+)
+                            param.Set(new ElementId(longId));
+                        }
+                        else if (actualValue is int intId)
+                        {
+                            // Convert int to long
+                            param.Set(new ElementId((long)intId));
+                        }
+                        else if (long.TryParse(actualValue?.ToString(), out long parsedId))
+                        {
+                            param.Set(new ElementId(parsedId));
+                        }
                         break;
                 }
             }

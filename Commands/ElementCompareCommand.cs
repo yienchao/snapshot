@@ -645,6 +645,8 @@ namespace ViewTracker.Commands
                 paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            // NOTE: Variantes is now included in comparison (but won't be restorable - read-only)
+
             // NEW: Use ParameterValue class for type-safe storage and comparison
             var paramValue = Models.ParameterValue.FromRevitParameter(param);
             if (paramValue != null)

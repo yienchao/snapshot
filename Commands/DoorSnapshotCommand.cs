@@ -210,8 +210,8 @@ namespace ViewTracker.Commands
             var excludedSharedParams = new HashSet<string>
             {
                 "From Room", "De la pièce",     // From Room
-                "To Room", "À la pièce",         // To Room
-                "Variantes"                      // Read-only parameter (variants/design options)
+                "To Room", "À la pièce"          // To Room
+                // NOTE: Variantes is now included - we track it for comparison but won't restore it (read-only)
             };
 
             // Use GetOrderedParameters to get only user-visible parameters
@@ -219,6 +219,10 @@ namespace ViewTracker.Commands
             foreach (Parameter param in orderedParams)
             {
                 string paramName = param.Definition.Name;
+
+                // Skip ALL IFC-related parameters (any parameter containing "IFC" - catches all languages)
+                if (paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
                 // Skip TYPE parameters - only capture INSTANCE parameters
                 // Type parameters belong to the ElementType, not the instance

@@ -56,13 +56,25 @@ namespace ViewTracker.Models
                     break;
 
                 case Autodesk.Revit.DB.StorageType.Integer:
-                    var intVal = param.AsInteger();
-                    var displayText = param.AsValueString();
+                    // Check if parameter has a value (not gray/unset)
+                    // For shared parameters, also check if AsValueString is empty
+                    var valueString = param.AsValueString();
+                    if (param.HasValue && !string.IsNullOrEmpty(valueString))
+                    {
+                        var intVal = param.AsInteger();
+                        var displayText = valueString;
 
-                    paramValue.RawValue = intVal;  // Always store the integer
-                    paramValue.DisplayValue = !string.IsNullOrEmpty(displayText)
-                        ? displayText  // Use enum display text if available
-                        : intVal.ToString();
+                        paramValue.RawValue = intVal;  // Store the integer
+                        paramValue.DisplayValue = !string.IsNullOrEmpty(displayText)
+                            ? displayText  // Use enum display text if available
+                            : intVal.ToString();
+                    }
+                    else
+                    {
+                        // Parameter is unset (gray state for booleans/integers)
+                        paramValue.RawValue = null;
+                        paramValue.DisplayValue = "(unset)";
+                    }
                     break;
 
                 case Autodesk.Revit.DB.StorageType.Double:
@@ -114,7 +126,7 @@ namespace ViewTracker.Models
 
                 // Convert RawValue based on StorageType
                 var rawValueToken = jObj["RawValue"];
-                if (rawValueToken != null)
+                if (rawValueToken != null && rawValueToken.Type != JTokenType.Null)
                 {
                     switch (paramValue.StorageType)
                     {
@@ -134,6 +146,11 @@ namespace ViewTracker.Models
                             paramValue.RawValue = rawValueToken.ToString();
                             break;
                     }
+                }
+                else
+                {
+                    // RawValue is null in the JSON (unset parameter)
+                    paramValue.RawValue = null;
                 }
 
                 return paramValue;
@@ -162,15 +179,30 @@ namespace ViewTracker.Models
                     return (string)RawValue == (string)other.RawValue;
 
                 case "Integer":
+                    // Handle null values (unset booleans/integers)
+                    if (RawValue == null && other.RawValue == null)
+                        return true;
+                    if (RawValue == null || other.RawValue == null)
+                        return false;
                     return Convert.ToInt32(RawValue) == Convert.ToInt32(other.RawValue);
 
                 case "Double":
+                    // Handle null values
+                    if (RawValue == null && other.RawValue == null)
+                        return true;
+                    if (RawValue == null || other.RawValue == null)
+                        return false;
                     var thisDouble = Convert.ToDouble(RawValue);
                     var otherDouble = Convert.ToDouble(other.RawValue);
                     return Math.Abs(thisDouble - otherDouble) <= doubleTolerance;
 
                 case "ElementId":
-                    return (string)RawValue == (string)other.RawValue;
+                    // Normalize -1 and empty string as equivalent (both mean "no value")
+                    string thisVal = RawValue?.ToString() ?? "";
+                    string otherVal = other.RawValue?.ToString() ?? "";
+                    if ((thisVal == "-1" || thisVal == "") && (otherVal == "-1" || otherVal == ""))
+                        return true;
+                    return thisVal == otherVal;
 
                 default:
                     return RawValue?.ToString() == other.RawValue?.ToString();

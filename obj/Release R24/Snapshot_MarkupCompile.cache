@@ -10,11 +10,11 @@ none
 false
 ;RELEASE;TRACE;RELEASE_R24;NETFRAMEWORK;NET48;
 
-12-793154754
+10-1066685188
 
-512140634480
+501919105332
 67-58101529
-Views\ComparisonModeWindow.xaml;Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\HistoryTimelineWindow.xaml;Views\ParameterRestoreWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\SetupIDsWindow.xaml;Views\SyncAreaWindow.xaml;Views\VersionSelectionWindow.xaml;
+Views\ComparisonResultWindow.xaml;Views\ExcelMappingWindow.xaml;Views\FilledRegionToRoomMappingWindow.xaml;Views\ParameterRestoreWindow.xaml;Views\RestorePreviewWindow.xaml;Views\RestoreResultWindow.xaml;Views\RoomRestoreWindow.xaml;Views\SetupIDsWindow.xaml;Views\SyncAreaWindow.xaml;Views\VersionSelectionWindow.xaml;
 
 False
 

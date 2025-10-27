@@ -1060,7 +1060,15 @@ namespace ViewTracker.Views
                     break;
 
                 case StorageType.Integer:
-                    if (actualValue is int intValue)
+                    // Handle null (unset/gray state for booleans/integers)
+                    if (actualValue == null)
+                    {
+                        // NOTE: Revit API doesn't allow clearing integer parameters back to "unset/gray" state
+                        // Best we can do is set to 0 (unchecked for booleans, empty for integers)
+                        param.Set(0);
+                        break;
+                    }
+                    else if (actualValue is int intValue)
                     {
                         param.Set(intValue);
                     }
@@ -1076,8 +1084,30 @@ namespace ViewTracker.Views
                     break;
 
                 case StorageType.ElementId:
-                    // ElementId parameters store display names as strings - skip restore
-                    // These are auto-generated (like Level, Phase) and handled separately above
+                    // ElementId parameters (key schedules, references, etc.)
+                    // Handle clearing to "none" (-1 or empty)
+                    if (actualValue == null ||
+                        actualValue.ToString() == "" ||
+                        actualValue.ToString() == "-1")
+                    {
+                        // Set to InvalidElementId (clears the reference)
+                        param.Set(ElementId.InvalidElementId);
+                    }
+                    else if (actualValue is long longId)
+                    {
+                        // Use long constructor (Revit 2024+)
+                        param.Set(new ElementId(longId));
+                    }
+                    else if (actualValue is int intId)
+                    {
+                        // Convert int to long
+                        param.Set(new ElementId((long)intId));
+                    }
+                    else if (long.TryParse(actualValue?.ToString(), out long parsedId))
+                    {
+                        param.Set(new ElementId(parsedId));
+                    }
+                    // Note: Level, Phase, etc. are handled separately above, so this is primarily for key schedules
                     break;
             }
         }
