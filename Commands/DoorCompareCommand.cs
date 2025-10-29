@@ -289,29 +289,8 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Add location information (same as in snapshot)
-            // BUGFIX: Wrap in ParameterValue objects to match snapshot format
-            var location = currentDoor.Location;
-            if (location is LocationPoint locationPoint)
-            {
-                var point = locationPoint.Point;
-
-                var locXValue = new Models.ParameterValue { StorageType = "Double", RawValue = point.X, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.X, false), IsTypeParameter = false };
-                currentParams["location_x"] = locXValue;
-                currentParamsDisplay["location_x"] = locXValue.DisplayValue;
-
-                var locYValue = new Models.ParameterValue { StorageType = "Double", RawValue = point.Y, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Y, false), IsTypeParameter = false };
-                currentParams["location_y"] = locYValue;
-                currentParamsDisplay["location_y"] = locYValue.DisplayValue;
-
-                var locZValue = new Models.ParameterValue { StorageType = "Double", RawValue = point.Z, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Length, point.Z, false), IsTypeParameter = false };
-                currentParams["location_z"] = locZValue;
-                currentParamsDisplay["location_z"] = locZValue.DisplayValue;
-
-                var rotValue = new Models.ParameterValue { StorageType = "Double", RawValue = locationPoint.Rotation, DisplayValue = UnitFormatUtils.Format(doc.GetUnits(), SpecTypeId.Angle, locationPoint.Rotation, false), IsTypeParameter = false };
-                currentParams["rotation"] = rotValue;
-                currentParamsDisplay["rotation"] = rotValue.DisplayValue;
-            }
+            // NOTE: Location and rotation are excluded from comparison (creates false positives when doors move)
+            // They're still captured in snapshots for future use but not compared
 
             // Add facing and hand orientation (important for flip detection)
             if (currentDoor.FacingOrientation != null)
@@ -347,14 +326,10 @@ namespace ViewTracker.Commands
             var snapshotParams = new Dictionary<string, object>();
             var snapshotParamsDisplay = new Dictionary<string, string>();
 
-            // REFACTORED: Parameters that should NOT be in all_parameters (only Mark and Level remain as dedicated columns)
-            var excludedFromJson = new HashSet<string>
-            {
-                "Mark", "Marque", "Identifiant",  // Mark parameter (various languages)
-                "Level", "Niveau"
-            };
+            // REFACTORED: Mark and Level are now included in AllParameters JSON for comparison
+            // They're also in dedicated columns (mark, level) for fast queries only
 
-            // Add from AllParameters JSON (but skip parameters that should be in dedicated columns)
+            // Add from AllParameters JSON
             if (snapshot.AllParameters != null)
             {
                 foreach (var kvp in snapshot.AllParameters)
@@ -363,8 +338,12 @@ namespace ViewTracker.Commands
                     if (kvp.Key.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    // Skip parameters that should be in dedicated columns
-                    if (excludedFromJson.Contains(kvp.Key))
+                    // Skip location/rotation/host from snapshots (creates false positives when doors move/walls change)
+                    // Keep facing and hand orientation - they're important for door swing direction
+                    if (kvp.Key.Equals("host_id", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.Equals("host_category", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.StartsWith("location_", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.Equals("rotation", StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // Convert JSON objects to ParameterValue objects
@@ -529,15 +508,7 @@ namespace ViewTracker.Commands
                 paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            // Exclude dedicated column parameters (Mark, Level) - they're added separately and shouldn't be from GetOrderedParameters
-            if (param.Definition is InternalDefinition internalDef)
-            {
-                var builtInParam = internalDef.BuiltInParameter;
-                if (builtInParam == BuiltInParameter.ALL_MODEL_MARK ||
-                    builtInParam == BuiltInParameter.FAMILY_LEVEL_PARAM)
-                    return;
-            }
-
+            // NOTE: Mark and Level are now included in comparison from AllParameters
             // NOTE: Variantes is now included in comparison (but won't be restorable - read-only)
 
             // NEW: Use ParameterValue class for type-safe storage and comparison
