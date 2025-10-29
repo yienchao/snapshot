@@ -177,22 +177,23 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = snapshot.SnapshotDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
                     worksheet.Cells[row, col++].Value = snapshot.CreatedBy;
                     worksheet.Cells[row, col++].Value = snapshot.IsOfficial ? "Yes" : "No";
+                    // REFACTORED: Get values from dedicated columns or AllParameters JSON
                     worksheet.Cells[row, col++].Value = snapshot.RoomNumber;
-                    worksheet.Cells[row, col++].Value = snapshot.RoomName;
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Nom", "Name" });
                     worksheet.Cells[row, col++].Value = snapshot.Level;
                     worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_AREA, snapshot.Area, doc);
                     worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_PERIMETER, snapshot.Perimeter, doc);
                     worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_VOLUME, snapshot.Volume, doc);
                     worksheet.Cells[row, col++].Value = FormatRoomValueForExport(BuiltInParameter.ROOM_UPPER_LEVEL, snapshot.UnboundHeight, doc);
-                    worksheet.Cells[row, col++].Value = snapshot.Occupancy;
-                    worksheet.Cells[row, col++].Value = snapshot.Department;
-                    worksheet.Cells[row, col++].Value = snapshot.Phase?.ToString();
-                    worksheet.Cells[row, col++].Value = snapshot.BaseFinish;
-                    worksheet.Cells[row, col++].Value = snapshot.CeilingFinish;
-                    worksheet.Cells[row, col++].Value = snapshot.WallFinish;
-                    worksheet.Cells[row, col++].Value = snapshot.FloorFinish;
-                    worksheet.Cells[row, col++].Value = snapshot.Comments;
-                    worksheet.Cells[row, col++].Value = snapshot.Occupant;
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Occupation", "Occupancy" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Département", "Department" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Phase de création", "Phase Created", "Phase" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Revêtement de sol", "Floor Finish", "Base Finish" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Revêtement de plafond", "Ceiling Finish" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Revêtement de mur", "Wall Finish" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Revêtement de sol", "Floor Finish" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Commentaires", "Comments" });
+                    worksheet.Cells[row, col++].Value = GetRoomParameterValue(snapshot, new[] { "Occupant" });
 
                     // Add custom parameters
                     foreach (var paramName in sortedParamNames)
@@ -258,21 +259,21 @@ namespace ViewTracker.Commands
                         CsvEscape(snapshot.CreatedBy),
                         CsvEscape(snapshot.IsOfficial ? "Yes" : "No"),
                         CsvEscape(snapshot.RoomNumber),
-                        CsvEscape(snapshot.RoomName),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Nom", "Name" })),
                         CsvEscape(snapshot.Level),
                         CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_AREA, snapshot.Area, doc)),
                         CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_PERIMETER, snapshot.Perimeter, doc)),
                         CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_VOLUME, snapshot.Volume, doc)),
                         CsvEscape(FormatRoomValueForExport(BuiltInParameter.ROOM_UPPER_LEVEL, snapshot.UnboundHeight, doc)),
-                        CsvEscape(snapshot.Occupancy),
-                        CsvEscape(snapshot.Department),
-                        CsvEscape(snapshot.Phase?.ToString()),
-                        CsvEscape(snapshot.BaseFinish),
-                        CsvEscape(snapshot.CeilingFinish),
-                        CsvEscape(snapshot.WallFinish),
-                        CsvEscape(snapshot.FloorFinish),
-                        CsvEscape(snapshot.Comments),
-                        CsvEscape(snapshot.Occupant)
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Occupation", "Occupancy" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Département", "Department" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Phase de création", "Phase Created", "Phase" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Revêtement de sol", "Floor Finish", "Base Finish" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Revêtement de plafond", "Ceiling Finish" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Revêtement de mur", "Wall Finish" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Revêtement de sol", "Floor Finish" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Commentaires", "Comments" })),
+                        CsvEscape(GetRoomParameterValue(snapshot, new[] { "Occupant" }))
                     };
 
                     // Add custom parameters
@@ -414,6 +415,22 @@ namespace ViewTracker.Commands
                 return "\"\"";
             return $"\"{value.Replace("\"", "\"\"")}\"";
         }
+
+        private string GetRoomParameterValue(RoomSnapshot snapshot, string[] possibleKeys)
+        {
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+            return "";
+        }
     }
 
     // Door Export History Command
@@ -539,14 +556,14 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = snapshot.SnapshotDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
                     worksheet.Cells[row, col++].Value = snapshot.CreatedBy;
                     worksheet.Cells[row, col++].Value = snapshot.IsOfficial ? "Yes" : "No";
-                    worksheet.Cells[row, col++].Value = snapshot.FamilyName;
-                    worksheet.Cells[row, col++].Value = snapshot.TypeName;
+                    worksheet.Cells[row, col++].Value = GetDoorParameterValue(snapshot, new[] { "Famille", "Family" });
+                    worksheet.Cells[row, col++].Value = GetDoorParameterValue(snapshot, new[] { "Type" });
                     worksheet.Cells[row, col++].Value = snapshot.Mark;
                     worksheet.Cells[row, col++].Value = snapshot.Level;
-                    worksheet.Cells[row, col++].Value = snapshot.FireRating;
-                    worksheet.Cells[row, col++].Value = snapshot.PhaseCreated;
-                    worksheet.Cells[row, col++].Value = snapshot.PhaseDemolished;
-                    worksheet.Cells[row, col++].Value = snapshot.Comments;
+                    worksheet.Cells[row, col++].Value = GetDoorParameterValue(snapshot, new[] { "Cote de résistance au feu", "Fire Rating" });
+                    worksheet.Cells[row, col++].Value = GetDoorParameterValue(snapshot, new[] { "Phase de création", "Phase Created" });
+                    worksheet.Cells[row, col++].Value = GetDoorParameterValue(snapshot, new[] { "Phase de démolition", "Phase Demolished" });
+                    worksheet.Cells[row, col++].Value = GetDoorParameterValue(snapshot, new[] { "Commentaires", "Comments" });
 
                     foreach (var paramName in sortedParamNames)
                     {
@@ -604,14 +621,14 @@ namespace ViewTracker.Commands
                         CsvEscape(snapshot.SnapshotDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")),
                         CsvEscape(snapshot.CreatedBy),
                         CsvEscape(snapshot.IsOfficial ? "Yes" : "No"),
-                        CsvEscape(snapshot.FamilyName),
-                        CsvEscape(snapshot.TypeName),
+                        CsvEscape(GetDoorParameterValue(snapshot, new[] { "Famille", "Family" })),
+                        CsvEscape(GetDoorParameterValue(snapshot, new[] { "Type" })),
                         CsvEscape(snapshot.Mark),
                         CsvEscape(snapshot.Level),
-                        CsvEscape(snapshot.FireRating),
-                        CsvEscape(snapshot.PhaseCreated),
-                        CsvEscape(snapshot.PhaseDemolished),
-                        CsvEscape(snapshot.Comments)
+                        CsvEscape(GetDoorParameterValue(snapshot, new[] { "Cote de résistance au feu", "Fire Rating" })),
+                        CsvEscape(GetDoorParameterValue(snapshot, new[] { "Phase de création", "Phase Created" })),
+                        CsvEscape(GetDoorParameterValue(snapshot, new[] { "Phase de démolition", "Phase Demolished" })),
+                        CsvEscape(GetDoorParameterValue(snapshot, new[] { "Commentaires", "Comments" }))
                     };
 
                     foreach (var paramName in sortedParamNames)
@@ -759,6 +776,37 @@ namespace ViewTracker.Commands
                 return "\"\"";
             return $"\"{value.Replace("\"", "\"\"")}\"";
         }
+
+        private string GetDoorParameterValue(DoorSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
+        }
     }
 
     // Element Export History Command
@@ -884,14 +932,15 @@ namespace ViewTracker.Commands
                     worksheet.Cells[row, col++].Value = snapshot.SnapshotDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
                     worksheet.Cells[row, col++].Value = snapshot.CreatedBy;
                     worksheet.Cells[row, col++].Value = snapshot.IsOfficial ? "Yes" : "No";
+                    // REFACTORED: Get values from dedicated columns or AllParameters/TypeParameters JSON
                     worksheet.Cells[row, col++].Value = snapshot.Category;
-                    worksheet.Cells[row, col++].Value = snapshot.FamilyName;
-                    worksheet.Cells[row, col++].Value = snapshot.TypeName;
+                    worksheet.Cells[row, col++].Value = GetElementParameterValue(snapshot, new[] { "Famille", "Family" });
+                    worksheet.Cells[row, col++].Value = GetElementParameterValue(snapshot, new[] { "Type" });
                     worksheet.Cells[row, col++].Value = snapshot.Mark;
                     worksheet.Cells[row, col++].Value = snapshot.Level;
-                    worksheet.Cells[row, col++].Value = snapshot.PhaseCreated;
-                    worksheet.Cells[row, col++].Value = snapshot.PhaseDemolished;
-                    worksheet.Cells[row, col++].Value = snapshot.Comments;
+                    worksheet.Cells[row, col++].Value = GetElementParameterValue(snapshot, new[] { "Phase de création", "Phase Created" });
+                    worksheet.Cells[row, col++].Value = GetElementParameterValue(snapshot, new[] { "Phase de démolition", "Phase Demolished" });
+                    worksheet.Cells[row, col++].Value = GetElementParameterValue(snapshot, new[] { "Commentaires", "Comments" });
 
                     foreach (var paramName in sortedParamNames)
                     {
@@ -950,13 +999,13 @@ namespace ViewTracker.Commands
                         CsvEscape(snapshot.CreatedBy),
                         CsvEscape(snapshot.IsOfficial ? "Yes" : "No"),
                         CsvEscape(snapshot.Category),
-                        CsvEscape(snapshot.FamilyName),
-                        CsvEscape(snapshot.TypeName),
+                        CsvEscape(GetElementParameterValue(snapshot, new[] { "Famille", "Family" })),
+                        CsvEscape(GetElementParameterValue(snapshot, new[] { "Type" })),
                         CsvEscape(snapshot.Mark),
                         CsvEscape(snapshot.Level),
-                        CsvEscape(snapshot.PhaseCreated),
-                        CsvEscape(snapshot.PhaseDemolished),
-                        CsvEscape(snapshot.Comments)
+                        CsvEscape(GetElementParameterValue(snapshot, new[] { "Phase de création", "Phase Created" })),
+                        CsvEscape(GetElementParameterValue(snapshot, new[] { "Phase de démolition", "Phase Demolished" })),
+                        CsvEscape(GetElementParameterValue(snapshot, new[] { "Commentaires", "Comments" }))
                     };
 
                     foreach (var paramName in sortedParamNames)
@@ -1053,6 +1102,84 @@ namespace ViewTracker.Commands
             if (string.IsNullOrEmpty(value))
                 return "\"\"";
             return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+
+        private string GetRoomParameterValue(RoomSnapshot snapshot, string[] possibleKeys)
+        {
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+            return "";
+        }
+
+        private string GetDoorParameterValue(DoorSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
+        }
+
+        private string GetElementParameterValue(ElementSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
         }
     }
 }

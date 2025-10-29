@@ -1,5 +1,6 @@
 # ViewTracker Roadmap
 
+
 ## Implemented Features
 
 ### Core Functionality
@@ -44,6 +45,48 @@
 ---
 
 ## Planned Features
+
+### High Priority
+
+#### Excel Export/Import for Bulk Editing
+- **Goal:** Enable bulk parameter editing via Excel spreadsheet
+- **Scope:**
+  - **Export:** Export snapshot history to Excel (✅ DONE)
+    - All parameters with readable values (not JSON)
+    - Empty cells for unset parameters (Excel-friendly)
+    - Supports rooms, doors, and elements
+  - **Import:** Re-import edited Excel file to update Revit parameters
+    - Match elements by TrackID
+    - Validate parameter values (type checking, read-only detection)
+    - Preview changes before applying
+    - Transaction-based (all or nothing)
+    - Create backup snapshot before import
+- **Use Cases:**
+  - Bulk parameter updates (e.g., update 100 rooms' finish parameters)
+  - Data cleanup (standardize naming, fix typos)
+  - Cross-project parameter copying (export from one project, import to another)
+- **Design Philosophy:**
+  - Excel as powerful bulk editing interface
+  - Validation before committing changes
+  - Non-destructive (backup snapshot created)
+  - Read-only parameters ignored (safe)
+
+#### Rename Existing Snapshots
+- **Goal:** Allow users to rename draft snapshots for better organization
+- **Scope:**
+  - Only draft snapshots can be renamed (not official snapshots)
+  - Official snapshots are locked (permanent audit trail)
+  - Rename button/icon appears only for draft snapshots in version dropdown
+  - Validation: ensure new name is unique, not empty
+  - Updates all related tables (rooms, doors, elements)
+  - Confirmation dialog showing old → new name
+- **Use Cases:**
+  - Fix typos in snapshot names
+  - Rename "WIP" snapshots to descriptive names before marking official
+  - Standardize naming conventions
+- **Design Philosophy:**
+  - Official snapshots = immutable audit trail
+  - Draft snapshots = flexible working versions
 
 ### Medium Priority
 
@@ -150,3 +193,38 @@
 - Transaction rollback on errors
 - Read-only parameter validation
 - Missing element warnings (deleted elements)
+
+
+-parameter selection in restore
+color
+trackID duplicated
+
+
+✅ SOLID - Language Independent
+TypeId comparison: ✅ Uses element.GetTypeId().Value (long) - works in ANY language
+Parameter comparison: ✅ Uses ParameterValue.IsEqualTo() with RawValue (internal values) - language independent
+Level comparison: ✅ Could be improved (see below)
+✅ SOLID - Custom Parameters
+Storage: ✅ GetOrderedParameters() captures ALL user-visible parameters including custom shared/project parameters
+Comparison: ✅ Works for any parameter type (String, Integer, Double, ElementId)
+Restore: ✅ Generic logic handles any parameter by name
+⚠️ POTENTIAL ISSUES
+1. Level Comparison (Not fully robust)
+Currently comparing level NAME (string) from dedicated column vs current level name. This has issues:
+If level is renamed, false positive
+Language-independent but name-change sensitive
+Better approach: Store level_id (long) like we did for type_id
+2. KeySchedule Parameters (Already handled correctly)
+✅ Stored as ElementId (long) in RawValue
+✅ Compared as long
+⚠️ Issue: If the KeySchedule element is deleted from project, restore will fail (can't restore ID that doesn't exist)
+This is probably acceptable - same as Level/Phase references
+3. ElementId Parameters (Phases, Materials, etc.)
+✅ Stored as long, compared as long
+⚠️ Issue: If referenced element deleted (phase, material, fill pattern, etc.), restore will fail
+This is expected behavior but could cause confusion
+4. Built-in Parameter Names (Potential issue)
+When restoring, we use element.LookupParameter(paramName) where paramName comes from the snapshot. Scenario:
+Snapshot taken in French Revit: parameter stored as "Commentaires"
+Restore in English Revit: LookupParameter("Commentaires") might fail to find "Comments"
+But: Built-in parameters can ALSO be accessed by BuiltInParameter enum, which is language-independent. However, we're storing the localized name not the enum. Is this a problem? Let me check how ParameterValue stores parameter names:

@@ -188,11 +188,15 @@ namespace ViewTracker.Commands
             {
                 if (!currentDict.ContainsKey(snapshot.TrackId))
                 {
+                    // REFACTORED: Get Family/Type from JSON
+                    string familyName = GetDoorParameterValue(snapshot, new[] { "Famille", "Family" });
+                    string typeName = GetDoorParameterValue(snapshot, new[] { "Type" });
+
                     result.DeletedEntities.Add(new Models.EntityChange
                     {
                         TrackId = snapshot.TrackId,
                         Identifier1 = snapshot.Mark,
-                        Identifier2 = $"{snapshot.FamilyName}: {snapshot.TypeName}",
+                        Identifier2 = $"{familyName}: {typeName}",
                         ChangeType = "Deleted"
                     });
                 }
@@ -260,7 +264,8 @@ namespace ViewTracker.Commands
             foreach (Parameter param in orderedParams)
             {
                 // Skip type parameters - only collect instance parameters here
-                if (param.Element is ElementType)
+                // Check if the parameter belongs to this door instance (not its Symbol/Type)
+                if (param.Element.Id != currentDoor.Id)
                     continue;
 
                 AddParameterToDict(param, currentParams, currentParamsDisplay);
@@ -342,19 +347,11 @@ namespace ViewTracker.Commands
             var snapshotParams = new Dictionary<string, object>();
             var snapshotParamsDisplay = new Dictionary<string, string>();
 
-            // Parameters that should NOT be in all_parameters (they're in dedicated columns)
+            // REFACTORED: Parameters that should NOT be in all_parameters (only Mark and Level remain as dedicated columns)
             var excludedFromJson = new HashSet<string>
             {
                 "Mark", "Marque", "Identifiant",  // Mark parameter (various languages)
-                "Level", "Niveau",
-                "Fire Rating", "Cote de résistance au feu",
-                "Width", "Largeur",
-                "Height", "Hauteur",
-                "Phase Created", "Phase de création",
-                "Phase Demolished", "Phase de démolition",
-                "Comments", "Commentaires",
-                "Family", "Famille",
-                "Type"
+                "Level", "Niveau"
             };
 
             // Add from AllParameters JSON (but skip parameters that should be in dedicated columns)
@@ -447,128 +444,9 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Add dedicated column values from snapshot to snapshotParams for comparison
-            // These are not in AllParameters JSON, but we still want to compare them
-            // IMPORTANT: Use the actual parameter name from the current door (language-independent)
-            // not hardcoded English names, to avoid false "(new)" and "(removed)" changes
-            // BUGFIX: Wrap dedicated column values in ParameterValue objects to match current format
-
-            // Mark parameter - include even if empty
-            var markParam = currentDoor.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
-            if (markParam != null)
-            {
-                string markParamName = markParam.Definition.Name;
-                var markValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.String.ToString(),
-                    RawValue = snapshot.Mark ?? "",
-                    DisplayValue = snapshot.Mark ?? "",
-                    IsTypeParameter = false
-                };
-                snapshotParams[markParamName] = markValue;
-                snapshotParamsDisplay[markParamName] = markValue.DisplayValue;
-            }
-
-            // Level parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
-            var levelParam = currentDoor.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
-            if (levelParam != null && !string.IsNullOrEmpty(snapshot.Level))
-            {
-                string levelParamName = levelParam.Definition.Name;
-                var levelValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.ElementId.ToString(),
-                    RawValue = snapshot.Level,
-                    DisplayValue = snapshot.Level,
-                    IsTypeParameter = false
-                };
-                snapshotParams[levelParamName] = levelValue;
-                snapshotParamsDisplay[levelParamName] = levelValue.DisplayValue;
-            }
-
-            // Fire Rating parameter - include even if empty (string parameter, not ElementId)
-            var fireRatingParam = currentDoor.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING);
-            if (fireRatingParam != null)
-            {
-                string fireRatingParamName = fireRatingParam.Definition.Name;
-                var fireRatingValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.String.ToString(),
-                    RawValue = snapshot.FireRating ?? "",
-                    DisplayValue = snapshot.FireRating ?? "",
-                    IsTypeParameter = false
-                };
-                snapshotParams[fireRatingParamName] = fireRatingValue;
-                snapshotParamsDisplay[fireRatingParamName] = fireRatingValue.DisplayValue;
-            }
-
-            // Comments parameter - include even if empty (string parameter, not ElementId)
-            var commentsParam = currentDoor.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-            if (commentsParam != null)
-            {
-                string commentsParamName = commentsParam.Definition.Name;
-                var commentsValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.String.ToString(),
-                    RawValue = snapshot.Comments ?? "",
-                    DisplayValue = snapshot.Comments ?? "",
-                    IsTypeParameter = false
-                };
-                snapshotParams[commentsParamName] = commentsValue;
-                snapshotParamsDisplay[commentsParamName] = commentsValue.DisplayValue;
-            }
-
-            // Phase Created parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
-            var phaseCreatedParam = currentDoor.get_Parameter(BuiltInParameter.PHASE_CREATED);
-            if (phaseCreatedParam != null && !string.IsNullOrEmpty(snapshot.PhaseCreated))
-            {
-                string phaseCreatedParamName = phaseCreatedParam.Definition.Name;
-                var phaseCreatedValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.ElementId.ToString(),
-                    RawValue = snapshot.PhaseCreated,
-                    DisplayValue = snapshot.PhaseCreated,
-                    IsTypeParameter = false
-                };
-                snapshotParams[phaseCreatedParamName] = phaseCreatedValue;
-                snapshotParamsDisplay[phaseCreatedParamName] = phaseCreatedValue.DisplayValue;
-            }
-
-            // Phase Demolished parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
-            var phaseDemolishedParam = currentDoor.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-            if (phaseDemolishedParam != null && !string.IsNullOrEmpty(snapshot.PhaseDemolished))
-            {
-                string phaseDemolishedParamName = phaseDemolishedParam.Definition.Name;
-                var phaseDemolishedValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.ElementId.ToString(),
-                    RawValue = snapshot.PhaseDemolished,
-                    DisplayValue = snapshot.PhaseDemolished,
-                    IsTypeParameter = false
-                };
-                snapshotParams[phaseDemolishedParamName] = phaseDemolishedValue;
-                snapshotParamsDisplay[phaseDemolishedParamName] = phaseDemolishedValue.DisplayValue;
-            }
-
-            // Note: Family and Type are NOT in AllParameters, but we need to compare them
-            // to detect when a door changes to a different type
-
-            // Compare Family
-            string currentFamily = currentDoor.Symbol?.Family?.Name ?? "";
-            string snapshotFamily = snapshot.FamilyName ?? "";
-            if (currentFamily != snapshotFamily)
-            {
-                changes.Add($"Family: '{snapshotFamily}' → '{currentFamily}'");
-            }
-
-            // Compare Type
-            string currentType = currentDoor.Symbol?.Name ?? "";
-            string snapshotType = snapshot.TypeName ?? "";
-            if (currentType != snapshotType)
-            {
-                changes.Add($"Type: '{snapshotType}' → '{currentType}'");
-            }
-
-            // Note: Width and Height are type parameters, not instance parameters
+            // REFACTORED: Mark and Level are now included in AllParameters JSON for comparison
+            // They're also in dedicated columns (mark, level) for fast queries only
+            // No need to manually add them here - they come from AllParameters JSON above
 
             // Compare parameters (including location, rotation, facing, hand for quality control)
             foreach (var snapshotParam in snapshotParams)
@@ -651,6 +529,15 @@ namespace ViewTracker.Commands
                 paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            // Exclude dedicated column parameters (Mark, Level) - they're added separately and shouldn't be from GetOrderedParameters
+            if (param.Definition is InternalDefinition internalDef)
+            {
+                var builtInParam = internalDef.BuiltInParameter;
+                if (builtInParam == BuiltInParameter.ALL_MODEL_MARK ||
+                    builtInParam == BuiltInParameter.FAMILY_LEVEL_PARAM)
+                    return;
+            }
+
             // NOTE: Variantes is now included in comparison (but won't be restorable - read-only)
 
             // NEW: Use ParameterValue class for type-safe storage and comparison
@@ -673,6 +560,37 @@ namespace ViewTracker.Commands
             // If we get here, something is wrong - log warning but don't show dialog
             System.Diagnostics.Debug.WriteLine($"WARNING: Non-ParameterValue objects! Snap: {snapValue?.GetType().Name}, Curr: {currentValue?.GetType().Name}");
             return true; // Treat as different
+        }
+
+        private string GetDoorParameterValue(DoorSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
         }
     }
 }

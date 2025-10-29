@@ -153,14 +153,14 @@ namespace ViewTracker.Commands
                     SnapshotDate = now,
                     CreatedBy = currentUser,
                     IsOfficial = isOfficial,
+
+                    // REFACTORED: Only populate dedicated columns for indexing
                     Category = element.Category?.Name,
-                    FamilyName = element.Symbol?.Family?.Name,
-                    TypeName = element.Symbol?.Name,
                     Mark = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
                     Level = doc.GetElement(element.LevelId)?.Name,
-                    PhaseCreated = element.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsValueString(),
-                    PhaseDemolished = element.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED)?.AsValueString(),
-                    Comments = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(),
+                    TypeId = element.GetTypeId()?.Value,  // Store type ID for language-independent comparison
+
+                    // ALL user-editable parameters in JSON (single source of truth)
                     AllParameters = allParams,
                     TypeParameters = typeParams
                 };
@@ -193,17 +193,10 @@ namespace ViewTracker.Commands
         {
             var parameters = new Dictionary<string, object>();
 
-            // Built-in parameters that are stored in dedicated columns - exclude from JSON
-            // Using BuiltInParameter enum IDs for language-independence (same approach as rooms/doors)
+            // Include Mark and Level in AllParameters for comparison
+            // They will be marked as non-restorable in the restore window
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
-                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
-                BuiltInParameter.ALL_MODEL_MARK,                 // mark column
-                BuiltInParameter.FAMILY_LEVEL_PARAM,             // level column
-                BuiltInParameter.PHASE_CREATED,                  // phase_created column
-                BuiltInParameter.PHASE_DEMOLISHED,               // phase_demolished column
-                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,    // comments column
                 BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
@@ -224,8 +217,8 @@ namespace ViewTracker.Commands
                     continue;
 
                 // Skip TYPE parameters - only capture INSTANCE parameters
-                // Type parameters belong to the ElementType, not the instance
-                if (param.Element is ElementType)
+                // Check if the parameter belongs to this element instance (not its Symbol/Type)
+                if (param.Element.Id != element.Id)
                     continue;
 
                 // Skip built-in parameters that are already in dedicated columns
@@ -307,12 +300,12 @@ namespace ViewTracker.Commands
             if (element.Symbol == null)
                 return parameters;
 
-            // Built-in parameters that are stored in dedicated columns - exclude from JSON
+            // Built-in parameters to exclude
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
-                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
                 BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
+                // NOTE: ALL_MODEL_FAMILY_NAME and ALL_MODEL_TYPE_NAME are included in TypeParameters
+                // because there are no dedicated columns for them in the database
             };
 
             // Use GetOrderedParameters to get only user-visible TYPE parameters

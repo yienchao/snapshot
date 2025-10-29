@@ -140,7 +140,30 @@ namespace ViewTracker.Models
                             paramValue.RawValue = rawValueToken.Value<double>();
                             break;
                         case "ElementId":
-                            paramValue.RawValue = rawValueToken.Value<string>() ?? "";
+                            // BUGFIX: Try to parse as long, but handle string values for backwards compatibility
+                            if (rawValueToken.Type == JTokenType.Integer)
+                            {
+                                paramValue.RawValue = rawValueToken.Value<long>();
+                            }
+                            else if (rawValueToken.Type == JTokenType.String)
+                            {
+                                var strValue = rawValueToken.Value<string>();
+                                // Try to parse as long, fallback to -1 if it's a display string
+                                if (long.TryParse(strValue, out long parsedId))
+                                {
+                                    paramValue.RawValue = parsedId;
+                                }
+                                else
+                                {
+                                    // It's a display string (e.g. "485 - NIVEAU 1"), store as -1 and use DisplayValue for comparison
+                                    paramValue.RawValue = -1;
+                                    paramValue.DisplayValue = strValue;
+                                }
+                            }
+                            else
+                            {
+                                paramValue.RawValue = -1; // Default to "no value"
+                            }
                             break;
                         default:
                             paramValue.RawValue = rawValueToken.ToString();
@@ -197,12 +220,40 @@ namespace ViewTracker.Models
                     return Math.Abs(thisDouble - otherDouble) <= doubleTolerance;
 
                 case "ElementId":
-                    // Normalize -1 and empty string as equivalent (both mean "no value")
-                    string thisVal = RawValue?.ToString() ?? "";
-                    string otherVal = other.RawValue?.ToString() ?? "";
-                    if ((thisVal == "-1" || thisVal == "") && (otherVal == "-1" || otherVal == ""))
+                    // Normalize -1 and 0 as equivalent (both mean "no value")
+                    // Handle both numeric and string values (for backwards compatibility)
+                    long thisId = -1;
+                    long otherId = -1;
+
+                    if (RawValue != null)
+                    {
+                        if (RawValue is long l1)
+                            thisId = l1;
+                        else if (RawValue is int i1)
+                            thisId = i1;
+                        else if (long.TryParse(RawValue.ToString(), out long parsed1))
+                            thisId = parsed1;
+                        // If parsing fails (display string like "485 - NIVEAU 1"), compare as DisplayValue
+                        else
+                            return (DisplayValue ?? "") == (other.DisplayValue ?? "");
+                    }
+
+                    if (other.RawValue != null)
+                    {
+                        if (other.RawValue is long l2)
+                            otherId = l2;
+                        else if (other.RawValue is int i2)
+                            otherId = i2;
+                        else if (long.TryParse(other.RawValue.ToString(), out long parsed2))
+                            otherId = parsed2;
+                        // If parsing fails, compare as DisplayValue
+                        else
+                            return (DisplayValue ?? "") == (other.DisplayValue ?? "");
+                    }
+
+                    if ((thisId == -1 || thisId == 0) && (otherId == -1 || otherId == 0))
                         return true;
-                    return thisVal == otherVal;
+                    return thisId == otherId;
 
                 default:
                     return RawValue?.ToString() == other.RawValue?.ToString();

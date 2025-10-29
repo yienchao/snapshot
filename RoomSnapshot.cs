@@ -5,9 +5,14 @@ using System.Collections.Generic;
 
 namespace ViewTracker
 {
+    /// <summary>
+    /// REFACTORED: Minimal schema with all parameters in JSON
+    /// Dedicated columns kept ONLY for indexing/queries
+    /// </summary>
     [Table("room_snapshots")]
     public class RoomSnapshot : BaseModel
     {
+        // === PRIMARY KEY ===
         [PrimaryKey("track_id", false)]
         [Column("track_id")]
         public string TrackId { get; set; }
@@ -16,6 +21,7 @@ namespace ViewTracker
         [Column("version_name")]
         public string VersionName { get; set; }
 
+        // === METADATA ===
         [Column("project_id")]
         public Guid ProjectId { get; set; }
 
@@ -31,15 +37,24 @@ namespace ViewTracker
         [Column("is_official")]
         public bool IsOfficial { get; set; }
 
+        // === KEY IDENTIFIERS (for fast queries only) ===
         [Column("room_number")]
         public string? RoomNumber { get; set; }
-
-        [Column("room_name")]
-        public string? RoomName { get; set; }
 
         [Column("level")]
         public string? Level { get; set; }
 
+        // === POSITION DATA (for recreating deleted/unplaced rooms) ===
+        [Column("position_x")]
+        public double? PositionX { get; set; }
+
+        [Column("position_y")]
+        public double? PositionY { get; set; }
+
+        [Column("position_z")]
+        public double? PositionZ { get; set; }
+
+        // === READ-ONLY CALCULATED VALUES (for display/reporting only) ===
         [Column("area")]
         public double? Area { get; set; }
 
@@ -52,42 +67,12 @@ namespace ViewTracker
         [Column("unbound_height")]
         public double? UnboundHeight { get; set; }
 
-        [Column("occupancy")]
-        public string? Occupancy { get; set; }
-
-        [Column("department")]
-        public string? Department { get; set; }
-
-        [Column("phase")]
-        public long? Phase { get; set; }
-
-        [Column("position_x")]
-        public double? PositionX { get; set; }
-
-        [Column("position_y")]
-        public double? PositionY { get; set; }
-
-        [Column("position_z")]
-        public double? PositionZ { get; set; }
-
-        [Column("base_finish")]
-        public string? BaseFinish { get; set; }
-
-        [Column("ceiling_finish")]
-        public string? CeilingFinish { get; set; }
-
-        [Column("wall_finish")]
-        public string? WallFinish { get; set; }
-
-        [Column("floor_finish")]
-        public string? FloorFinish { get; set; }
-
-        [Column("comments")]
-        public string? Comments { get; set; }
-
-        [Column("occupant")]
-        public string? Occupant { get; set; }
-
+        // === ALL INSTANCE PARAMETERS (single source of truth) ===
+        // Contains ALL user-editable parameters as ParameterValue objects:
+        // - RoomName, Department, Occupancy, Phase
+        // - BaseFinish, CeilingFinish, WallFinish, FloorFinish
+        // - Comments, Occupant
+        // - ALL custom parameters (FINI_*, etc.)
         [Column("all_parameters")]
         public Dictionary<string, object> AllParameters { get; set; }
     }

@@ -24,6 +24,9 @@ namespace ViewTracker.Views
         private List<RoomSnapshot> _selectedVersionSnapshots;
         private ObservableCollection<RoomRestoreItem> _roomRestoreItems = new ObservableCollection<RoomRestoreItem>();
 
+        // PERFORMANCE: Flag to suppress updates during bulk checkbox operations
+        private bool _suppressUpdates = false;
+
         public RoomRestoreWindow(
             List<VersionInfo> versions,
             int totalRoomCount,
@@ -140,21 +143,11 @@ namespace ViewTracker.Views
             // String-based exclusions for shared parameters or when BuiltInParameter is not available
             var excludedParamNames = new HashSet<string>();
 
-            // Add dedicated column parameters - ALWAYS add them, even if empty in snapshot
-            // (they might have values in current model that user wants to clear)
+            // REFACTORED: All parameters now come from AllParameters JSON
+            // Only RoomNumber stays as separate UI option (since it's in dedicated column for indexing)
             allParameters.Add("Room Number|RoomNumber");
-            allParameters.Add("Room Name|RoomName");
-            allParameters.Add("Department|Department");
-            allParameters.Add("Occupancy|Occupancy");
-            allParameters.Add("Comments|Comments");
-            allParameters.Add("Base Finish|BaseFinish");
-            allParameters.Add("Ceiling Finish|CeilingFinish");
-            allParameters.Add("Wall Finish|WallFinish");
-            allParameters.Add("Floor Finish|FloorFinish");
-            allParameters.Add("Occupant|Occupant");
-            allParameters.Add("Phase|Phase");
 
-            // Add parameters from AllParameters JSON (excluding read-only ones)
+            // Add ALL parameters from AllParameters JSON (excluding read-only ones)
             if (sampleSnapshot.AllParameters != null)
             {
                 foreach (var param in sampleSnapshot.AllParameters.Keys)
@@ -165,7 +158,8 @@ namespace ViewTracker.Views
 
                     if (!excludedParamNames.Contains(param))
                     {
-                        allParameters.Add($"{param}|AllParam_{param}");
+                        // Use actual Revit parameter name for both display and key
+                        allParameters.Add($"{param}|{param}");
                     }
                 }
             }
@@ -196,17 +190,17 @@ namespace ViewTracker.Views
                     if (excludedParamNames.Contains(paramName))
                         continue;
 
-                    // Skip built-in parameters that are already in dedicated columns (Number, Name)
+                    // Skip ROOM_NUMBER (it's handled separately above)
                     if (param.Definition is InternalDefinition internalDef2)
                     {
                         var builtInParam2 = internalDef2.BuiltInParameter;
-                        if (builtInParam2 == BuiltInParameter.ROOM_NUMBER ||
-                            builtInParam2 == BuiltInParameter.ROOM_NAME)
+                        if (builtInParam2 == BuiltInParameter.ROOM_NUMBER)
                             continue;
                     }
 
                     // Add parameter if not already in list
-                    string paramKey = $"{paramName}|AllParam_{paramName}";
+                    // Use actual Revit parameter name for both display and key
+                    string paramKey = $"{paramName}|{paramName}";
                     if (!allParameters.Any(p => p.StartsWith(paramName + "|")))
                     {
                         allParameters.Add(paramKey);
@@ -235,12 +229,18 @@ namespace ViewTracker.Views
 
                 checkbox.Checked += (s, e) =>
                 {
+                    // PERFORMANCE: Skip updates during bulk operations
+                    if (_suppressUpdates) return;
+
                     UpdateStatus();
                     UpdateDeletedRoomsParameterPreview();
                     UpdateRoomListParameterPreview();
                 };
                 checkbox.Unchecked += (s, e) =>
                 {
+                    // PERFORMANCE: Skip updates during bulk operations
+                    if (_suppressUpdates) return;
+
                     UpdateStatus();
                     UpdateDeletedRoomsParameterPreview();
                     UpdateRoomListParameterPreview();
@@ -320,10 +320,25 @@ namespace ViewTracker.Views
                     bool hasValidCoordinates = snapshot.PositionX.HasValue && snapshot.PositionY.HasValue &&
                                               (snapshot.PositionX.Value != 0 || snapshot.PositionY.Value != 0);
 
+                    // REFACTORED: Get room name from AllParameters JSON
+                    string roomName = "";
+                    if (snapshot.AllParameters != null)
+                    {
+                        foreach (var key in new[] { "Nom", "Name", "Nombre" })
+                        {
+                            if (snapshot.AllParameters.TryGetValue(key, out object nameValue))
+                            {
+                                var paramVal = Models.ParameterValue.FromJsonObject(nameValue);
+                                roomName = paramVal?.DisplayValue ?? "";
+                                break;
+                            }
+                        }
+                    }
+
                     var item = new DeletedRoomItem
                     {
                         Snapshot = snapshot,
-                        RoomDisplayName = $"{snapshot.RoomNumber} - {snapshot.RoomName}",
+                        RoomDisplayName = $"{snapshot.RoomNumber} - {roomName}",
                         LevelAreaDisplay = $"Level: {snapshot.Level ?? "N/A"} | Area was: {(snapshot.Area.HasValue ? $"{snapshot.Area.Value * 0.09290304:F3} m²" : "N/A")}",
                         IsSelected = true,
                         HasValidCoordinates = hasValidCoordinates,
@@ -475,26 +490,50 @@ namespace ViewTracker.Views
 
         private void SelectAll_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var child in ParameterCheckboxPanel.Children)
+            // PERFORMANCE: Disable updates during bulk operation
+            _suppressUpdates = true;
+            try
             {
-                if (child is CheckBox checkbox)
+                foreach (var child in ParameterCheckboxPanel.Children)
                 {
-                    checkbox.IsChecked = true;
+                    if (child is CheckBox checkbox)
+                    {
+                        checkbox.IsChecked = true;
+                    }
                 }
             }
-            UpdateStatus();
+            finally
+            {
+                _suppressUpdates = false;
+                // Update once at the end instead of 50+ times
+                UpdateStatus();
+                UpdateDeletedRoomsParameterPreview();
+                UpdateRoomListParameterPreview();
+            }
         }
 
         private void SelectNone_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var child in ParameterCheckboxPanel.Children)
+            // PERFORMANCE: Disable updates during bulk operation
+            _suppressUpdates = true;
+            try
             {
-                if (child is CheckBox checkbox)
+                foreach (var child in ParameterCheckboxPanel.Children)
                 {
-                    checkbox.IsChecked = false;
+                    if (child is CheckBox checkbox)
+                    {
+                        checkbox.IsChecked = false;
+                    }
                 }
             }
-            UpdateStatus();
+            finally
+            {
+                _suppressUpdates = false;
+                // Update once at the end instead of 50+ times
+                UpdateStatus();
+                UpdateDeletedRoomsParameterPreview();
+                UpdateRoomListParameterPreview();
+            }
         }
 
         private void Preview_Click(object sender, RoutedEventArgs e)
@@ -701,22 +740,16 @@ namespace ViewTracker.Views
                 SnapshotDate = DateTime.UtcNow,
                 CreatedBy = createdBy,
                 IsOfficial = isOfficial,
+
+                // REFACTORED: Only set dedicated columns for indexing/calculated values
                 RoomNumber = room.Number,
-                RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
                 Level = room.Level?.Name,
                 Area = room.Area,
                 Perimeter = room.Perimeter,
                 Volume = room.Volume,
                 UnboundHeight = room.UnboundedHeight,
-                Occupancy = room.LookupParameter("Occupancy")?.AsString() ?? room.LookupParameter("Occupation")?.AsString(),
-                Department = room.LookupParameter("Department")?.AsString() ?? room.LookupParameter("Service")?.AsString(),
-                Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsElementId()?.Value,
-                BaseFinish = room.LookupParameter("Base Finish")?.AsString() ?? room.LookupParameter("Finition de la base")?.AsString(),
-                CeilingFinish = room.LookupParameter("Ceiling Finish")?.AsString() ?? room.LookupParameter("Finition du plafond")?.AsString(),
-                WallFinish = room.LookupParameter("Wall Finish")?.AsString() ?? room.LookupParameter("Finition du mur")?.AsString(),
-                FloorFinish = room.LookupParameter("Floor Finish")?.AsString() ?? room.LookupParameter("Finition du sol")?.AsString(),
-                Comments = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(),
-                Occupant = room.LookupParameter("Occupant")?.AsString(),
+
+                // All other parameters will be in AllParameters
                 AllParameters = new Dictionary<string, object>()
             };
 
@@ -825,7 +858,7 @@ namespace ViewTracker.Views
                                         result.UnplacedRoomInfo.Add(new UnplacedRoomInfo
                                         {
                                             RoomNumber = snapshot.RoomNumber,
-                                            RoomName = snapshot.RoomName,
+                                            RoomName = GetRoomNameFromSnapshot(snapshot),
                                             TrackId = snapshot.TrackId
                                         });
                                     }
@@ -881,7 +914,7 @@ namespace ViewTracker.Views
                                     result.UnplacedRoomInfo.Add(new UnplacedRoomInfo
                                     {
                                         RoomNumber = snapshot.RoomNumber,
-                                        RoomName = snapshot.RoomName,
+                                        RoomName = GetRoomNameFromSnapshot(snapshot),
                                         TrackId = snapshot.TrackId
                                     });
                                 }
@@ -912,81 +945,20 @@ namespace ViewTracker.Views
 
         private void UpdateRoomParameters(Room room, RoomSnapshot snapshot, List<string> selectedParams)
         {
+            // REFACTORED: All parameters now come from AllParameters JSON
             foreach (var paramKey in selectedParams)
             {
                 try
                 {
-                    // Check if this is a parameter from AllParameters JSON
-                    if (paramKey.StartsWith("AllParam_"))
+                    if (paramKey == "RoomNumber")
                     {
-                        // Extract the actual parameter name
-                        string actualParamName = paramKey.Substring("AllParam_".Length);
-
-                        // Get value from AllParameters dictionary
-                        if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(actualParamName, out object value))
-                        {
-                            SetParameterFromObject(room, actualParamName, value);
-                        }
+                        // RoomNumber is still in dedicated column
+                        room.Number = snapshot.RoomNumber ?? "";
                     }
-                    else
+                    else if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(paramKey, out object value))
                     {
-                        // Handle dedicated column parameters
-                        switch (paramKey)
-                        {
-                            case "RoomNumber":
-                                // Allow empty values to clear the parameter
-                                room.Number = snapshot.RoomNumber ?? "";
-                                break;
-
-                            case "RoomName":
-                                var nameParam = room.get_Parameter(BuiltInParameter.ROOM_NAME);
-                                if (nameParam != null && !nameParam.IsReadOnly)
-                                    nameParam.Set(snapshot.RoomName ?? "");
-                                break;
-
-                            case "Department":
-                                SetParameterValue(room, new[] { "Department", "Service" }, snapshot.Department);
-                                break;
-
-                            case "Occupancy":
-                                SetParameterValue(room, new[] { "Occupancy", "Occupation" }, snapshot.Occupancy);
-                                break;
-
-                            case "BaseFinish":
-                                SetParameterValue(room, new[] { "Base Finish", "Finition de la base" }, snapshot.BaseFinish);
-                                break;
-
-                            case "CeilingFinish":
-                                SetParameterValue(room, new[] { "Ceiling Finish", "Finition du plafond" }, snapshot.CeilingFinish);
-                                break;
-
-                            case "WallFinish":
-                                SetParameterValue(room, new[] { "Wall Finish", "Finition du mur" }, snapshot.WallFinish);
-                                break;
-
-                            case "FloorFinish":
-                                SetParameterValue(room, new[] { "Floor Finish", "Finition du sol" }, snapshot.FloorFinish);
-                                break;
-
-                            case "Comments":
-                                var commentsParam = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                                if (commentsParam != null && !commentsParam.IsReadOnly)
-                                    commentsParam.Set(snapshot.Comments ?? "");
-                                break;
-
-                            case "Occupant":
-                                SetParameterValue(room, new[] { "Occupant" }, snapshot.Occupant);
-                                break;
-
-                            case "Phase":
-                                // Phase: Set the ElementId directly
-                                var phaseParam = room.get_Parameter(BuiltInParameter.ROOM_PHASE);
-                                if (phaseParam != null && !phaseParam.IsReadOnly && snapshot.Phase.HasValue)
-                                {
-                                    phaseParam.Set(new ElementId(snapshot.Phase.Value));
-                                }
-                                break;
-                        }
+                        // Get parameter value from AllParameters JSON
+                        SetParameterFromObject(room, paramKey, value);
                     }
                 }
                 catch
@@ -1146,15 +1118,19 @@ namespace ViewTracker.Views
                 if (targetLevel == null)
                     return null;
 
-                // Get phase for room creation
+                // REFACTORED: Get phase from AllParameters JSON
                 Phase targetPhase = null;
-                if (snapshot.Phase.HasValue)
+                if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue("Phase", out object phaseValue))
                 {
-                    // Get phase by ElementId
-                    var phaseElement = _doc.GetElement(new ElementId(snapshot.Phase.Value));
-                    if (phaseElement is Phase phase)
+                    var phaseParamValue = Models.ParameterValue.FromJsonObject(phaseValue);
+                    if (phaseParamValue != null && phaseParamValue.RawValue != null)
                     {
-                        targetPhase = phase;
+                        long phaseId = Convert.ToInt64(phaseParamValue.RawValue);
+                        var phaseElement = _doc.GetElement(new ElementId(phaseId));
+                        if (phaseElement is Phase phase)
+                        {
+                            targetPhase = phase;
+                        }
                     }
                 }
 
@@ -1328,7 +1304,7 @@ namespace ViewTracker.Views
                 var item = new DeletedRoomItem
                 {
                     Snapshot = snapshot,
-                    RoomDisplayName = $"{snapshot.RoomNumber} - {snapshot.RoomName}",
+                    RoomDisplayName = $"{snapshot.RoomNumber} - {GetRoomNameFromSnapshot(snapshot)}",
                     LevelAreaDisplay = $"Level: {snapshot.Level ?? "N/A"} | Area: {(snapshot.Area.HasValue ? $"{snapshot.Area.Value * 0.09290304:F3} m²" : "N/A")}",
                     IsSelected = true,
                     HasValidCoordinates = hasValidCoordinates,
@@ -1359,13 +1335,10 @@ namespace ViewTracker.Views
                         string paramValue = GetParameterValueFromSnapshot(item.Snapshot, paramKey);
                         if (!string.IsNullOrEmpty(paramValue))
                         {
-                            string displayName = paramKey.StartsWith("AllParam_")
-                                ? paramKey.Substring("AllParam_".Length)
-                                : GetParameterDisplayName(paramKey);
-
+                            // REFACTORED: paramKey is now the actual Revit parameter name
                             item.ParameterPreview.Add(new ParameterPreviewItem
                             {
-                                Name = displayName,
+                                Name = paramKey == "RoomNumber" ? "Room Number" : paramKey,
                                 Value = paramValue
                             });
                         }
@@ -1374,32 +1347,56 @@ namespace ViewTracker.Views
             }
         }
 
-        private string GetParameterValueFromSnapshot(RoomSnapshot snapshot, string paramKey)
+        // REFACTORED: Helper to get room name from AllParameters JSON
+        private string GetRoomNameFromSnapshot(RoomSnapshot snapshot)
         {
-            if (paramKey.StartsWith("AllParam_"))
+            if (snapshot.AllParameters == null)
+                return "";
+
+            foreach (var key in new[] { "Nom", "Name", "Nombre" })
             {
-                string actualParamName = paramKey.Substring("AllParam_".Length);
-                if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(actualParamName, out object value))
+                if (snapshot.AllParameters.TryGetValue(key, out object nameValue))
                 {
-                    return value?.ToString() ?? "";
+                    var paramVal = Models.ParameterValue.FromJsonObject(nameValue);
+                    return paramVal?.DisplayValue ?? "";
                 }
+            }
+            return "";
+        }
+
+        private string GetCurrentParameterValueFromRoom(Room room, string paramKey)
+        {
+            // REFACTORED: Get current value from actual Room
+            if (paramKey == "RoomNumber")
+            {
+                return room.Number;
             }
             else
             {
-                switch (paramKey)
+                // Look up parameter by name (actual Revit parameter name)
+                Parameter param = room.LookupParameter(paramKey);
+                if (param != null && param.HasValue)
                 {
-                    case "RoomNumber": return snapshot.RoomNumber;
-                    case "RoomName": return snapshot.RoomName;
-                    case "Department": return snapshot.Department;
-                    case "Occupancy": return snapshot.Occupancy;
-                    case "BaseFinish": return snapshot.BaseFinish;
-                    case "CeilingFinish": return snapshot.CeilingFinish;
-                    case "WallFinish": return snapshot.WallFinish;
-                    case "FloorFinish": return snapshot.FloorFinish;
-                    case "Comments": return snapshot.Comments;
-                    case "Occupant": return snapshot.Occupant;
-                    case "Phase": return snapshot.Phase?.ToString() ?? "";
+                    var paramValue = Models.ParameterValue.FromRevitParameter(param);
+                    return paramValue?.DisplayValue ?? "";
                 }
+            }
+            return null;
+        }
+
+        private string GetParameterValueFromSnapshot(RoomSnapshot snapshot, string paramKey)
+        {
+            // REFACTORED: All parameters now come from AllParameters JSON
+            // Only RoomNumber stays in dedicated column for indexing
+            if (paramKey == "RoomNumber")
+            {
+                return snapshot.RoomNumber;
+            }
+            else if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(paramKey, out object value))
+            {
+                // Get parameter value from JSON using actual Revit parameter name
+                var paramValue = Models.ParameterValue.FromJsonObject(value);
+                return paramValue?.DisplayValue ?? "";
             }
             return "";
         }
@@ -1479,7 +1476,7 @@ namespace ViewTracker.Views
                 var snapshot = snapshotMap[trackId];
 
                 // Get room info
-                string roomDisplayName = $"{snapshot.RoomNumber} - {snapshot.RoomName}";
+                string roomDisplayName = $"{snapshot.RoomNumber} - {GetRoomNameFromSnapshot(snapshot)}";
                 string roomInfo = $"Level: {snapshot.Level ?? "N/A"} | Area: {(snapshot.Area.HasValue ? $"{snapshot.Area.Value * 0.09290304:F3} m²" : "N/A")}";
 
                 // Get parameter preview
@@ -1489,19 +1486,31 @@ namespace ViewTracker.Views
                 {
                     foreach (var paramKey in selectedParams)
                     {
-                        string paramValue = GetParameterValueFromSnapshot(snapshot, paramKey);
-                        if (!string.IsNullOrEmpty(paramValue))
-                        {
-                            string displayName = paramKey.StartsWith("AllParam_")
-                                ? paramKey.Substring("AllParam_".Length)
-                                : GetParameterDisplayName(paramKey);
+                        string newValue = GetParameterValueFromSnapshot(snapshot, paramKey);
+                        string displayName = paramKey.StartsWith("AllParam_")
+                            ? paramKey.Substring("AllParam_".Length)
+                            : GetParameterDisplayName(paramKey);
 
-                            parameterPreview.Add(new RoomParameterPreview
+                        // Get CURRENT value from room
+                        string currentValue = "(empty)";
+                        var currentParam = room.LookupParameter(displayName);
+                        if (currentParam != null)
+                        {
+                            var currentParamValue = Models.ParameterValue.FromRevitParameter(currentParam);
+                            if (currentParamValue != null)
                             {
-                                Name = displayName,
-                                Value = paramValue
-                            });
+                                currentValue = currentParamValue.DisplayValue ?? currentParamValue.RawValue?.ToString() ?? "(empty)";
+                            }
                         }
+
+                        parameterPreview.Add(new RoomParameterPreview
+                        {
+                            Name = displayName,
+                            CurrentValue = currentValue,
+                            NewValue = newValue ?? "(empty)",
+                            IsDifferent = currentValue != (newValue ?? "(empty)"),
+                            Value = newValue  // Backwards compatibility
+                        });
                     }
                 }
 
@@ -1542,19 +1551,54 @@ namespace ViewTracker.Views
 
                 foreach (var paramKey in selectedParams)
                 {
-                    string paramValue = GetParameterValueFromSnapshot(snapshot, paramKey);
-                    if (!string.IsNullOrEmpty(paramValue))
-                    {
-                        string displayName = paramKey.StartsWith("AllParam_")
-                            ? paramKey.Substring("AllParam_".Length)
-                            : GetParameterDisplayName(paramKey);
+                    // REFACTORED: paramKey is now the actual Revit parameter name
+                    string displayName = paramKey == "RoomNumber" ? "Room Number" : paramKey;
 
-                        item.ParameterPreview.Add(new RoomParameterPreview
-                        {
-                            Name = displayName,
-                            Value = paramValue
-                        });
+                    // Use ParameterValue.IsEqualTo() to compare current vs snapshot
+                    Models.ParameterValue currentParamValue = null;
+                    Models.ParameterValue snapshotParamValue = null;
+
+                    // Get current parameter value
+                    if (paramKey == "RoomNumber")
+                    {
+                        currentParamValue = new Models.ParameterValue { StorageType = "String", RawValue = item.Room.Number ?? "", DisplayValue = item.Room.Number ?? "" };
                     }
+                    else
+                    {
+                        var param = item.Room.LookupParameter(paramKey);
+                        if (param != null)
+                            currentParamValue = Models.ParameterValue.FromRevitParameter(param);
+                    }
+
+                    // Get snapshot parameter value
+                    if (paramKey == "RoomNumber")
+                    {
+                        string storedValue = snapshot.RoomNumber;
+                        if (!string.IsNullOrEmpty(storedValue))
+                            snapshotParamValue = new Models.ParameterValue { StorageType = "String", RawValue = storedValue, DisplayValue = storedValue };
+                    }
+                    else if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(paramKey, out object value))
+                    {
+                        snapshotParamValue = Models.ParameterValue.FromJsonObject(value);
+                    }
+
+                    // Skip if snapshot value is null/empty
+                    if (snapshotParamValue == null)
+                        continue;
+
+                    // Show ALL selected parameters, not just changed ones
+                    string currentDisplay = currentParamValue?.DisplayValue ?? "(empty)";
+                    string snapshotDisplay = snapshotParamValue?.DisplayValue ?? "(empty)";
+                    bool isDifferent = currentParamValue == null || !snapshotParamValue.IsEqualTo(currentParamValue);
+
+                    item.ParameterPreview.Add(new RoomParameterPreview
+                    {
+                        Name = displayName,
+                        CurrentValue = currentDisplay,
+                        NewValue = snapshotDisplay,
+                        IsDifferent = isDifferent,
+                        Value = $"{currentDisplay} → {snapshotDisplay}"  // Backwards compatibility
+                    });
                 }
             }
         }
@@ -1684,6 +1728,15 @@ namespace ViewTracker.Views
     public class RoomParameterPreview
     {
         public string Name { get; set; }
+        public string CurrentValue { get; set; }  // Current value in the model (will be replaced)
+        public string NewValue { get; set; }      // New value from snapshot
+        public bool IsDifferent { get; set; }     // True if CurrentValue != NewValue
+
+        // For backwards compatibility (if only showing snapshot value)
         public string Value { get; set; }
+
+        // For conditional styling in XAML
+        public System.Windows.Media.Brush NewValueColor => IsDifferent ? System.Windows.Media.Brushes.Red : System.Windows.Media.Brushes.Black;
+        public System.Windows.FontWeight NewValueWeight => IsDifferent ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal;
     }
 }

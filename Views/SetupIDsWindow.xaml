@@ -144,6 +144,7 @@
                     <!-- Action Buttons -->
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                         <Button Name="CheckDuplicatesButton" Content="Check Duplicates" Click="CheckDuplicatesButton_Click"/>
+                        <Button Name="FixDuplicatesButton" Content="Fix Duplicates" IsEnabled="False" Click="FixDuplicatesButton_Click" Background="#FF9800" Foreground="White"/>
                         <Button Name="SelectDuplicatesButton" Content="Select in Model" IsEnabled="False"/>
                         <Button Name="ZoomToDuplicatesButton" Content="Zoom To" IsEnabled="False"/>
                     </StackPanel>

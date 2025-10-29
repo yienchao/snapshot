@@ -9,7 +9,9 @@
       "Read(//c/Users/yichao/AppData/Roaming/Snapshot/**)",
       "Bash(cat:*)",
       "Bash(\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" Snapshot.csproj /p:Configuration=\"Release R25\" /t:Build /v:minimal)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" \"C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj\" /p:Configuration=\"Release R25\" /t:Build /v:minimal)"
     ],
     "deny": [],
     "ask": []

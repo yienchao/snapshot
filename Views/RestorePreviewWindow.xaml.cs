@@ -67,12 +67,20 @@ namespace ViewTracker.Views
                 else
                 {
                     // Room deleted - will be created
+                    // REFACTORED: Get room name from AllParameters JSON
+                    string roomName = "";
+                    if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue("Nom", out object nameValue))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(nameValue);
+                        roomName = paramVal?.DisplayValue ?? "";
+                    }
+
                     changes.Add(new PreviewChange
                     {
                         RoomIdentifier = snapshot.RoomNumber ?? snapshot.TrackId,
                         ParameterName = "Room",
                         CurrentValue = "(deleted)",
-                        SnapshotValue = $"{snapshot.RoomNumber} - {snapshot.RoomName}",
+                        SnapshotValue = $"{snapshot.RoomNumber} - {roomName}",
                         ChangeStatus = "New Room",
                         IsChanged = true
                     });
@@ -105,167 +113,36 @@ namespace ViewTracker.Views
                     "Computation Height", "Hauteur de calcul"
                 };
 
-                switch (paramName)
+                // REFACTORED: All parameters now come from AllParameters JSON except RoomNumber
+                if (paramName == "RoomNumber")
                 {
-                case "RoomNumber":
                     currentValue = room.Number;
                     snapshotValue = snapshot.RoomNumber;
                     displayParamName = "Room Number";
-                    break;
-
-                case "RoomName":
-                    currentValue = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ROOM_NAME)?.AsString();
-                    snapshotValue = snapshot.RoomName;
-                    displayParamName = "Room Name";
-                    break;
-
-                case "Department":
-                    currentValue = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ROOM_DEPARTMENT)?.AsString();
-                    snapshotValue = snapshot.Department;
-                    displayParamName = "Department";
-                    break;
-
-                case "Occupancy":
-                    currentValue = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ROOM_OCCUPANCY)?.AsString();
-                    snapshotValue = snapshot.Occupancy;
-                    displayParamName = "Occupancy";
-                    break;
-
-                case "BaseFinish":
-                    currentValue = room.LookupParameter("Base Finish")?.AsString() ?? room.LookupParameter("Finition de la base")?.AsString();
-                    snapshotValue = snapshot.BaseFinish;
-                    displayParamName = "Base Finish";
-                    break;
-
-                case "CeilingFinish":
-                    currentValue = room.LookupParameter("Ceiling Finish")?.AsString() ?? room.LookupParameter("Finition du plafond")?.AsString();
-                    snapshotValue = snapshot.CeilingFinish;
-                    displayParamName = "Ceiling Finish";
-                    break;
-
-                case "WallFinish":
-                    currentValue = room.LookupParameter("Wall Finish")?.AsString() ?? room.LookupParameter("Finition du mur")?.AsString();
-                    snapshotValue = snapshot.WallFinish;
-                    displayParamName = "Wall Finish";
-                    break;
-
-                case "FloorFinish":
-                    currentValue = room.LookupParameter("Floor Finish")?.AsString() ?? room.LookupParameter("Finition du sol")?.AsString();
-                    snapshotValue = snapshot.FloorFinish;
-                    displayParamName = "Floor Finish";
-                    break;
-
-                case "Comments":
-                    currentValue = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString();
-                    snapshotValue = snapshot.Comments;
-                    displayParamName = "Comments";
-                    break;
-
-                case "Occupant":
-                    currentValue = room.LookupParameter("Occupant")?.AsString();
-                    snapshotValue = snapshot.Occupant;
-                    displayParamName = "Occupant";
-                    break;
-
-                default:
-                    // Check if this is a parameter from AllParameters JSON
-                    if (paramName.StartsWith("AllParam_"))
-                    {
-                        string actualParamName = paramName.Substring("AllParam_".Length);
-
-                        // Skip if this is a read-only parameter
-                        if (readOnlyParams.Contains(actualParamName))
-                            return null;
-
-                        displayParamName = actualParamName;
-
-                        var param = room.LookupParameter(actualParamName);
-                        if (param != null)
-                        {
-                            // Format current value to match comparison logic (including empty values)
-                            switch (param.StorageType)
-                            {
-                                case StorageType.Double:
-                                    // Extract numeric part only (remove unit symbols) to match comparison
-                                    var valueString = param.AsValueString();
-                                    if (!string.IsNullOrEmpty(valueString))
-                                    {
-                                        currentValue = valueString.Split(' ')[0].Replace(",", ".");
-                                    }
-                                    else
-                                    {
-                                        currentValue = param.AsDouble().ToString("F2").TrimEnd('0').TrimEnd('.');
-                                    }
-                                    break;
-
-                                case StorageType.Integer:
-                                    // For integer parameters, check if snapshot has numeric or text value
-                                    if (snapshot.AllParameters != null &&
-                                        snapshot.AllParameters.TryGetValue(actualParamName, out object snapValue))
-                                    {
-                                        // If snapshot has a numeric value, compare as integers
-                                        if (int.TryParse(snapValue?.ToString(), out int _))
-                                        {
-                                            currentValue = param.AsInteger().ToString();
-                                        }
-                                        else
-                                        {
-                                            // Snapshot has text, use text comparison
-                                            var intValueString = param.AsValueString();
-                                            if (!string.IsNullOrEmpty(intValueString))
-                                            {
-                                                currentValue = intValueString.Split(' ')[0].Replace(",", ".");
-                                            }
-                                            else
-                                            {
-                                                currentValue = param.AsInteger().ToString();
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        currentValue = param.AsInteger().ToString();
-                                    }
-                                    break;
-
-                                case StorageType.String:
-                                    // Always get current value, even if empty
-                                    currentValue = param.AsString() ?? "";
-                                    break;
-
-                                case StorageType.ElementId:
-                                    currentValue = param.AsValueString() ?? "";
-                                    break;
-
-                                default:
-                                    currentValue = param.AsValueString() ?? param.AsString() ?? "";
-                                    break;
-                            }
-
-                            // Get snapshot value (may be null if not in AllParameters)
-                            if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(actualParamName, out object value))
-                            {
-                                // Format snapshot value to match current value display
-                                snapshotValue = FormatSnapshotValue(param, value);
-                            }
-                            else
-                            {
-                                // Snapshot doesn't have this parameter - show as empty
-                                snapshotValue = "";
-                            }
-                        }
-                        else
-                        {
-                            // Parameter doesn't exist in current room
-                            return null;
-                        }
-                    }
-                    else
-                    {
+                }
+                else
+                {
+                    // Skip if this is a read-only parameter
+                    if (readOnlyParams.Contains(paramName))
                         return null;
+
+                    displayParamName = paramName;
+
+                    // Get current value from room
+                    var param = room.LookupParameter(paramName);
+                    if (param != null)
+                    {
+                        var currentParamValue = Models.ParameterValue.FromRevitParameter(param);
+                        currentValue = currentParamValue?.DisplayValue ?? "";
                     }
-                    break;
-            }
+
+                    // Get snapshot value from AllParameters JSON
+                    if (snapshot.AllParameters != null && snapshot.AllParameters.TryGetValue(paramName, out object value))
+                    {
+                        var snapshotParamValue = Models.ParameterValue.FromJsonObject(value);
+                        snapshotValue = snapshotParamValue?.DisplayValue ?? "";
+                    }
+                }
 
                 bool isChanged = (currentValue ?? "") != (snapshotValue ?? "");
 

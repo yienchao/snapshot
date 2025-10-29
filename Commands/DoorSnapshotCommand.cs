@@ -149,14 +149,13 @@ namespace ViewTracker.Commands
                     SnapshotDate = now,
                     CreatedBy = currentUser,
                     IsOfficial = isOfficial,
-                    FamilyName = door.Symbol?.Family?.Name,
-                    TypeName = door.Symbol?.Name,
+
+                    // REFACTORED: Only populate dedicated columns for indexing
                     Mark = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString(),
                     Level = doc.GetElement(door.LevelId)?.Name,
-                    FireRating = door.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING)?.AsString(),
-                    PhaseCreated = door.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsValueString(),
-                    PhaseDemolished = door.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED)?.AsValueString(),
-                    Comments = door.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString(),
+                    TypeId = door.GetTypeId()?.Value,  // Store type ID for language-independent comparison
+
+                    // ALL user-editable parameters in JSON (single source of truth)
                     AllParameters = allParams,
                     TypeParameters = typeParams
                 };
@@ -189,28 +188,16 @@ namespace ViewTracker.Commands
         {
             var parameters = new Dictionary<string, object>();
 
-            // Built-in parameters that are stored in dedicated columns - exclude from JSON
-            // Using BuiltInParameter enum IDs for language-independence (same approach as rooms)
+            // Include Mark, Level, From Room, To Room in AllParameters for comparison
+            // They will be marked as non-restorable in the restore window
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
-                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
-                BuiltInParameter.ALL_MODEL_MARK,                 // mark column
-                BuiltInParameter.FAMILY_LEVEL_PARAM,             // level column
-                BuiltInParameter.DOOR_FIRE_RATING,               // fire_rating column
-                BuiltInParameter.DOOR_WIDTH,                     // door_width column (from type)
-                BuiltInParameter.DOOR_HEIGHT,                    // door_height column (from type)
-                BuiltInParameter.PHASE_CREATED,                  // phase_created column
-                BuiltInParameter.PHASE_DEMOLISHED,               // phase_demolished column
-                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,    // comments column
                 BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
-            // Shared/string parameters to exclude (by name, for non-built-in parameters)
+            // Include From Room and To Room for comparison (they're read-only but useful to track)
             var excludedSharedParams = new HashSet<string>
             {
-                "From Room", "De la pièce",     // From Room
-                "To Room", "À la pièce"          // To Room
                 // NOTE: Variantes is now included - we track it for comparison but won't restore it (read-only)
             };
 
@@ -225,8 +212,8 @@ namespace ViewTracker.Commands
                     continue;
 
                 // Skip TYPE parameters - only capture INSTANCE parameters
-                // Type parameters belong to the ElementType, not the instance
-                if (param.Element is ElementType)
+                // Check if the parameter belongs to this door instance (not its Symbol/Type)
+                if (param.Element.Id != door.Id)
                     continue;
 
                 // Skip built-in parameters that are already in dedicated columns
@@ -284,12 +271,12 @@ namespace ViewTracker.Commands
             if (door.Symbol == null)
                 return parameters;
 
-            // Built-in parameters that are stored in dedicated columns - exclude from JSON
+            // Built-in parameters to exclude
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                BuiltInParameter.ALL_MODEL_FAMILY_NAME,          // family_name column
-                BuiltInParameter.ALL_MODEL_TYPE_NAME,            // type_name column
                 BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
+                // NOTE: ALL_MODEL_FAMILY_NAME and ALL_MODEL_TYPE_NAME are included in TypeParameters
+                // because there are no dedicated columns for them in the database
             };
 
             // Use GetOrderedParameters to get only user-visible TYPE parameters

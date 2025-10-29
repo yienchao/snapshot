@@ -23,6 +23,7 @@ namespace ViewTracker.Views
         private string _entityType; // "Door" or "Element"
         private Dictionary<string, CheckBox> _instanceParameterCheckboxes = new Dictionary<string, CheckBox>();
         private ObservableCollection<ElementRestoreItem> _elementRestoreItems = new ObservableCollection<ElementRestoreItem>();
+        private bool _isUpdatingCheckboxes = false; // Flag to batch checkbox updates
 
         public ParameterRestoreWindow(
             List<VersionInfo> versions,
@@ -118,6 +119,10 @@ namespace ViewTracker.Views
 
         private void ParameterCheckbox_Changed(object sender, RoutedEventArgs e)
         {
+            // Skip updates if we're in batch mode (Select All/None)
+            if (_isUpdatingCheckboxes)
+                return;
+
             // Refresh element list when parameters are selected/deselected
             // OPTIMIZATION: Only update the preview for existing items instead of rebuilding entire list
             UpdateElementPreviews();
@@ -187,7 +192,8 @@ namespace ViewTracker.Views
 
                     if (allParameters.ContainsKey(paramName))
                     {
-                        string displayValue = "(empty)";
+                        // Get NEW value from snapshot (what it will be changed TO)
+                        string newValue = "(empty)";
                         var value = allParameters[paramName];
 
                         if (value != null)
@@ -195,26 +201,41 @@ namespace ViewTracker.Views
                             // Extract from ParameterValue
                             if (value is ViewTracker.Models.ParameterValue pv)
                             {
-                                displayValue = pv.DisplayValue ?? pv.RawValue?.ToString() ?? "(empty)";
+                                newValue = pv.DisplayValue ?? pv.RawValue?.ToString() ?? "(empty)";
                             }
                             else if (value is Newtonsoft.Json.Linq.JObject jObj)
                             {
                                 var paramVal = ViewTracker.Models.ParameterValue.FromJsonObject(jObj);
                                 if (paramVal != null)
                                 {
-                                    displayValue = paramVal.DisplayValue ?? paramVal.RawValue?.ToString() ?? "(empty)";
+                                    newValue = paramVal.DisplayValue ?? paramVal.RawValue?.ToString() ?? "(empty)";
                                 }
                             }
                             else
                             {
-                                displayValue = value.ToString();
+                                newValue = value.ToString();
+                            }
+                        }
+
+                        // Get CURRENT value from element (what it currently IS)
+                        string currentValue = "(empty)";
+                        var currentParam = element.LookupParameter(paramName);
+                        if (currentParam != null)
+                        {
+                            var currentParamValue = Models.ParameterValue.FromRevitParameter(currentParam);
+                            if (currentParamValue != null)
+                            {
+                                currentValue = currentParamValue.DisplayValue ?? currentParamValue.RawValue?.ToString() ?? "(empty)";
                             }
                         }
 
                         parameterPreview.Add(new ElementParameterPreview
                         {
                             Name = paramName,
-                            Value = displayValue
+                            CurrentValue = currentValue,
+                            NewValue = newValue,
+                            IsDifferent = currentValue != newValue,  // Compare values
+                            Value = newValue  // Backwards compatibility
                         });
                     }
                 }
@@ -302,33 +323,11 @@ namespace ViewTracker.Views
                     if (markParam != null)
                         allSnapshotParams.Add(markParam.Definition.Name);
 
-                    // Level
+                    // REFACTORED: Mark and Level are the ONLY remaining dedicated columns
+                    // All other parameters (Comments, Phases, FireRating, etc.) are now in AllParameters JSON
                     var levelParam = firstElement.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
                     if (levelParam != null)
                         allSnapshotParams.Add(levelParam.Definition.Name);
-
-                    // Comments
-                    var commentsParam = firstElement.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                    if (commentsParam != null)
-                        allSnapshotParams.Add(commentsParam.Definition.Name);
-
-                    // Phase Created
-                    var phaseCreatedParam = firstElement.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                    if (phaseCreatedParam != null)
-                        allSnapshotParams.Add(phaseCreatedParam.Definition.Name);
-
-                    // Phase Demolished
-                    var phaseDemolishedParam = firstElement.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-                    if (phaseDemolishedParam != null)
-                        allSnapshotParams.Add(phaseDemolishedParam.Definition.Name);
-
-                    // Fire Rating (doors only)
-                    if (_entityType == "Door")
-                    {
-                        var fireRatingParam = firstElement.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING);
-                        if (fireRatingParam != null)
-                            allSnapshotParams.Add(fireRatingParam.Definition.Name);
-                    }
                 }
             }
 
@@ -399,16 +398,15 @@ namespace ViewTracker.Views
                 // We'll check it later during actual restore and skip if needed
                 // This allows parameters to appear in the list even if temporarily read-only
 
-                // Check if this is a TYPE parameter by checking if param.Element is ElementType
-                // If param.Element is ElementType → Type parameter (skip it)
-                // If param.Element is null or NOT ElementType → Instance parameter (include it)
-                if (param.Element is ElementType)
+                // Check if this is a TYPE parameter by checking if param belongs to this element instance
+                // If param.Element.Id doesn't match sampleElement.Id, it's a type parameter (skip it)
+                if (param.Element.Id != sampleElement.Id)
                 {
                     // This is a type parameter - skip it
                     continue;
                 }
 
-                // This is an instance parameter (param.Element is null or not ElementType)
+                // This is an instance parameter
                 // Add it to the restorable list
                 restorableParams.Add(paramName);
             }
@@ -525,17 +523,37 @@ namespace ViewTracker.Views
 
         private void SelectAllInstance_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var checkbox in _instanceParameterCheckboxes.Values)
+            _isUpdatingCheckboxes = true;
+            try
             {
-                checkbox.IsChecked = true;
+                foreach (var checkbox in _instanceParameterCheckboxes.Values)
+                {
+                    checkbox.IsChecked = true;
+                }
+            }
+            finally
+            {
+                _isUpdatingCheckboxes = false;
+                // Single update after all checkboxes are checked
+                UpdateElementPreviews();
             }
         }
 
         private void SelectNone_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var checkbox in _instanceParameterCheckboxes.Values)
+            _isUpdatingCheckboxes = true;
+            try
             {
-                checkbox.IsChecked = false;
+                foreach (var checkbox in _instanceParameterCheckboxes.Values)
+                {
+                    checkbox.IsChecked = false;
+                }
+            }
+            finally
+            {
+                _isUpdatingCheckboxes = false;
+                // Single update after all checkboxes are unchecked
+                UpdateElementPreviews();
             }
         }
 
@@ -662,6 +680,7 @@ namespace ViewTracker.Views
                                 if (door == null) continue;
 
                                 var allParams = GetAllParametersForBackup(door);
+                                // REFACTORED: Only populate dedicated columns for indexing
                                 var snapshot = new DoorSnapshot
                                 {
                                     TrackId = trackId,
@@ -671,21 +690,17 @@ namespace ViewTracker.Views
                                     SnapshotDate = now,
                                     CreatedBy = currentUser,
                                     IsOfficial = false,
-                                    FamilyName = door.Symbol?.Family?.Name ?? "Unknown",
-                                    TypeName = door.Symbol?.Name ?? "Unknown",
                                     Mark = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
                                     Level = door.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM)?.AsValueString() ?? "",
-                                    Comments = door.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? "",
-                                    PhaseCreated = door.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsValueString() ?? "",
-                                    PhaseDemolished = door.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED)?.AsValueString() ?? "",
-                                    FireRating = door.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING)?.AsString() ?? "",
-                                    AllParameters = allParams
+                                    AllParameters = allParams,
+                                    TypeParameters = new Dictionary<string, object>() // Empty for backup, not needed for restore
                                 };
                                 backupSnapshots.Add(snapshot);
                             }
                             else // Element
                             {
                                 var allParams = GetAllParametersForBackup(element);
+                                // REFACTORED: Only populate dedicated columns for indexing
                                 var snapshot = new ElementSnapshot
                                 {
                                     TrackId = trackId,
@@ -696,14 +711,10 @@ namespace ViewTracker.Views
                                     CreatedBy = currentUser,
                                     IsOfficial = false,
                                     Category = element.Category?.Name ?? "Unknown",
-                                    FamilyName = (element as FamilyInstance)?.Symbol?.Family?.Name ?? "Unknown",
-                                    TypeName = (element as FamilyInstance)?.Symbol?.Name ?? element.GetTypeId()?.ToString() ?? "Unknown",
                                     Mark = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
                                     Level = element.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM)?.AsValueString() ?? "",
-                                    Comments = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? "",
-                                    PhaseCreated = element.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsValueString() ?? "",
-                                    PhaseDemolished = element.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED)?.AsValueString() ?? "",
-                                    AllParameters = allParams
+                                    AllParameters = allParams,
+                                    TypeParameters = new Dictionary<string, object>() // Empty for backup, not needed for restore
                                 };
                                 backupSnapshots.Add(snapshot);
                             }
@@ -795,40 +806,16 @@ namespace ViewTracker.Views
                         }
                         catch { }
 
-                        // Then, add dedicated column parameters using BuiltInParameter to get localized names
-                        // Include even if empty (matches comparison logic)
-                        // Mark
+                        // REFACTORED: Mark and Level are the ONLY remaining dedicated columns
+                        // All other parameters (Comments, Phases, FireRating, etc.) are now in AllParameters JSON
+                        // Add dedicated column parameters using BuiltInParameter to get localized names
                         var markParam = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
                         if (markParam != null)
                             parametersToRestore[markParam.Definition.Name] = snapshot.Mark ?? "";
 
-                        // Level
                         var levelParam = element.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
                         if (levelParam != null)
                             parametersToRestore[levelParam.Definition.Name] = snapshot.Level ?? "";
-
-                        // Comments
-                        var commentsParam = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                        if (commentsParam != null)
-                            parametersToRestore[commentsParam.Definition.Name] = snapshot.Comments ?? "";
-
-                        // Phase Created
-                        var phaseCreatedParam = element.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                        if (phaseCreatedParam != null)
-                            parametersToRestore[phaseCreatedParam.Definition.Name] = snapshot.PhaseCreated ?? "";
-
-                        // Phase Demolished
-                        var phaseDemolishedParam = element.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-                        if (phaseDemolishedParam != null)
-                            parametersToRestore[phaseDemolishedParam.Definition.Name] = snapshot.PhaseDemolished ?? "";
-
-                        // Fire Rating (doors only)
-                        if (_entityType == "Door")
-                        {
-                            var fireRatingParam = element.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING);
-                            if (fireRatingParam != null)
-                                parametersToRestore[fireRatingParam.Definition.Name] = snapshot.FireRating ?? "";
-                        }
 
                         if (!parametersToRestore.Any())
                         {
@@ -1163,6 +1150,7 @@ namespace ViewTracker.Views
                 string elementInfo = "";
                 string currentTypeName = "";
                 string snapshotTypeName = "";
+                bool typeChanged = false;
 
                 if (_entityType == "Door")
                 {
@@ -1170,12 +1158,24 @@ namespace ViewTracker.Views
                     var door = element as FamilyInstance;
                     elementName = $"{doorSnapshot.Mark ?? "No Mark"}";
                     currentTypeName = door?.Symbol?.Name ?? "Unknown";
-                    snapshotTypeName = doorSnapshot.TypeName ?? "Unknown";
+                    snapshotTypeName = currentTypeName;  // Default to same
+
+                    // Compare TypeId (language-independent) instead of type name
+                    long currentTypeId = door?.GetTypeId()?.Value ?? -1;
+                    long snapshotTypeId = doorSnapshot.TypeId ?? -1;
+                    typeChanged = currentTypeId != snapshotTypeId && snapshotTypeId != -1;
+
+                    if (typeChanged)
+                    {
+                        // Type actually changed - try to get the snapshot type name for display
+                        var snapshotTypeElement = _doc.GetElement(new ElementId(snapshotTypeId));
+                        snapshotTypeName = snapshotTypeElement?.Name ?? $"Type ID {snapshotTypeId}";
+                    }
 
                     // Show type mismatch indicator if types differ
-                    string typeInfo = currentTypeName == snapshotTypeName
-                        ? $"{doorSnapshot.FamilyName}: {doorSnapshot.TypeName}"
-                        : $"{doorSnapshot.FamilyName}: {currentTypeName} ⚠️ (was: {snapshotTypeName})";
+                    string typeInfo = typeChanged
+                        ? $"{currentTypeName} ⚠️ (was: {snapshotTypeName})"
+                        : currentTypeName;
                     elementInfo = $"{typeInfo} | Level: {doorSnapshot.Level}";
                 }
                 else // Element
@@ -1184,12 +1184,24 @@ namespace ViewTracker.Views
                     var familyInstance = element as FamilyInstance;
                     elementName = $"{elemSnapshot.Mark ?? "No Mark"}";
                     currentTypeName = familyInstance?.Symbol?.Name ?? element.GetTypeId()?.ToString() ?? "Unknown";
-                    snapshotTypeName = elemSnapshot.TypeName ?? "Unknown";
+                    snapshotTypeName = currentTypeName;  // Default to same
+
+                    // Compare TypeId (language-independent) instead of type name
+                    long currentTypeId = familyInstance?.GetTypeId()?.Value ?? element.GetTypeId()?.Value ?? -1;
+                    long snapshotTypeId = elemSnapshot.TypeId ?? -1;
+                    typeChanged = currentTypeId != snapshotTypeId && snapshotTypeId != -1;
+
+                    if (typeChanged)
+                    {
+                        // Type actually changed - try to get the snapshot type name for display
+                        var snapshotTypeElement = _doc.GetElement(new ElementId(snapshotTypeId));
+                        snapshotTypeName = snapshotTypeElement?.Name ?? $"Type ID {snapshotTypeId}";
+                    }
 
                     // Show type mismatch indicator if types differ
-                    string typeInfo = currentTypeName == snapshotTypeName
-                        ? $"{elemSnapshot.FamilyName}: {elemSnapshot.TypeName}"
-                        : $"{elemSnapshot.FamilyName}: {currentTypeName} ⚠️ (was: {snapshotTypeName})";
+                    string typeInfo = typeChanged
+                        ? $"{currentTypeName} ⚠️ (was: {snapshotTypeName})"
+                        : currentTypeName;
                     elementInfo = $"{elemSnapshot.Category} | {typeInfo}";
                 }
 
@@ -1222,38 +1234,15 @@ namespace ViewTracker.Views
 
                 // Then, add dedicated column parameters using BuiltInParameter to get localized names
                 // Include even if empty (matches comparison logic)
-                // Mark
+                // REFACTORED: Mark and Level are the ONLY remaining dedicated columns
+                // All other parameters (Comments, Phases, FireRating, etc.) are now in AllParameters JSON
                 var markParam = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
                 if (markParam != null)
                     parametersAvailable[markParam.Definition.Name] = snapshot.Mark ?? "";
 
-                // Level
                 var levelParam = element.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
                 if (levelParam != null)
                     parametersAvailable[levelParam.Definition.Name] = snapshot.Level ?? "";
-
-                // Comments
-                var commentsParam = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-                if (commentsParam != null)
-                    parametersAvailable[commentsParam.Definition.Name] = snapshot.Comments ?? "";
-
-                // Phase Created
-                var phaseCreatedParam = element.get_Parameter(BuiltInParameter.PHASE_CREATED);
-                if (phaseCreatedParam != null)
-                    parametersAvailable[phaseCreatedParam.Definition.Name] = snapshot.PhaseCreated ?? "";
-
-                // Phase Demolished
-                var phaseDemolishedParam = element.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-                if (phaseDemolishedParam != null)
-                    parametersAvailable[phaseDemolishedParam.Definition.Name] = snapshot.PhaseDemolished ?? "";
-
-                // Fire Rating (doors only)
-                if (_entityType == "Door")
-                {
-                    var fireRatingParam = element.get_Parameter(BuiltInParameter.DOOR_FIRE_RATING);
-                    if (fireRatingParam != null)
-                        parametersAvailable[fireRatingParam.Definition.Name] = snapshot.FireRating ?? "";
-                }
 
                 // Filter out location/orientation parameters from preview too
                 var nonRestorableParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -1342,8 +1331,8 @@ namespace ViewTracker.Views
 
                 if (snapshotTypeParams != null && snapshotTypeParams.Any())
                 {
-                    // Get current type parameters
-                    var currentTypeParams = new Dictionary<string, object>();
+                    // Get current type parameters using ParameterValue for consistency
+                    var currentTypeParams = new Dictionary<string, Models.ParameterValue>();
                     var familyInstance = element as FamilyInstance;
                     if (familyInstance?.Symbol != null)
                     {
@@ -1358,98 +1347,45 @@ namespace ViewTracker.Views
                             if (paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                                 continue;
 
-                            // Get current value
-                            object currentValue = null;
-                            switch (param.StorageType)
+                            // Use ParameterValue.FromRevitParameter for consistent handling
+                            var paramValue = Models.ParameterValue.FromRevitParameter(param);
+                            if (paramValue != null)
                             {
-                                case StorageType.Double:
-                                    currentValue = param.AsDouble();
-                                    break;
-                                case StorageType.Integer:
-                                    currentValue = param.AsInteger();
-                                    break;
-                                case StorageType.String:
-                                    currentValue = param.AsString() ?? "";
-                                    break;
-                                case StorageType.ElementId:
-                                    currentValue = param.AsValueString() ?? "";
-                                    break;
-                            }
-
-                            if (currentValue != null)
-                            {
-                                currentTypeParams[paramName] = currentValue;
+                                currentTypeParams[paramName] = paramValue;
                             }
                         }
                     }
 
-                    // Compare type parameters
+                    // Compare type parameters using ParameterValue.IsEqualTo
                     foreach (var kvp in snapshotTypeParams)
                     {
-                        if (currentTypeParams.TryGetValue(kvp.Key, out var currentValue))
+                        if (currentTypeParams.TryGetValue(kvp.Key, out var currentParamValue))
                         {
-                            // Extract snapshot value from ParameterValue object
-                            object snapshotValue = null;
+                            // Extract snapshot ParameterValue
+                            Models.ParameterValue snapshotParamValue = null;
                             try
                             {
                                 if (kvp.Value is Models.ParameterValue pv)
                                 {
-                                    snapshotValue = pv.RawValue;
+                                    snapshotParamValue = pv;
                                 }
                                 else if (kvp.Value is Newtonsoft.Json.Linq.JObject jObj)
                                 {
-                                    var paramVal = Models.ParameterValue.FromJsonObject(jObj);
-                                    if (paramVal != null)
-                                        snapshotValue = paramVal.RawValue;
-                                }
-                                else
-                                {
-                                    snapshotValue = kvp.Value;
+                                    snapshotParamValue = Models.ParameterValue.FromJsonObject(jObj);
                                 }
                             }
-                            catch
-                            {
-                                snapshotValue = kvp.Value;
-                            }
+                            catch { }
 
-                            if (snapshotValue == null)
+                            if (snapshotParamValue == null)
                                 continue;
 
-                            // Compare values
-                            bool isDifferent = false;
-                            if (snapshotValue is double snapDouble && currentValue is double currDouble)
+                            // Use ParameterValue.IsEqualTo for consistent comparison
+                            if (!snapshotParamValue.IsEqualTo(currentParamValue))
                             {
-                                isDifferent = Math.Abs(snapDouble - currDouble) > 0.0001;
-                            }
-                            else if (snapshotValue is long snapLong && currentValue is int currInt)
-                            {
-                                // JSON deserializes integers as long, compare as long
-                                isDifferent = snapLong != currInt;
-                            }
-                            else if (snapshotValue is int snapInt && currentValue is int currInt2)
-                            {
-                                isDifferent = snapInt != currInt2;
-                            }
-                            else
-                            {
-                                // Handle ElementId special case: -1 (invalid) equals empty string
-                                string snapStr = snapshotValue?.ToString() ?? "";
-                                string currStr = currentValue?.ToString() ?? "";
-
-                                // Normalize: -1 and empty string both mean "no value"
-                                if ((snapStr == "-1" || snapStr == "") && (currStr == "-1" || currStr == ""))
-                                {
-                                    isDifferent = false;
-                                }
-                                else
-                                {
-                                    isDifferent = !Equals(snapStr, currStr);
-                                }
-                            }
-
-                            if (isDifferent)
-                            {
-                                typeParameterWarnings.Add($"  {kvp.Key}: '{snapshotValue}' → '{currentValue}'");
+                                // Use DisplayValue for user-friendly output
+                                string snapshotDisplay = snapshotParamValue.DisplayValue ?? snapshotParamValue.RawValue?.ToString() ?? "(empty)";
+                                string currentDisplay = currentParamValue.DisplayValue ?? currentParamValue.RawValue?.ToString() ?? "(empty)";
+                                typeParameterWarnings.Add($"  {kvp.Key}: '{snapshotDisplay}' → '{currentDisplay}'");
                             }
                         }
                     }
@@ -1508,7 +1444,7 @@ namespace ViewTracker.Views
                     IsSelected = true,
                     CurrentTypeName = currentTypeName,
                     SnapshotTypeName = snapshotTypeName,
-                    HasTypeMismatch = currentTypeName != snapshotTypeName,
+                    HasTypeMismatch = typeChanged,  // Use TypeId comparison result
                     TypeParameterWarnings = typeParameterWarnings
                 };
 
@@ -1522,15 +1458,13 @@ namespace ViewTracker.Views
         {
             var result = new Dictionary<string, object>();
 
-            // Parameters that are stored in dedicated columns - exclude from AllParameters JSON
+            // REFACTORED: Only exclude parameters that are in dedicated columns or system metadata
+            // All other parameters (including Comments, Phases, Fire Rating) are now in JSON
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                BuiltInParameter.ALL_MODEL_MARK,
-                BuiltInParameter.FAMILY_LEVEL_PARAM,
-                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,
-                BuiltInParameter.PHASE_CREATED,
-                BuiltInParameter.PHASE_DEMOLISHED,
-                BuiltInParameter.DOOR_FIRE_RATING  // For doors only
+                BuiltInParameter.ALL_MODEL_MARK,                 // mark column (still dedicated for indexing)
+                BuiltInParameter.FAMILY_LEVEL_PARAM,             // level column (still dedicated for indexing)
+                BuiltInParameter.EDITED_BY                       // System metadata (changes automatically)
             };
 
             foreach (Parameter param in element.GetOrderedParameters())
@@ -1550,7 +1484,8 @@ namespace ViewTracker.Views
                     continue;
 
                 // Skip TYPE parameters (only capture instance parameters)
-                if (param.Element is ElementType)
+                // Check if the parameter belongs to this element instance (not its Symbol/Type)
+                if (param.Element.Id != element.Id)
                     continue;
 
                 // Capture parameter value
@@ -1753,6 +1688,68 @@ namespace ViewTracker.Views
             // Fallback: try direct conversion
             return Convert.ToDouble(paramValue);
         }
+
+        private string GetDoorParameterValue(DoorSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
+        }
+
+        private string GetElementParameterValue(ElementSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
+        }
     }
 
     // Data model for element restore items
@@ -1812,6 +1809,15 @@ namespace ViewTracker.Views
     public class ElementParameterPreview
     {
         public string Name { get; set; }
+        public string CurrentValue { get; set; }  // Current value in the model (will be replaced)
+        public string NewValue { get; set; }      // New value from snapshot
+        public bool IsDifferent { get; set; }     // True if CurrentValue != NewValue
+
+        // For backwards compatibility (if only showing snapshot value)
         public string Value { get; set; }
+
+        // For conditional styling in XAML
+        public System.Windows.Media.Brush NewValueColor => IsDifferent ? System.Windows.Media.Brushes.Red : System.Windows.Media.Brushes.Black;
+        public System.Windows.FontWeight NewValueWeight => IsDifferent ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal;
     }
 }

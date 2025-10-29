@@ -248,11 +248,26 @@ namespace ViewTracker.Commands
                 var trackIdNormalized = snapshot.TrackId.Trim();
                 if (!currentDict.ContainsKey(trackIdNormalized))
                 {
+                    // REFACTORED: Get room name from AllParameters JSON
+                    string roomName = "";
+                    if (snapshot.AllParameters != null)
+                    {
+                        foreach (var key in new[] { "Nom", "Name", "Nombre" })
+                        {
+                            if (snapshot.AllParameters.TryGetValue(key, out object nameValue))
+                            {
+                                var paramVal = Models.ParameterValue.FromJsonObject(nameValue);
+                                roomName = paramVal?.DisplayValue ?? "";
+                                break;
+                            }
+                        }
+                    }
+
                     result.DeletedEntities.Add(new Models.EntityChange
                     {
                         TrackId = snapshot.TrackId,
                         Identifier1 = snapshot.RoomNumber,
-                        Identifier2 = snapshot.RoomName,
+                        Identifier2 = roomName,
                         ChangeType = "Deleted"
                     });
                 }
@@ -422,38 +437,16 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Then add from dedicated columns (these were EXCLUDED from AllParameters during snapshot creation)
-            // We need to map the actual parameter names that exist in the current room
-            // Create a reverse lookup: find which current parameter corresponds to which snapshot column
-
+            // REFACTORED: Dedicated columns that still exist (for indexing/calculated values)
             var paramMapping = new Dictionary<string, (object value, bool hasValue)>
             {
-                // Room identification
+                // Dedicated columns for indexing
                 ["room_number"] = (snapshot.RoomNumber, !string.IsNullOrEmpty(snapshot.RoomNumber)),
-                ["room_name"] = (snapshot.RoomName, !string.IsNullOrEmpty(snapshot.RoomName)),
-                // Skip Level - it's read-only and causes false positives for unplaced rooms
-                // ["level"] = (snapshot.Level, !string.IsNullOrEmpty(snapshot.Level)),
-
-                // Measurements
+                // Read-only calculated values (not in AllParameters)
                 ["area"] = (snapshot.Area, snapshot.Area.HasValue),
                 ["perimeter"] = (snapshot.Perimeter, snapshot.Perimeter.HasValue),
                 ["volume"] = (snapshot.Volume, snapshot.Volume.HasValue),
-                ["unbound_height"] = (snapshot.UnboundHeight, snapshot.UnboundHeight.HasValue),
-
-                // Categories
-                ["occupancy"] = (snapshot.Occupancy, !string.IsNullOrEmpty(snapshot.Occupancy)),
-                ["department"] = (snapshot.Department, !string.IsNullOrEmpty(snapshot.Department)),
-                ["phase"] = (snapshot.Phase, snapshot.Phase.HasValue),
-
-                // Finishes
-                ["base_finish"] = (snapshot.BaseFinish, !string.IsNullOrEmpty(snapshot.BaseFinish)),
-                ["ceiling_finish"] = (snapshot.CeilingFinish, !string.IsNullOrEmpty(snapshot.CeilingFinish)),
-                ["wall_finish"] = (snapshot.WallFinish, !string.IsNullOrEmpty(snapshot.WallFinish)),
-                ["floor_finish"] = (snapshot.FloorFinish, !string.IsNullOrEmpty(snapshot.FloorFinish)),
-
-                // Other
-                ["comments"] = (snapshot.Comments, !string.IsNullOrEmpty(snapshot.Comments)),
-                ["occupant"] = (snapshot.Occupant, !string.IsNullOrEmpty(snapshot.Occupant))
+                ["unbound_height"] = (snapshot.UnboundHeight, snapshot.UnboundHeight.HasValue)
             };
 
             // Now map these to actual parameter names found in the current room (user-visible only)
@@ -471,9 +464,6 @@ namespace ViewTracker.Commands
                     {
                         case BuiltInParameter.ROOM_NUMBER:
                             columnKey = "room_number";
-                            break;
-                        case BuiltInParameter.ROOM_NAME:
-                            columnKey = "room_name";
                             break;
                         case BuiltInParameter.ROOM_LEVEL_ID:
                             // Skip level - it's read-only and causes false positives
@@ -499,37 +489,9 @@ namespace ViewTracker.Commands
                         case BuiltInParameter.ROOM_COMPUTATION_HEIGHT:
                             // Skip computation height - not in dedicated columns
                             continue;
-                        case BuiltInParameter.ROOM_OCCUPANCY:
-                            columnKey = "occupancy";
-                            break;
-                        case BuiltInParameter.ROOM_DEPARTMENT:
-                            columnKey = "department";
-                            break;
-                        case BuiltInParameter.ROOM_PHASE:
-                            columnKey = "phase";
-                            break;
-                        case BuiltInParameter.ROOM_FINISH_BASE:
-                            columnKey = "base_finish";
-                            break;
-                        case BuiltInParameter.ROOM_FINISH_CEILING:
-                            columnKey = "ceiling_finish";
-                            break;
-                        case BuiltInParameter.ROOM_FINISH_WALL:
-                            columnKey = "wall_finish";
-                            break;
-                        case BuiltInParameter.ROOM_FINISH_FLOOR:
-                            columnKey = "floor_finish";
-                            break;
-                        case BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS:
-                            columnKey = "comments";
-                            break;
+                        // REFACTORED: All other parameters are now in AllParameters JSON
+                        // No dedicated columns for: room_name, occupancy, department, phase, finishes, comments, occupant
                     }
-                }
-                else
-                {
-                    // For shared parameters, check by name
-                    if (paramName == "Occupant")
-                        columnKey = "occupant";
                 }
 
                 // Skip IFC parameters by name (covers all languages, in case they weren't caught by BuiltInParameter check)

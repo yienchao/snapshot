@@ -147,6 +147,21 @@ namespace ViewTracker
                 );
                 setupIdsBtn.ToolTip = "Manage Track IDs";
                 setupIdsBtn.LongDescription = "Generate track IDs for elements, audit project, and validate ID uniqueness.";
+                try
+                {
+                    string assemblyPath = typeof(Application).Assembly.Location;
+                    string iconPath16 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "ID_16x16.png");
+                    string iconPath32 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(assemblyPath), "Resources", "Icons", "ID_32x32.png");
+                    if (System.IO.File.Exists(iconPath16))
+                    {
+                        setupIdsBtn.Image = new BitmapImage(new Uri(iconPath16, UriKind.Absolute));
+                    }
+                    if (System.IO.File.Exists(iconPath32))
+                    {
+                        setupIdsBtn.LargeImage = new BitmapImage(new Uri(iconPath32, UriKind.Absolute));
+                    }
+                }
+                catch { }
                 trackerPanel.AddItem(setupIdsBtn);
 
                 trackerPanel.AddSeparator();
@@ -226,7 +241,7 @@ namespace ViewTracker
 
                 trackerPanel.AddSeparator();
 
-                // Unified Restore button (context-aware: Rooms/Doors/Elements)
+                // Legacy Restore button (for Doors/Elements only - Rooms use Compare & Restore above)
                 var restoreBtn = new PushButtonData(
                     "UnifiedRestore",
                     Localization.Get("Ribbon.Restore"),
@@ -234,8 +249,8 @@ namespace ViewTracker
                     "ViewTracker.Commands.UnifiedRestoreCommand"
                 );
                 restoreBtn.ToolTip = Localization.Get("Ribbon.RestoreTooltip");
-                restoreBtn.LongDescription = "Rooms: Restore all parameters and recreate deleted rooms\n" +
-                                            "Doors/Elements: Restore instance parameters only (existing elements)";
+                restoreBtn.LongDescription = "Doors/Elements: Restore instance parameters only (existing elements)\n" +
+                                            "Note: For Rooms, use Compare & Restore button above";
                 try
                 {
                     string assemblyPath = typeof(Application).Assembly.Location;

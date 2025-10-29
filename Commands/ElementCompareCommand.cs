@@ -188,11 +188,15 @@ namespace ViewTracker.Commands
             {
                 if (!currentDict.ContainsKey(snapshot.TrackId))
                 {
+                    // REFACTORED: Get Family/Type from JSON
+                    string familyName = GetElementParameterValue(snapshot, new[] { "Famille", "Family" });
+                    string typeName = GetElementParameterValue(snapshot, new[] { "Type" });
+
                     result.DeletedEntities.Add(new Models.EntityChange
                     {
                         TrackId = snapshot.TrackId,
                         Identifier1 = snapshot.Mark,
-                        Identifier2 = $"{snapshot.FamilyName}: {snapshot.TypeName}",
+                        Identifier2 = $"{familyName}: {typeName}",
                         ChangeType = "Deleted"
                     });
                 }
@@ -258,7 +262,8 @@ namespace ViewTracker.Commands
             foreach (Parameter param in orderedParams)
             {
                 // Skip type parameters - only collect instance parameters here
-                if (param.Element is ElementType)
+                // Check if the parameter belongs to this element instance (not its Symbol/Type)
+                if (param.Element.Id != currentElement.Id)
                     continue;
 
                 AddParameterToDict(param, currentParams, currentParamsDisplay);
@@ -366,23 +371,29 @@ namespace ViewTracker.Commands
                 currentParamsDisplay["hand_z"] = handZValue.DisplayValue;
             }
 
+            // Add Category from current element (Category is NOT a parameter, it's a property)
+            // Mark and Level are now captured via GetOrderedParameters (they're in AllParameters JSON)
+            var currentCategoryValue = new Models.ParameterValue
+            {
+                StorageType = StorageType.String.ToString(),
+                RawValue = currentElement.Category?.Name ?? "",
+                DisplayValue = currentElement.Category?.Name ?? "",
+                IsTypeParameter = false
+            };
+            currentParams["Category"] = currentCategoryValue;
+            currentParamsDisplay["Category"] = currentCategoryValue.DisplayValue;
+
             // Build snapshot parameters dictionary
             var snapshotParams = new Dictionary<string, object>();
             var snapshotParamsDisplay = new Dictionary<string, string>();
 
-            // Parameters that should NOT be in all_parameters (they're in dedicated columns)
+            // Mark and Level are now in AllParameters JSON, only Category needs special handling
             var excludedFromJson = new HashSet<string>
             {
-                "Mark", "Marque", "Identifiant",  // Mark parameter (various languages)
-                "Level", "Niveau",
-                "Phase Created", "Phase de création",
-                "Phase Demolished", "Phase de démolition",
-                "Comments", "Commentaires",
-                "Family", "Famille",
-                "Type"
+                "Category", "Catégorie"  // Category is NOT a parameter, added manually above
             };
 
-            // Add from AllParameters JSON (but skip parameters that should be in dedicated columns)
+            // Add from AllParameters JSON
             if (snapshot.AllParameters != null)
             {
                 foreach (var kvp in snapshot.AllParameters)
@@ -391,7 +402,7 @@ namespace ViewTracker.Commands
                     if (kvp.Key.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    // Skip parameters that should be in dedicated columns
+                    // Skip Category (not a parameter)
                     if (excludedFromJson.Contains(kvp.Key))
                         continue;
 
@@ -447,114 +458,23 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Add dedicated column values from snapshot to snapshotParams for comparison
-            // These are not in AllParameters JSON, but we still want to compare them
-            // IMPORTANT: Use the actual parameter name from the current element (language-independent)
-            // not hardcoded English names, to avoid false "(new)" and "(removed)" changes
-            // BUGFIX: Wrap dedicated column values in ParameterValue objects to match current format
-
-            // Mark parameter - include even if empty
-            var markParam = currentElement.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
-            if (markParam != null)
+            // Add Category from snapshot (Category is NOT a parameter, stored as dedicated column)
+            // Mark and Level are now in AllParameters JSON from snapshot
+            if (!string.IsNullOrEmpty(snapshot.Category))
             {
-                string markParamName = markParam.Definition.Name;
-                var markValue = new Models.ParameterValue
+                var categoryValue = new Models.ParameterValue
                 {
                     StorageType = StorageType.String.ToString(),
-                    RawValue = snapshot.Mark ?? "",
-                    DisplayValue = snapshot.Mark ?? "",
+                    RawValue = snapshot.Category,
+                    DisplayValue = snapshot.Category,
                     IsTypeParameter = false
                 };
-                snapshotParams[markParamName] = markValue;
-                snapshotParamsDisplay[markParamName] = markValue.DisplayValue;
+                snapshotParams["Category"] = categoryValue;
+                snapshotParamsDisplay["Category"] = categoryValue.DisplayValue;
             }
 
-            // Level parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
-            var levelParam = currentElement.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
-            if (levelParam != null && !string.IsNullOrEmpty(snapshot.Level))
-            {
-                string levelParamName = levelParam.Definition.Name;
-                var levelValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.ElementId.ToString(),
-                    RawValue = snapshot.Level,
-                    DisplayValue = snapshot.Level,
-                    IsTypeParameter = false
-                };
-                snapshotParams[levelParamName] = levelValue;
-                snapshotParamsDisplay[levelParamName] = levelValue.DisplayValue;
-            }
-
-            // Comments parameter - include even if empty
-            var commentsParam = currentElement.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
-            if (commentsParam != null)
-            {
-                string commentsParamName = commentsParam.Definition.Name;
-                var commentsValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.String.ToString(),
-                    RawValue = snapshot.Comments ?? "",
-                    DisplayValue = snapshot.Comments ?? "",
-                    IsTypeParameter = false
-                };
-                snapshotParams[commentsParamName] = commentsValue;
-                snapshotParamsDisplay[commentsParamName] = commentsValue.DisplayValue;
-            }
-
-            // Phase Created parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
-            var phaseCreatedParam = currentElement.get_Parameter(BuiltInParameter.PHASE_CREATED);
-            if (phaseCreatedParam != null && !string.IsNullOrEmpty(snapshot.PhaseCreated))
-            {
-                string phaseCreatedParamName = phaseCreatedParam.Definition.Name;
-                var phaseCreatedValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.ElementId.ToString(),
-                    RawValue = snapshot.PhaseCreated,
-                    DisplayValue = snapshot.PhaseCreated,
-                    IsTypeParameter = false
-                };
-                snapshotParams[phaseCreatedParamName] = phaseCreatedValue;
-                snapshotParamsDisplay[phaseCreatedParamName] = phaseCreatedValue.DisplayValue;
-            }
-
-            // Phase Demolished parameter - only add if not empty (ElementId parameters are skipped when empty in AddParameterToDict)
-            var phaseDemolishedParam = currentElement.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
-            if (phaseDemolishedParam != null && !string.IsNullOrEmpty(snapshot.PhaseDemolished))
-            {
-                string phaseDemolishedParamName = phaseDemolishedParam.Definition.Name;
-                var phaseDemolishedValue = new Models.ParameterValue
-                {
-                    StorageType = StorageType.ElementId.ToString(),
-                    RawValue = snapshot.PhaseDemolished,
-                    DisplayValue = snapshot.PhaseDemolished,
-                    IsTypeParameter = false
-                };
-                snapshotParams[phaseDemolishedParamName] = phaseDemolishedValue;
-                snapshotParamsDisplay[phaseDemolishedParamName] = phaseDemolishedValue.DisplayValue;
-            }
-
-            // Note: Family and Type are NOT in AllParameters, but we need to compare them
-            // to detect when an element changes to a different type
-
-            // Compare Family
-            string currentFamily = currentElement.Symbol?.Family?.Name ?? "";
-            string snapshotFamily = snapshot.FamilyName ?? "";
-            if (currentFamily != snapshotFamily)
-            {
-                string change = $"Family: '{snapshotFamily}' → '{currentFamily}'";
-                changes.Add(change);
-                instanceChanges.Add(change); // Categorize family changes as instance changes
-            }
-
-            // Compare Type
-            string currentType = currentElement.Symbol?.Name ?? "";
-            string snapshotType = snapshot.TypeName ?? "";
-            if (currentType != snapshotType)
-            {
-                string change = $"Type: '{snapshotType}' → '{currentType}'";
-                changes.Add(change);
-                typeChanges.Add(change); // Categorize type changes as type changes
-            }
+            // REFACTORED: Family and Type are now in AllParameters/TypeParameters JSON (no longer dedicated columns)
+            // They will be compared automatically as part of parameter comparison above
 
             // Compare parameters (including location, rotation, facing, hand for quality control)
             foreach (var snapshotParam in snapshotParams)
@@ -645,6 +565,7 @@ namespace ViewTracker.Commands
                 paramName.Contains("IFC", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            // Mark and Level are now included in AllParameters JSON for comparison
             // NOTE: Variantes is now included in comparison (but won't be restorable - read-only)
 
             // NEW: Use ParameterValue class for type-safe storage and comparison
@@ -721,6 +642,37 @@ namespace ViewTracker.Commands
                 System.Diagnostics.Debug.WriteLine($"FormatParameterValue failed: {ex.Message}, param: {param?.Definition?.Name}");
                 return value.ToString();
             }
+        }
+
+        private string GetElementParameterValue(ElementSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
         }
 
     }

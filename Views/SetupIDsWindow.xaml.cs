@@ -372,6 +372,8 @@ namespace ViewTracker.Views
 
         // ===== TAB 3: VALIDATE =====
 
+        private List<Services.DuplicateTrackIdGroup> _cachedDuplicateGroups = null;
+
         private void CheckDuplicatesButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -414,6 +416,7 @@ namespace ViewTracker.Views
                     .ToList();
 
                 DuplicatesListBox.Items.Clear();
+                _cachedDuplicateGroups = null;
 
                 if (duplicateGroups.Any())
                 {
@@ -428,6 +431,7 @@ namespace ViewTracker.Views
 
                     SelectDuplicatesButton.IsEnabled = true;
                     ZoomToDuplicatesButton.IsEnabled = true;
+                    FixDuplicatesButton.IsEnabled = true;
                 }
                 else
                 {
@@ -436,11 +440,125 @@ namespace ViewTracker.Views
                     DuplicatesListBox.Items.Add("No duplicates found");
                     SelectDuplicatesButton.IsEnabled = false;
                     ZoomToDuplicatesButton.IsEnabled = false;
+                    FixDuplicatesButton.IsEnabled = false;
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error checking duplicates:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void FixDuplicatesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Disable buttons during processing
+                FixDuplicatesButton.IsEnabled = false;
+                CheckDuplicatesButton.IsEnabled = false;
+
+                ValidateResultsText.Text = "Analyzing duplicates with smart matching...";
+
+                // Get all rooms for smart duplicate detection
+                var allRooms = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Room>()
+                    .ToList();
+
+                var roomsWithTrackId = allRooms
+                    .Where(r => r.LookupParameter("trackID") != null &&
+                                !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
+                    .ToList();
+
+                // Use smart duplicate detection
+                var supabaseService = new SupabaseService();
+                var duplicateFixer = new Services.DuplicateTrackIdFixer(supabaseService, _projectId);
+
+                // Detect duplicates with smart matching (async operation)
+                List<Services.DuplicateTrackIdGroup> duplicateGroups = null;
+                await System.Threading.Tasks.Task.Run(async () =>
+                {
+                    duplicateGroups = await duplicateFixer.DetectDuplicatesAsync(roomsWithTrackId);
+                });
+
+                if (duplicateGroups == null || !duplicateGroups.Any())
+                {
+                    ValidateResultsText.Text = "✓ No duplicate track IDs found!";
+                    ValidateResultsText.Foreground = System.Windows.Media.Brushes.Green;
+                    CheckDuplicatesButton.IsEnabled = true;
+                    return;
+                }
+
+                // Generate new trackIDs for duplicates
+                foreach (var group in duplicateGroups)
+                {
+                    foreach (var room in group.Rooms.Where(r => !r.IsOriginal))
+                    {
+                        room.NewTrackId = duplicateFixer.GenerateNewTrackId(allRooms);
+                    }
+                }
+
+                // Cache the groups for potential reuse
+                _cachedDuplicateGroups = duplicateGroups;
+
+                // Show preview window
+                var duplicateWindow = new DuplicateTrackIdWindow(duplicateGroups);
+                var dialogResult = duplicateWindow.ShowDialog();
+
+                if (dialogResult != true)
+                {
+                    ValidateResultsText.Text = "⚠️ Fix cancelled by user";
+                    ValidateResultsText.Foreground = System.Windows.Media.Brushes.Orange;
+                    CheckDuplicatesButton.IsEnabled = true;
+                    FixDuplicatesButton.IsEnabled = true;
+                    return;
+                }
+
+                // Apply the fix in transaction
+                using (var trans = new Transaction(_doc, "Fix Duplicate TrackIDs"))
+                {
+                    trans.Start();
+
+                    int fixedCount = 0;
+                    foreach (var group in duplicateGroups)
+                    {
+                        foreach (var room in group.Rooms.Where(r => !r.IsOriginal))
+                        {
+                            var trackIdParam = room.Room.LookupParameter("trackID");
+                            if (trackIdParam != null && !trackIdParam.IsReadOnly)
+                            {
+                                trackIdParam.Set(room.NewTrackId);
+                                fixedCount++;
+                            }
+                        }
+                    }
+
+                    trans.Commit();
+
+                    ValidateResultsText.Text = $"✓ Successfully fixed {fixedCount} duplicate track IDs!";
+                    ValidateResultsText.Foreground = System.Windows.Media.Brushes.Green;
+
+                    MessageBox.Show(
+                        $"Successfully fixed {fixedCount} duplicate track IDs!\n\n" +
+                        $"The duplicates have been assigned new unique IDs.",
+                        "Success",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    // Re-run check to update UI
+                    CheckDuplicatesButton_Click(sender, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                ValidateResultsText.Text = $"❌ Error: {ex.Message}";
+                ValidateResultsText.Foreground = System.Windows.Media.Brushes.Red;
+                MessageBox.Show($"Error fixing duplicates:\n\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                CheckDuplicatesButton.IsEnabled = true;
             }
         }
 

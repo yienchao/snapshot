@@ -259,7 +259,7 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
             try
             {
-                const int batchSize = 300;
+                const int batchSize = 200; // Reduced to avoid database timeout (error 57014)
                 for (int i = 0; i < snapshots.Count; i += batchSize)
                 {
                     var batch = snapshots.Skip(i).Take(batchSize).ToList();
@@ -444,7 +444,7 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
 
             try
             {
-                const int batchSize = 300;
+                const int batchSize = 200; // Reduced to avoid database timeout (error 57014)
                 for (int i = 0; i < snapshots.Count; i += batchSize)
                 {
                     var batch = snapshots.Skip(i).Take(batchSize).ToList();
@@ -824,6 +824,27 @@ public async Task BulkDeleteOrphanedRecordsAsync(List<string> orphanUniqueIds, s
             }
 
             return allTrackIds;
+        }
+
+        // Get latest snapshot for a specific trackID (used for duplicate detection)
+        public async Task<RoomSnapshot> GetLatestRoomSnapshotByTrackIdAsync(string trackId, Guid projectId)
+        {
+            try
+            {
+                var snapshots = await _supabase
+                    .From<RoomSnapshot>()
+                    .Where(x => x.TrackId == trackId && x.ProjectId == projectId)
+                    .Order(x => x.SnapshotDate, Supabase.Postgrest.Constants.Ordering.Descending)
+                    .Limit(1)
+                    .Get();
+
+                return snapshots.Models.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting latest snapshot for trackID {trackId}: {ex.Message}");
+                return null;
+            }
         }
     }
 }

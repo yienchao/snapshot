@@ -81,3 +81,7 @@ C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Snapshot.genruntime
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\ref\Snapshot.dll
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\SetupIDsWindow.baml
 C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\SetupIDsWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\DuplicateTrackIdWindow.baml
+C:\Users\yichao\Documents\VsCode\ViewTracker\obj\Release R26\Views\DuplicateTrackIdWindow.g.cs
+C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R26\Resources\Icons\ID_16x16.png
+C:\Users\yichao\Documents\VsCode\ViewTracker\bin\Release R26\Resources\Icons\ID_32x32.png

@@ -104,6 +104,22 @@ namespace ViewTracker.Commands
             for (int i = 0; i < sortedSnapshots.Count; i++)
             {
                 var snapshot = sortedSnapshots[i];
+                // REFACTORED: Get RoomName from AllParameters JSON
+                string roomName = "";
+                if (snapshot.AllParameters != null)
+                {
+                    // Try common localized names for room name parameter
+                    foreach (var key in new[] { "Nom", "Name", "Nombre" })
+                    {
+                        if (snapshot.AllParameters.TryGetValue(key, out object nameValue))
+                        {
+                            var paramVal = Models.ParameterValue.FromJsonObject(nameValue);
+                            roomName = paramVal?.DisplayValue ?? "";
+                            break;
+                        }
+                    }
+                }
+
                 var entry = new HistoryEntry
                 {
                     VersionName = snapshot.VersionName,
@@ -111,7 +127,7 @@ namespace ViewTracker.Commands
                     CreatedBy = snapshot.CreatedBy,
                     IsOfficial = snapshot.IsOfficial,
                     RoomNumber = snapshot.RoomNumber,
-                    RoomName = snapshot.RoomName,
+                    RoomName = roomName,
                     Level = snapshot.Level
                 };
 
@@ -205,11 +221,9 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Add dedicated columns
+            // REFACTORED: Add dedicated columns that still exist
             if (!string.IsNullOrEmpty(snapshot.RoomNumber))
                 parameters["Number"] = snapshot.RoomNumber;
-            if (!string.IsNullOrEmpty(snapshot.RoomName))
-                parameters["Name"] = snapshot.RoomName;
             if (!string.IsNullOrEmpty(snapshot.Level))
                 parameters["Level"] = snapshot.Level;
             if (snapshot.Area.HasValue)
@@ -220,24 +234,8 @@ namespace ViewTracker.Commands
                 parameters["Volume"] = snapshot.Volume.Value;
             if (snapshot.UnboundHeight.HasValue)
                 parameters["UnboundHeight"] = snapshot.UnboundHeight.Value;
-            if (!string.IsNullOrEmpty(snapshot.Occupancy))
-                parameters["Occupancy"] = snapshot.Occupancy;
-            if (!string.IsNullOrEmpty(snapshot.Department))
-                parameters["Department"] = snapshot.Department;
-            if (snapshot.Phase.HasValue)
-                parameters["Phase"] = snapshot.Phase.Value.ToString();
-            if (!string.IsNullOrEmpty(snapshot.BaseFinish))
-                parameters["BaseFinish"] = snapshot.BaseFinish;
-            if (!string.IsNullOrEmpty(snapshot.CeilingFinish))
-                parameters["CeilingFinish"] = snapshot.CeilingFinish;
-            if (!string.IsNullOrEmpty(snapshot.WallFinish))
-                parameters["WallFinish"] = snapshot.WallFinish;
-            if (!string.IsNullOrEmpty(snapshot.FloorFinish))
-                parameters["FloorFinish"] = snapshot.FloorFinish;
-            if (!string.IsNullOrEmpty(snapshot.Comments))
-                parameters["Comments"] = snapshot.Comments;
-            if (!string.IsNullOrEmpty(snapshot.Occupant))
-                parameters["Occupant"] = snapshot.Occupant;
+
+            // All other parameters are now in AllParameters JSON
 
             return parameters;
         }

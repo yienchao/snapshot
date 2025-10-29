@@ -5,9 +5,14 @@ using System.Collections.Generic;
 
 namespace ViewTracker
 {
+    /// <summary>
+    /// REFACTORED: Minimal schema with all parameters in JSON
+    /// Dedicated columns kept ONLY for indexing/queries
+    /// </summary>
     [Table("element_snapshots")]
     public class ElementSnapshot : BaseModel
     {
+        // === PRIMARY KEY ===
         [PrimaryKey("track_id", false)]
         [Column("track_id")]
         public string TrackId { get; set; }
@@ -16,6 +21,7 @@ namespace ViewTracker
         [Column("version_name")]
         public string VersionName { get; set; }
 
+        // === METADATA ===
         [Column("project_id")]
         public Guid ProjectId { get; set; }
 
@@ -31,14 +37,9 @@ namespace ViewTracker
         [Column("is_official")]
         public bool IsOfficial { get; set; }
 
+        // === KEY IDENTIFIERS (for fast queries only) ===
         [Column("category")]
         public string? Category { get; set; }
-
-        [Column("family_name")]
-        public string? FamilyName { get; set; }
-
-        [Column("type_name")]
-        public string? TypeName { get; set; }
 
         [Column("mark")]
         public string? Mark { get; set; }
@@ -46,18 +47,20 @@ namespace ViewTracker
         [Column("level")]
         public string? Level { get; set; }
 
-        [Column("phase_created")]
-        public string? PhaseCreated { get; set; }
+        [Column("type_id")]
+        public long? TypeId { get; set; }  // FamilySymbol ElementId for type comparison
 
-        [Column("phase_demolished")]
-        public string? PhaseDemolished { get; set; }
-
-        [Column("comments")]
-        public string? Comments { get; set; }
-
+        // === ALL INSTANCE PARAMETERS (single source of truth) ===
+        // Contains ALL instance parameters as ParameterValue objects:
+        // - FamilyName, TypeName, Mark, Level, Category
+        // - PhaseCreated, PhaseDemolished
+        // - Comments
+        // - ALL custom instance parameters
         [Column("all_parameters")]
         public Dictionary<string, object> AllParameters { get; set; }
 
+        // === ALL TYPE PARAMETERS (single source of truth) ===
+        // Contains ALL type parameters as ParameterValue objects
         [Column("type_parameters")]
         public Dictionary<string, object> TypeParameters { get; set; }
     }

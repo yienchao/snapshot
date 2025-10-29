@@ -37,7 +37,7 @@ namespace ViewTracker.Commands
                 .ToList();
 
             var roomsWithTrackId = allRooms
-                .Where(r => r.LookupParameter("trackID") != null && 
+                .Where(r => r.LookupParameter("trackID") != null &&
                            !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
                 .ToList();
 
@@ -47,24 +47,29 @@ namespace ViewTracker.Commands
                 return Result.Cancelled;
             }
 
-            // 3. Check for duplicate trackIDs in current file
-            var trackIdGroups = roomsWithTrackId
+            // 3. Simple duplicate check with warning (no auto-fix - use Setup Track IDs window for fixing)
+            var duplicateTrackIds = roomsWithTrackId
                 .GroupBy(r => r.LookupParameter("trackID").AsString())
                 .Where(g => g.Count() > 1)
                 .ToList();
 
-            if (trackIdGroups.Any())
+            if (duplicateTrackIds.Any())
             {
-                var duplicates = string.Join("\n", trackIdGroups.Select(g =>
-                    $"trackID '{g.Key}': {string.Join(", ", g.Select(r => $"Room {r.Number}"))}"));
-
-                TaskDialog.Show(Localization.Get("RoomSnapshot.DuplicateTrackIDs"),
-                    $"{Localization.Get("Validation.DuplicateTrackIDs")}\n\n{duplicates}\n\n{Localization.Get("Validation.FixBeforeSnapshot")}");
-                return Result.Failed;
+                var duplicateCount = duplicateTrackIds.Count;
+                var td = new TaskDialog("Duplicate TrackIDs Detected")
+                {
+                    MainInstruction = $"Found {duplicateCount} duplicate track ID(s) in the model",
+                    MainContent = "Please use the 'Setup Track IDs' tool (Validate tab) to fix duplicates before creating a snapshot.\n\n" +
+                                  "Using first occurrence for now.",
+                    CommonButtons = TaskDialogCommonButtons.Ok
+                };
+                td.Show();
             }
 
-            // 4. Get version name and type
+            // Initialize Supabase service for version checks and upload
             var supabaseService = new SupabaseService();
+
+            // 4. Get version name and type
             var versionDialog = new TaskDialog(Localization.Get("RoomSnapshot.Title"));
             versionDialog.MainInstruction = Localization.Get("Version.SelectSnapshotType");
             versionDialog.MainContent = Localization.Get("Version.OfficialDescription");
@@ -147,6 +152,7 @@ namespace ViewTracker.Commands
                     posZ = point.Z;
                 }
 
+                // REFACTORED: Only populate dedicated columns for indexing and calculated values
                 var snapshot = new RoomSnapshot
                 {
                     TrackId = trackId,
@@ -156,25 +162,23 @@ namespace ViewTracker.Commands
                     SnapshotDate = now,
                     CreatedBy = currentUser,
                     IsOfficial = isOfficial,
+
+                    // Dedicated columns for indexing/queries
                     RoomNumber = room.Number,
-                    RoomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(),
                     Level = doc.GetElement(room.LevelId)?.Name,
+
+                    // Position data for recreating deleted/unplaced rooms
+                    PositionX = posX,
+                    PositionY = posY,
+                    PositionZ = posZ,
+
+                    // Read-only calculated values for display/reporting
                     Area = room.Area,
                     Perimeter = room.Perimeter,
                     Volume = room.Volume,
                     UnboundHeight = room.UnboundedHeight,
-                    Occupancy = room.get_Parameter(BuiltInParameter.ROOM_OCCUPANCY)?.AsString(),
-                    Department = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString(),
-                    Phase = room.get_Parameter(BuiltInParameter.ROOM_PHASE)?.AsElementId()?.Value,
-                    PositionX = posX,
-                    PositionY = posY,
-                    PositionZ = posZ,
-                    BaseFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_BASE)?.AsString(),
-                    CeilingFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_CEILING)?.AsString(),
-                    WallFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_WALL)?.AsString(),
-                    FloorFinish = room.get_Parameter(BuiltInParameter.ROOM_FINISH_FLOOR)?.AsString(),
-                    Comments = room.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? room.LookupParameter("Comments")?.AsString() ?? room.LookupParameter("Commentaires")?.AsString(),
-                    Occupant = room.LookupParameter("Occupant")?.AsString(),
+
+                    // ALL user-editable parameters in JSON (single source of truth)
                     AllParameters = allParams
                 };
 
@@ -207,36 +211,25 @@ namespace ViewTracker.Commands
         {
             var parameters = new Dictionary<string, object>();
 
-            // Built-in parameters that are stored in dedicated columns - exclude from JSON
-            // Using BuiltInParameter enum IDs for language-independence
+            // REFACTORED: Exclude ONLY parameters that are:
+            // 1. In dedicated columns for indexing (room_number, level)
+            // 2. Read-only calculated values (area, perimeter, volume, unbound_height)
+            // 3. System parameters not useful for comparison (offsets, computation height, IFC, EDITED_BY)
+            // Include room_number, level, area, perimeter in AllParameters for comparison
+            // They will be marked as non-restorable in the restore window
             var excludedBuiltInParams = new HashSet<BuiltInParameter>
             {
-                BuiltInParameter.ROOM_NUMBER,           // room_number column
-                BuiltInParameter.ROOM_NAME,             // room_name column
-                BuiltInParameter.ROOM_LEVEL_ID,         // level column
-                BuiltInParameter.ROOM_AREA,             // area column
-                BuiltInParameter.ROOM_PERIMETER,        // perimeter column
-                BuiltInParameter.ROOM_VOLUME,           // volume column
-                BuiltInParameter.ROOM_UPPER_LEVEL,      // unbound_height column
-                BuiltInParameter.ROOM_UPPER_OFFSET,     // upper limit (not useful for comparison, causes false positives)
-                BuiltInParameter.ROOM_LOWER_OFFSET,     // lower limit (not useful for comparison, causes false positives)
-                BuiltInParameter.ROOM_COMPUTATION_HEIGHT, // computation height (not useful for comparison)
-                BuiltInParameter.ROOM_OCCUPANCY,        // occupancy column
-                BuiltInParameter.ROOM_DEPARTMENT,       // department column
-                BuiltInParameter.ROOM_PHASE,            // phase column
-                BuiltInParameter.ROOM_FINISH_BASE,      // base_finish column
-                BuiltInParameter.ROOM_FINISH_CEILING,   // ceiling_finish column
-                BuiltInParameter.ROOM_FINISH_WALL,      // wall_finish column
-                BuiltInParameter.ROOM_FINISH_FLOOR,     // floor_finish column
-                BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,  // comments column
-                BuiltInParameter.IFC_EXPORT_ELEMENT_AS,  // IFC export parameter (has formatting issues)
-                BuiltInParameter.EDITED_BY              // System metadata (changes automatically)
+                BuiltInParameter.ROOM_UPPER_OFFSET,     // upper limit (not useful)
+                BuiltInParameter.ROOM_LOWER_OFFSET,     // lower limit (not useful)
+                BuiltInParameter.ROOM_COMPUTATION_HEIGHT, // not useful
+                BuiltInParameter.IFC_EXPORT_ELEMENT_AS,  // system parameter
+                BuiltInParameter.EDITED_BY              // system parameter
             };
 
-            // Shared/string parameters to exclude (by name, for language-independence)
+            // REFACTORED: All custom shared parameters now go in all_parameters JSON
+            // Only exclude IFC parameters (caught by "IFC" string check below)
             var excludedSharedParams = new HashSet<string>
             {
-                "Occupant",  // occupant column (shared parameter)
                 "Exporter au format IFC",  // IFC export (French)
                 "Export to IFC",  // IFC export (English)
                 "IFC Export"  // IFC export (alternative English)

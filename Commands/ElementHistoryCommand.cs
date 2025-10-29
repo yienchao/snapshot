@@ -117,8 +117,8 @@ namespace ViewTracker.Commands
                     IsOfficial = snapshot.IsOfficial,
                     Category = snapshot.Category,
                     Mark = snapshot.Mark,
-                    FamilyName = snapshot.FamilyName,
-                    TypeName = snapshot.TypeName,
+                    FamilyName = GetElementParameterValue(snapshot, new[] { "Famille", "Family" }),
+                    TypeName = GetElementParameterValue(snapshot, new[] { "Type" }),
                     Level = snapshot.Level
                 };
 
@@ -212,25 +212,47 @@ namespace ViewTracker.Commands
                 }
             }
 
-            // Add dedicated columns
+            // REFACTORED: Add dedicated columns that still exist
             if (!string.IsNullOrEmpty(snapshot.Category))
                 parameters["Category"] = snapshot.Category;
-            if (!string.IsNullOrEmpty(snapshot.FamilyName))
-                parameters["Family"] = snapshot.FamilyName;
-            if (!string.IsNullOrEmpty(snapshot.TypeName))
-                parameters["Type"] = snapshot.TypeName;
             if (!string.IsNullOrEmpty(snapshot.Mark))
                 parameters["Mark"] = snapshot.Mark;
             if (!string.IsNullOrEmpty(snapshot.Level))
                 parameters["Level"] = snapshot.Level;
-            if (!string.IsNullOrEmpty(snapshot.PhaseCreated))
-                parameters["Phase Created"] = snapshot.PhaseCreated;
-            if (!string.IsNullOrEmpty(snapshot.PhaseDemolished))
-                parameters["Phase Demolished"] = snapshot.PhaseDemolished;
-            if (!string.IsNullOrEmpty(snapshot.Comments))
-                parameters["Comments"] = snapshot.Comments;
 
+            // All other parameters are now in AllParameters/TypeParameters JSON
             return parameters;
+        }
+
+        private string GetElementParameterValue(ElementSnapshot snapshot, string[] possibleKeys)
+        {
+            // Try AllParameters first
+            if (snapshot.AllParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.AllParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            // Try TypeParameters
+            if (snapshot.TypeParameters != null)
+            {
+                foreach (var key in possibleKeys)
+                {
+                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
+                    {
+                        var paramVal = Models.ParameterValue.FromJsonObject(value);
+                        return paramVal?.DisplayValue ?? "";
+                    }
+                }
+            }
+
+            return "";
         }
 
         private string FormatValueForDisplay(string paramName, object value, string categoryName, Document doc)

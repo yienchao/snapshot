@@ -194,8 +194,8 @@
                                                           Margin="20,0,0,0">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock FontSize="10" Foreground="#555">
-                                                            <Run Text="{Binding Name}" FontWeight="SemiBold"/>: <Run Text="{Binding Value}"/>
+                                                        <TextBlock FontSize="10">
+                                                            <Run Text="{Binding Name}" FontWeight="SemiBold" Foreground="#555"/>: <Run Text="{Binding CurrentValue}" Foreground="{Binding NewValueColor}" FontWeight="{Binding NewValueWeight}"/> → <Run Text="{Binding NewValue}" Foreground="{Binding NewValueColor}" FontWeight="{Binding NewValueWeight}"/>
                                                         </TextBlock>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
