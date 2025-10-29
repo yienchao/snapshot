@@ -1688,68 +1688,6 @@ namespace ViewTracker.Views
             // Fallback: try direct conversion
             return Convert.ToDouble(paramValue);
         }
-
-        private string GetDoorParameterValue(DoorSnapshot snapshot, string[] possibleKeys)
-        {
-            // Try AllParameters first
-            if (snapshot.AllParameters != null)
-            {
-                foreach (var key in possibleKeys)
-                {
-                    if (snapshot.AllParameters.TryGetValue(key, out object value))
-                    {
-                        var paramVal = Models.ParameterValue.FromJsonObject(value);
-                        return paramVal?.DisplayValue ?? "";
-                    }
-                }
-            }
-
-            // Try TypeParameters
-            if (snapshot.TypeParameters != null)
-            {
-                foreach (var key in possibleKeys)
-                {
-                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
-                    {
-                        var paramVal = Models.ParameterValue.FromJsonObject(value);
-                        return paramVal?.DisplayValue ?? "";
-                    }
-                }
-            }
-
-            return "";
-        }
-
-        private string GetElementParameterValue(ElementSnapshot snapshot, string[] possibleKeys)
-        {
-            // Try AllParameters first
-            if (snapshot.AllParameters != null)
-            {
-                foreach (var key in possibleKeys)
-                {
-                    if (snapshot.AllParameters.TryGetValue(key, out object value))
-                    {
-                        var paramVal = Models.ParameterValue.FromJsonObject(value);
-                        return paramVal?.DisplayValue ?? "";
-                    }
-                }
-            }
-
-            // Try TypeParameters
-            if (snapshot.TypeParameters != null)
-            {
-                foreach (var key in possibleKeys)
-                {
-                    if (snapshot.TypeParameters.TryGetValue(key, out object value))
-                    {
-                        var paramVal = Models.ParameterValue.FromJsonObject(value);
-                        return paramVal?.DisplayValue ?? "";
-                    }
-                }
-            }
-
-            return "";
-        }
     }
 
     // Data model for element restore items

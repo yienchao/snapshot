@@ -1075,22 +1075,6 @@ namespace ViewTracker.Views
             }
         }
 
-        private void SetParameterValue(Room room, string[] parameterNames, string value)
-        {
-            // BUGFIX Issue #1: Allow empty strings to be restored (can clear parameters)
-            // Don't return early for empty values - user may want to clear a parameter
-
-            foreach (var paramName in parameterNames)
-            {
-                var param = room.LookupParameter(paramName);
-                if (param != null && !param.IsReadOnly)
-                {
-                    param.Set(value ?? "");
-                    return;
-                }
-            }
-        }
-
         private Room CreateRoomWithPlacement(RoomSnapshot snapshot, List<string> selectedParams, bool restorePlacement)
         {
             try
