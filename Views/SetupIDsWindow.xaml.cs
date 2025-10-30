@@ -372,8 +372,6 @@ namespace ViewTracker.Views
 
         // ===== TAB 3: VALIDATE =====
 
-        private List<Services.DuplicateTrackIdGroup> _cachedDuplicateGroups = null;
-
         private void CheckDuplicatesButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -416,7 +414,6 @@ namespace ViewTracker.Views
                     .ToList();
 
                 DuplicatesListBox.Items.Clear();
-                _cachedDuplicateGroups = null;
 
                 if (duplicateGroups.Any())
                 {
