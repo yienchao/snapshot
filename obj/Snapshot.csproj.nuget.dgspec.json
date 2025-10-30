@@ -1,30 +1,30 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {}
+    "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {}
   },
   "projects": {
-    "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {
+    "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
+        "projectUniqueName": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
         "projectName": "Snapshot",
-        "projectPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
+        "projectPath": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\Snapshot.csproj",
         "packagesPath": "C:\\Users\\yichao\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
+        "outputPath": "c:\\Users\\yichao\\Documents\\VsCode\\ViewTracker\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\yichao\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "net48"
+          "net8.0-windows"
         ],
         "sources": {
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net48": {
-            "targetAlias": "net48",
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
             "projectReferences": {}
           }
         },
@@ -43,12 +43,12 @@
         }
       },
       "frameworks": {
-        "net48": {
-          "targetAlias": "net48",
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
           "dependencies": {
             "CommunityToolkit.Mvvm": {
               "target": "Package",
-              "version": "[8.2.2, )"
+              "version": "[8.4.0, )"
             },
             "EPPlus": {
               "target": "Package",
@@ -56,11 +56,11 @@
             },
             "Nice3point.Revit.Api.RevitAPI": {
               "target": "Package",
-              "version": "[2024.0.0, )"
+              "version": "[2025.0.0, )"
             },
             "Nice3point.Revit.Api.RevitAPIUI": {
               "target": "Package",
-              "version": "[2024.0.0, )"
+              "version": "[2025.0.0, )"
             },
             "Nice3point.Revit.Build.Tasks": {
               "target": "Package",
@@ -68,18 +68,37 @@
             },
             "Nice3point.Revit.Extensions": {
               "target": "Package",
-              "version": "[2024.0.0, )"
+              "version": "[2025.0.0, )"
             },
             "Nice3point.Revit.Toolkit": {
               "target": "Package",
-              "version": "[2024.0.0, )"
+              "version": "[2025.0.0, )"
             },
             "Supabase": {
               "target": "Package",
-              "version": "[0.15.2, )"
+              "version": "[1.0.5, )"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.415\\RuntimeIdentifierGraph.json"
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            },
+            "Microsoft.WindowsDesktop.App.WPF": {
+              "privateAssets": "none"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.415/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

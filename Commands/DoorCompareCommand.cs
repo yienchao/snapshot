@@ -484,6 +484,21 @@ namespace ViewTracker.Commands
                     var currDisplay = currentParamsDisplay.ContainsKey(currentParam.Key)
                         ? currentParamsDisplay[currentParam.Key]
                         : currentParam.Value?.ToString() ?? "";
+
+                    // Skip empty/zero parameters - they're not really "new", they just weren't captured in snapshot
+                    if (string.IsNullOrWhiteSpace(currDisplay))
+                        continue;
+
+                    // Check for numeric zeros using RawValue (not DisplayValue which may have units like "0 mm")
+                    if (currentParam.Value is Models.ParameterValue paramVal)
+                    {
+                        if (paramVal.StorageType == "Double" || paramVal.StorageType == "Integer")
+                        {
+                            if (paramVal.RawValue != null && Math.Abs(Convert.ToDouble(paramVal.RawValue)) < 0.0001)
+                                continue;
+                        }
+                    }
+
                     string changeText = $"{currentParam.Key}: (new) → '{currDisplay}'";
                     changes.Add(changeText);
 

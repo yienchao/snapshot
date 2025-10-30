@@ -449,7 +449,7 @@ namespace ViewTracker.Views
             }
         }
 
-        private async void FixDuplicatesButton_Click(object sender, RoutedEventArgs e)
+        private void FixDuplicatesButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -457,56 +457,62 @@ namespace ViewTracker.Views
                 FixDuplicatesButton.IsEnabled = false;
                 CheckDuplicatesButton.IsEnabled = false;
 
-                ValidateResultsText.Text = "Analyzing duplicates with smart matching...";
+                ValidateResultsText.Text = "Fixing duplicate trackIDs...";
 
-                // Get all rooms for smart duplicate detection
-                var allRooms = new FilteredElementCollector(_doc)
+                // Collect ALL elements with trackID (rooms, doors, elements)
+                var allElements = new List<Element>();
+
+                var rooms = new FilteredElementCollector(_doc)
                     .OfCategory(BuiltInCategory.OST_Rooms)
                     .WhereElementIsNotElementType()
                     .Cast<Room>()
-                    .ToList();
-
-                var roomsWithTrackId = allRooms
                     .Where(r => r.LookupParameter("trackID") != null &&
-                                !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()))
+                                !string.IsNullOrWhiteSpace(r.LookupParameter("trackID").AsString()));
+                allElements.AddRange(rooms);
+
+                var doors = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Doors)
+                    .WhereElementIsNotElementType()
+                    .Cast<FamilyInstance>()
+                    .Where(d => d.LookupParameter("trackID") != null &&
+                                !string.IsNullOrWhiteSpace(d.LookupParameter("trackID").AsString()));
+                allElements.AddRange(doors);
+
+                var elements = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(FamilyInstance))
+                    .Cast<FamilyInstance>()
+                    .Where(fi => fi.Category != null &&
+                                 fi.Category.Id.Value != (int)BuiltInCategory.OST_Doors &&
+                                 fi.LookupParameter("trackID") != null &&
+                                 !string.IsNullOrWhiteSpace(fi.LookupParameter("trackID").AsString()));
+                allElements.AddRange(elements);
+
+                // Find duplicate groups
+                var duplicateGroups = allElements
+                    .GroupBy(e => e.LookupParameter("trackID").AsString())
+                    .Where(g => g.Count() > 1)
                     .ToList();
 
-                // Use smart duplicate detection
-                var supabaseService = new SupabaseService();
-                var duplicateFixer = new Services.DuplicateTrackIdFixer(supabaseService, _projectId);
-
-                // Detect duplicates with smart matching (async operation)
-                List<Services.DuplicateTrackIdGroup> duplicateGroups = null;
-                await System.Threading.Tasks.Task.Run(async () =>
-                {
-                    duplicateGroups = await duplicateFixer.DetectDuplicatesAsync(roomsWithTrackId);
-                });
-
-                if (duplicateGroups == null || !duplicateGroups.Any())
+                if (!duplicateGroups.Any())
                 {
                     ValidateResultsText.Text = "✓ No duplicate track IDs found!";
                     ValidateResultsText.Foreground = System.Windows.Media.Brushes.Green;
                     CheckDuplicatesButton.IsEnabled = true;
+                    FixDuplicatesButton.IsEnabled = true;
                     return;
                 }
 
-                // Generate new trackIDs for duplicates
-                foreach (var group in duplicateGroups)
-                {
-                    foreach (var room in group.Rooms.Where(r => !r.IsOriginal))
-                    {
-                        room.NewTrackId = duplicateFixer.GenerateNewTrackId(allRooms);
-                    }
-                }
+                // Confirm with user
+                var result = MessageBox.Show(
+                    $"Found {duplicateGroups.Count} duplicate trackID groups.\n\n" +
+                    $"This will assign new unique trackIDs to {duplicateGroups.Sum(g => g.Count() - 1)} elements.\n\n" +
+                    $"The first element in each group will keep its original trackID.\n\n" +
+                    $"Continue?",
+                    "Fix Duplicates",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
 
-                // Cache the groups for potential reuse
-                _cachedDuplicateGroups = duplicateGroups;
-
-                // Show preview window
-                var duplicateWindow = new DuplicateTrackIdWindow(duplicateGroups);
-                var dialogResult = duplicateWindow.ShowDialog();
-
-                if (dialogResult != true)
+                if (result != MessageBoxResult.Yes)
                 {
                     ValidateResultsText.Text = "⚠️ Fix cancelled by user";
                     ValidateResultsText.Foreground = System.Windows.Media.Brushes.Orange;
@@ -514,6 +520,11 @@ namespace ViewTracker.Views
                     FixDuplicatesButton.IsEnabled = true;
                     return;
                 }
+
+                // Get all existing trackIDs to avoid collisions
+                var existingTrackIds = new HashSet<string>(
+                    allElements.Select(e => e.LookupParameter("trackID").AsString()),
+                    StringComparer.OrdinalIgnoreCase);
 
                 // Apply the fix in transaction
                 using (var trans = new Transaction(_doc, "Fix Duplicate TrackIDs"))
@@ -523,12 +534,32 @@ namespace ViewTracker.Views
                     int fixedCount = 0;
                     foreach (var group in duplicateGroups)
                     {
-                        foreach (var room in group.Rooms.Where(r => !r.IsOriginal))
+                        // Skip the first element (keep original trackID)
+                        foreach (var element in group.Skip(1))
                         {
-                            var trackIdParam = room.Room.LookupParameter("trackID");
+                            var trackIdParam = element.LookupParameter("trackID");
                             if (trackIdParam != null && !trackIdParam.IsReadOnly)
                             {
-                                trackIdParam.Set(room.NewTrackId);
+                                // Generate new unique trackID based on element type
+                                string prefix = "";
+                                if (element is Room)
+                                    prefix = "ROOM";
+                                else if (element.Category.Id.Value == (int)BuiltInCategory.OST_Doors)
+                                    prefix = "DOOR";
+                                else
+                                    prefix = "ELEM";
+
+                                // Find next available number
+                                int counter = 1;
+                                string newTrackId;
+                                do
+                                {
+                                    newTrackId = $"{prefix}-{counter:D4}";
+                                    counter++;
+                                } while (existingTrackIds.Contains(newTrackId));
+
+                                trackIdParam.Set(newTrackId);
+                                existingTrackIds.Add(newTrackId);
                                 fixedCount++;
                             }
                         }
@@ -559,6 +590,7 @@ namespace ViewTracker.Views
             finally
             {
                 CheckDuplicatesButton.IsEnabled = true;
+                FixDuplicatesButton.IsEnabled = true;
             }
         }
 

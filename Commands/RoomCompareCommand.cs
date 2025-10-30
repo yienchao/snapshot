@@ -537,15 +537,23 @@ namespace ViewTracker.Commands
                                 // Use UnitFormatUtils to format the snapshot value with current document units
                                 try
                                 {
+                                    var units = doc.GetUnits();
+                                    var dataType = param.Definition.GetDataType();
+
+                                    // Use FormatValueOptions to ensure units are shown
+                                    var formatOptions = new FormatValueOptions();
+                                    formatOptions.AppendUnitSymbol = true;
+
                                     paramValue.DisplayValue = UnitFormatUtils.Format(
-                                        doc.GetUnits(),
-                                        param.Definition.GetDataType(),
+                                        units,
+                                        dataType,
                                         doubleVal,
-                                        false);
+                                        false,
+                                        formatOptions);
                                 }
                                 catch
                                 {
-                                    paramValue.DisplayValue = doubleVal.ToString();
+                                    paramValue.DisplayValue = doubleVal.ToString("F2");
                                 }
                                 break;
                             case StorageType.Integer:
@@ -673,13 +681,18 @@ namespace ViewTracker.Commands
                         : currentParam.Value?.ToString() ?? "";
 
                     // BUGFIX: Skip empty/zero parameters - they're not really "new", they just weren't captured in snapshot
-                    // Handle both English and French decimal separators
                     if (string.IsNullOrWhiteSpace(currDisplay))
                         continue;
 
-                    // Check for numeric zeros (handles "0", "0.0", "0.00", "0,0", "0,00")
-                    if (double.TryParse(currDisplay.Replace(',', '.'), out double numValue) && Math.Abs(numValue) < 0.0001)
-                        continue;
+                    // Check for numeric zeros using RawValue (not DisplayValue which may have units like "0 mm")
+                    if (currentParam.Value is Models.ParameterValue paramVal)
+                    {
+                        if (paramVal.StorageType == "Double" || paramVal.StorageType == "Integer")
+                        {
+                            if (paramVal.RawValue != null && Math.Abs(Convert.ToDouble(paramVal.RawValue)) < 0.0001)
+                                continue;
+                        }
+                    }
 
                     string changeText = $"{currentParam.Key}: (new) → '{currDisplay}'";
                     changes.Add(changeText);

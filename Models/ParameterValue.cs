@@ -80,7 +80,29 @@ namespace ViewTracker.Models
                 case Autodesk.Revit.DB.StorageType.Double:
                     var doubleVal = param.AsDouble();
                     paramValue.RawValue = doubleVal;
-                    paramValue.DisplayValue = param.AsValueString() ?? doubleVal.ToString();
+                    // Format with minimum 2 decimal places to show differences clearly
+                    try
+                    {
+                        var doc = param.Element.Document;
+                        var units = doc.GetUnits();
+                        var dataType = param.Definition.GetDataType();
+
+                        // Use FormatValueOptions to ensure units are shown
+                        var formatOptions = new Autodesk.Revit.DB.FormatValueOptions();
+                        formatOptions.AppendUnitSymbol = true;
+
+                        paramValue.DisplayValue = Autodesk.Revit.DB.UnitFormatUtils.Format(
+                            units,
+                            dataType,
+                            doubleVal,
+                            false,
+                            formatOptions);
+                    }
+                    catch
+                    {
+                        // Fallback if formatting fails
+                        paramValue.DisplayValue = param.AsValueString() ?? doubleVal.ToString("F2");
+                    }
                     break;
 
                 case Autodesk.Revit.DB.StorageType.ElementId:
